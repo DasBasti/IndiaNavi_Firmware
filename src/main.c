@@ -3,7 +3,6 @@
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include <Platinenmacher.h>
-#include <minmea.h>
 
 #include <esp_log.h>
 #include <driver/gpio.h>
