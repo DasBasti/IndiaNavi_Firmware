@@ -104,6 +104,10 @@ static void create_top_bar(display_t *dsp)
 												  battery_label->box.left + battery_label->box.width + margin_horizontal,
 												  margin_top, "", &f8x8);
 
+	wifi_indicator_label = create_icon_with_text(dsp, WIFI_0,
+												 north_indicator_label->box.left + north_indicator_label->box.width + margin_horizontal,
+												 margin_top, "", &f8x8);
+
 	gps_indicator_label = create_icon_with_text(dsp, noGPS,
 												dsp->size.width - ICON_SIZE - margin_right, margin_top, "", &f8x8);
 	sd_indicator_label = create_icon_with_text(dsp, noSD,

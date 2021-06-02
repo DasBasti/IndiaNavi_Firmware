@@ -16,6 +16,14 @@ extern SemaphoreHandle_t gui_semaphore;
 extern SemaphoreHandle_t sd_semaphore;
 
 extern QueueHandle_t mapLoadQueueHandle;
+extern QueueHandle_t fileLoadQueueHandle;
+
+typedef struct
+{
+    char *filename;
+    char *dest;
+    uint8_t loaded;
+} async_file_t;
 
 #define save_sprintf(dest, format, ...)                 \
     do                                                  \
@@ -26,5 +34,6 @@ extern QueueHandle_t mapLoadQueueHandle;
     } while (0);
 
 error_code_t loadTile(map_tile_t *tile);
+error_code_t loadFile(async_file_t *file);
 
 #endif /* INC_TASKS_H_ */

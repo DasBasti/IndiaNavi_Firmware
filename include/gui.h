@@ -37,6 +37,7 @@ label_t *positon_marker;
 label_t *clock_label;
 label_t *battery_label;
 label_t *north_indicator_label;
+label_t *wifi_indicator_label;
 label_t *gps_indicator_label;
 label_t *sd_indicator_label;
 label_t *infoBox;
