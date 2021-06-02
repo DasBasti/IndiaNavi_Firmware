@@ -75,6 +75,16 @@ error_code_t loadTile(map_tile_t *tile)
 	return PM_FAIL;
 }
 
+/*
+ * Queue arbitrary file reads.
+ */
+error_code_t loadFile(async_file_t *file)
+{
+	if (xQueueSend(fileLoadQueueHandle, &file, 0) == pdTRUE)
+		return PM_OK;
+	return PM_FAIL;
+}
+
 void StartSDTask(void const *argument)
 {
 	xSemaphoreTake(sd_semaphore, portMAX_DELAY); // block SD mutex
@@ -149,7 +159,7 @@ void StartSDTask(void const *argument)
 									 &br); // Tilesize 256*256/2 bytes
 						if (FR_OK == res)
 						{
-							tile->image->loaded = 1;
+							tile->image->loaded = true;
 						}
 						f_close(&t_img);
 					}
@@ -161,6 +171,33 @@ void StartSDTask(void const *argument)
 					}
 					cnt++;
 				}
+				async_file_t *file;
+				while (pdTRUE == xQueueReceive(fileLoadQueueHandle, &file, 0))
+				{
+					FIL t_file;
+					uint32_t br;
+					ESP_LOGI(TAG, "Load %s ", file->filename);
+
+					res = f_open(&t_file, file->filename, FA_READ);
+					if (FR_OK == res && file->dest != 0)
+					{
+						res = f_read(&t_file,
+									 file->dest, 32768,
+									 &br);
+						if (FR_OK == res)
+						{
+							file->loaded = true;
+						}
+						f_close(&t_file);
+					}
+					else
+					{
+						save_sprintf(tile->label->text,
+									 "%d/%d not found.", tile->x,
+									 tile->y);
+					}
+				}
+
 				if (cnt)
 				{ // we loaded at least one tile. so rerender the GUI
 					trigger_rendering();
