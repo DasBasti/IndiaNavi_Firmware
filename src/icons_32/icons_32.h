@@ -24,6 +24,10 @@ extern const uint8_t path[];
 extern const uint8_t SD[];
 extern const uint8_t noSD[];
 extern const uint8_t norden[];
+extern const uint8_t WIFI_0[];
+extern const uint8_t WIFI_1[];
+extern const uint8_t WIFI_2[];
+extern const uint8_t WIFI_3[];
 
 #define ICON_SIZE 32
 
