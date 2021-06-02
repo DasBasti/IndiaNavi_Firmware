@@ -23,6 +23,7 @@ void StartGpsTask(void *argument);
 void StartGuiTask(void *argument);
 void StartPowerTask(void *argument);
 void StartSDTask(void *argument);
+void StartWiFiTask(void *argument);
 
 //Create semphore
 SemaphoreHandle_t print_semaphore = NULL;
@@ -31,6 +32,7 @@ SemaphoreHandle_t sd_semaphore = NULL;
 
 // File loading queue
 QueueHandle_t mapLoadQueueHandle = NULL;
+QueueHandle_t fileLoadQueueHandle = NULL;
 
 void app_main()
 {
@@ -39,12 +41,14 @@ void app_main()
     gui_semaphore = xSemaphoreCreateMutex();
     sd_semaphore = xSemaphoreCreateMutex();
     mapLoadQueueHandle = xQueueCreate(6, sizeof(map_tile_t *));
+    fileLoadQueueHandle = xQueueCreate(6, sizeof(async_file_t *));
     ESP_LOGI(TAG, "start");
     command_init();
     xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, NULL);
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, 5, NULL);
-    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 5, NULL);
-    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 6, NULL);
+    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, NULL);
+    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 7, NULL);
+    xTaskCreate(&StartWiFiTask, "wifi", taskGenericStackSize, NULL, 8, NULL);
 }
 
 /**
@@ -115,6 +119,19 @@ __weak void StartPowerTask(void *argument)
  * @retval None
  */
 __weak void StartSDTask(void *argument)
+{
+    for (;;)
+    {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+/**
+ * @brief Function implementing the WiFiTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+__weak void StartWiFiTask(void *argument)
 {
     for (;;)
     {
