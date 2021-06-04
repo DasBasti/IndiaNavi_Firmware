@@ -18,6 +18,13 @@ extern SemaphoreHandle_t sd_semaphore;
 extern QueueHandle_t mapLoadQueueHandle;
 extern QueueHandle_t fileLoadQueueHandle;
 
+TaskHandle_t housekeepingTask_h;
+TaskHandle_t gpsTask_h;
+TaskHandle_t guiTask_h;
+TaskHandle_t powerTask_h;
+TaskHandle_t sdTask_h;
+TaskHandle_t wifiTask_h;
+
 typedef struct
 {
     char *filename;

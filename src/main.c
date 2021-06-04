@@ -44,11 +44,11 @@ void app_main()
     fileLoadQueueHandle = xQueueCreate(6, sizeof(async_file_t *));
     ESP_LOGI(TAG, "start");
     command_init();
-    xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, NULL);
-    xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, 5, NULL);
-    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, NULL);
-    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 7, NULL);
-    xTaskCreate(&StartWiFiTask, "wifi", taskGenericStackSize, NULL, 8, NULL);
+    xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, &housekeepingTask_h);
+    xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, 5, &gpsTask_h);
+    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
+    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 7, &sdTask_h);
+    xTaskCreate(&StartWiFiTask, "wifi", taskGenericStackSize, NULL, 8, &wifiTask_h);
 }
 
 /**
