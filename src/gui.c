@@ -148,11 +148,11 @@ void wait_until_gui_ready()
 	for (uint8_t i = 0; i < 6; i++)
 	{
 		while (!map_tiles[i].image)
-			sched_yield();
+			vTaskDelay(0);
 	}
 	while (!positon_marker)
 	{
-		sched_yield();
+		vTaskDelay(0);
 	}
 }
 
