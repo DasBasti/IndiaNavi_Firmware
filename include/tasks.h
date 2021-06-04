@@ -42,5 +42,6 @@ typedef struct
 
 error_code_t loadTile(map_tile_t *tile);
 error_code_t loadFile(async_file_t *file);
+void gps_stop_parser();
 
 #endif /* INC_TASKS_H_ */

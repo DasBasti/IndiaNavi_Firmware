@@ -36,6 +36,7 @@ char timeString[20];
 const uint8_t tile_zoom = 16;
 uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
 float xf, yf;
+nmea_parser_handle_t nmea_hdl;
 /**
  * @brief GPS Event Handler
  *
@@ -44,7 +45,8 @@ float xf, yf;
  * @param event_id event id
  * @param event_data event specific arguments
  */
-static void gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+static void
+gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
 	const gps_t *_gps;
 	switch (event_id)
@@ -158,6 +160,13 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 	return ABORT;
 }
 
+void gps_stop_parser()
+{
+	ESP_LOGI(TAG, "stop parser");
+	nmea_parser_remove_handler(nmea_hdl, gps_event_handler);
+	nmea_parser_deinit(nmea_hdl);
+}
+
 void StartGpsTask(void const *argument)
 {
 	uint8_t minute = 0;
@@ -204,7 +213,7 @@ void StartGpsTask(void const *argument)
 			.stop_bits = UART_STOP_BITS_1,
 			.event_queue_size = 16}};
 	/* init NMEA parser library */
-	nmea_parser_handle_t nmea_hdl = nmea_parser_init(&config);
+	nmea_hdl = nmea_parser_init(&config);
 	/* register event handler for NMEA parser library */
 	nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
 
