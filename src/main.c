@@ -41,6 +41,8 @@ SemaphoreHandle_t sd_semaphore = NULL;
 QueueHandle_t mapLoadQueueHandle = NULL;
 QueueHandle_t fileLoadQueueHandle = NULL;
 
+uint32_t ledDelay = 1000;
+
 static void print_sha256(const uint8_t *image_hash, const char *label)
 {
     char hash_print[HASH_LEN * 2 + 1];
@@ -118,7 +120,7 @@ void StartHousekeepingTask(void *argument)
             ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
             cnt = 0;
         }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(ledDelay / portTICK_PERIOD_MS);
     }
 }
 

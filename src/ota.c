@@ -94,6 +94,10 @@ void StartOTATask(void *pvParameter)
     }
 
     ESP_LOGI(TAG, "Download from: %s", config.url);
+    extern uint32_t ledDelay;
+
+    ledDelay = 200;
+
     esp_err_t ret = esp_https_ota(&config);
     if (ret == ESP_OK)
     {
