@@ -13,9 +13,12 @@
 #include <esp_heap_caps.h>
 #include <esp_log.h>
 
+#include <string.h>
+
 inline void *RTOS_Malloc(size_t size)
 {
     void *mem = malloc(size);
+    memset(mem, 0, size);
     return mem;
 }
 #define RTOS_Free(size) free(size)
