@@ -126,8 +126,8 @@ void StartWiFiTask(void const *argument)
 
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+        esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
         ESP_ERROR_CHECK(esp_wifi_start());
-        esp_wifi_set_ps(WIFI_PS_NONE);
 
         ESP_LOGI(TAG, "wifi_init_sta finished.");
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
@@ -189,7 +189,8 @@ void StartWiFiTask(void const *argument)
             {
                 vTaskSuspend(gpsTask_h);
                 vTaskSuspend(guiTask_h);
-                //vTaskSuspend(sdTask_h);
+                //disable power saving mode
+                esp_wifi_set_ps(WIFI_PS_NONE);
                 gps_stop_parser();
                 xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
                 vTaskSuspend(NULL);
