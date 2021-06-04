@@ -25,8 +25,8 @@
 static const char *TAG = "OTA";
 extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_ca_cert_pem_end");
-
 #define OTA_URL_SIZE 256
+char ota_update_url[OTA_URL_SIZE] = {0};
 #define FIRMWARE_UPGRADE_URL "http://laptop.local:8070/firmware.bin"
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
@@ -69,6 +69,31 @@ void StartOTATask(void *pvParameter)
         .skip_cert_common_name_check = true,
     };
 
+    async_file_t AFILE;
+    async_file_t *ota = &AFILE;
+    ota->filename = "//OTA";
+    ota->dest = ota_update_url;
+    ota->loaded = false;
+    loadFile(ota);
+    uint8_t timeout = 0;
+    while (!ota->loaded)
+    {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        if (timeout++ > 100)
+        {
+            ESP_LOGI(TAG, "timeout loading OTA url");
+            break;
+        }
+    }
+
+    if (ota_update_url[0] != 0)
+    {
+        char *url = RTOS_Malloc(sizeof(ota_update_url));
+        readline(ota_update_url, url);
+        config.url = url;
+    }
+
+    ESP_LOGI(TAG, "Download from: %s", config.url);
     esp_err_t ret = esp_https_ota(&config);
     if (ret == ESP_OK)
     {
