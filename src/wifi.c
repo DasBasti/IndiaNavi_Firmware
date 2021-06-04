@@ -186,20 +186,43 @@ void StartWiFiTask(void const *argument)
         vEventGroupDelete(s_wifi_event_group);
 
         gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
-
+        image_t *icon = wifi_indicator_label->child;
+        uint8_t last_rssi_state = 0;
         while (esp_wifi_sta_get_ap_info(&sta_record) == ESP_OK)
         {
+            if (sta_record.rssi >= -70 && last_rssi_state != 3)
+            {
+                icon->data = WIFI_3;
+                last_rssi_state = 3;
+                trigger_rendering();
+            }
+            else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2)
+            {
+                icon->data = WIFI_2;
+                last_rssi_state = 2;
+                trigger_rendering();
+            }
+            else if (sta_record.rssi < -80 && last_rssi_state != 1)
+            {
+                icon->data = WIFI_1;
+                last_rssi_state = 1;
+                trigger_rendering();
+            }
+            /* poll for OTA Button */
             if (!gpio_read(OTA_button))
             {
                 vTaskSuspend(gpsTask_h);
                 vTaskSuspend(guiTask_h);
-                vTaskSuspend(sdTask_h);
+                //vTaskSuspend(sdTask_h);
                 gps_stop_parser();
                 xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
+                vTaskSuspend(NULL);
             }
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
+        icon->data = WIFI_0;
+        trigger_rendering();
         ESP_LOGI(TAG, "Reconnect....");
     }
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    vTaskDelay(60000 / portTICK_PERIOD_MS);
 }
