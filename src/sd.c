@@ -76,6 +76,24 @@ error_code_t loadTile(map_tile_t *tile)
 }
 
 /*
+ * Read one line from string
+ */
+char *readline(char *c, char *d)
+{
+	while (c)
+	{
+		if (*c == '\n')
+			break;
+		if (*c == '\r')
+			continue;
+		*d = *c;
+		c++;
+		d++;
+	}
+	return ++c;
+}
+
+/*
  * Queue arbitrary file reads.
  */
 error_code_t loadFile(async_file_t *file)

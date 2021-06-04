@@ -37,31 +37,6 @@ static EventGroupHandle_t s_wifi_event_group;
 wifi_ap_record_t sta_record;
 void StartOTATask(void *pvParameter);
 
-void readCreds(char *c, uint8_t *ssid, uint8_t *psk)
-{
-    while (c)
-    {
-        if (*c == '\n')
-            break;
-        if (*c == '\r')
-            continue;
-        *ssid = *c;
-        c++;
-        ssid++;
-    }
-    c++;
-    while (c)
-    {
-        if (*c == '\n')
-            break;
-        if (*c == '\r')
-            continue;
-        *psk = *c;
-        c++;
-        psk++;
-    }
-}
-
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
 {
@@ -129,7 +104,8 @@ void StartWiFiTask(void const *argument)
     //wifi_config.sta.pmf_cfg.capable = true;
     //wifi_config.sta.pmf_cfg.required = false;
 
-    readCreds(wifi_file, wifi_config.sta.ssid, wifi_config.sta.password);
+    char *next = readline(wifi_file, (char *)wifi_config.sta.ssid);
+    readline(next, (char *)wifi_config.sta.password);
     for (;;)
     {
         wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
