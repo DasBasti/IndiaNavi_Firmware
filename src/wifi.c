@@ -14,7 +14,7 @@
 #include <esp_log.h>
 #include <esp_wifi.h>
 #include <esp_event.h>
-#include <nvs_flash.h>
+#include <mdns.h>
 
 #include "gui.h"
 #include "tasks.h"
@@ -23,7 +23,6 @@ char wifi_file[32 + 1 + 64];
 wifi_config_t wifi_config;
 static int s_retry_num = 0;
 static int s_max_retry_num = 1;
-
 static const char *TAG = "WIFI";
 async_file_t AFILE;
 
@@ -34,6 +33,9 @@ static EventGroupHandle_t s_wifi_event_group;
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
+
+wifi_ap_record_t sta_record;
+void StartOTATask(void *pvParameter);
 
 void readCreds(char *c, uint8_t *ssid, uint8_t *psk)
 {
@@ -90,18 +92,25 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+void start_mdns_service()
+{
+    //initialize mDNS service
+    esp_err_t err = mdns_init();
+    if (err)
+    {
+        printf("MDNS Init failed: %d\n", err);
+        return;
+    }
+
+    //set hostname
+    mdns_hostname_set("indianavi");
+    //set default instance
+    mdns_instance_name_set("India Navi");
+}
+
 void StartWiFiTask(void const *argument)
 {
     ESP_LOGI(TAG, "Start");
-
-    //Initialize NVS
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
-    {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
 
     async_file_t *creds = &AFILE;
     creds->filename = "//WIFI";
@@ -114,10 +123,6 @@ void StartWiFiTask(void const *argument)
     }
 
     s_wifi_event_group = xEventGroupCreate();
-
-    ESP_ERROR_CHECK(esp_netif_init());
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
 
     //wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
@@ -146,6 +151,7 @@ void StartWiFiTask(void const *argument)
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
         ESP_ERROR_CHECK(esp_wifi_start());
+        esp_wifi_set_ps(WIFI_PS_NONE);
 
         ESP_LOGI(TAG, "wifi_init_sta finished.");
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
@@ -162,6 +168,7 @@ void StartWiFiTask(void const *argument)
         {
             ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
                      wifi_config.sta.ssid, wifi_config.sta.password);
+            start_mdns_service();
         }
         else if (bits & WIFI_FAIL_BIT)
         {
@@ -178,10 +185,15 @@ void StartWiFiTask(void const *argument)
         ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
         vEventGroupDelete(s_wifi_event_group);
 
-        for (;;)
+        gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
+
+        while (esp_wifi_sta_get_ap_info(&sta_record) == ESP_OK)
         {
+            if (!gpio_read(OTA_button))
+                xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
+        ESP_LOGI(TAG, "Reconnect....");
     }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
 }
