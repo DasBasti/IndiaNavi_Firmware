@@ -190,7 +190,13 @@ void StartWiFiTask(void const *argument)
         while (esp_wifi_sta_get_ap_info(&sta_record) == ESP_OK)
         {
             if (!gpio_read(OTA_button))
+            {
+                vTaskSuspend(gpsTask_h);
+                vTaskSuspend(guiTask_h);
+                vTaskSuspend(sdTask_h);
+                gps_stop_parser();
                 xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
+            }
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
         ESP_LOGI(TAG, "Reconnect....");

@@ -60,7 +60,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 
 void StartOTATask(void *pvParameter)
 {
-    ESP_LOGI(TAG, "Starting OTA example");
+    ESP_LOGI(TAG, "Starting OTA...");
 
     esp_http_client_config_t config = {
         .url = FIRMWARE_UPGRADE_URL,
@@ -68,10 +68,6 @@ void StartOTATask(void *pvParameter)
         .event_handler = _http_event_handler,
         .skip_cert_common_name_check = true,
     };
-
-    vTaskSuspend(gpsTask_h);
-    clock_label->text = "OTA";
-    trigger_rendering();
 
     esp_err_t ret = esp_https_ota(&config);
     if (ret == ESP_OK)
