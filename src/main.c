@@ -24,6 +24,7 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 #define taskGPSStackSize 1024 * 3
 #define taskGUIStackSize 1024 * 2
 #define taskSDStackSize 1024 * 8
+#define taskWifiStackSize 1024 * 2
 
 void StartHousekeepingTask(void *argument);
 void StartGpsTask(void *argument);
@@ -97,8 +98,8 @@ void app_main()
     xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, &housekeepingTask_h);
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, 5, &gpsTask_h);
     xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
-    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 7, &sdTask_h);
-    xTaskCreate(&StartWiFiTask, "wifi", taskGenericStackSize, NULL, 8, &wifiTask_h);
+    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 1, &sdTask_h);
+    xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
 }
 
 /**
