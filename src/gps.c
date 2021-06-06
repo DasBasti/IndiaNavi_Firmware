@@ -163,8 +163,11 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 void gps_stop_parser()
 {
 	ESP_LOGI(TAG, "stop parser");
-	nmea_parser_remove_handler(nmea_hdl, gps_event_handler);
-	nmea_parser_deinit(nmea_hdl);
+	if (nmea_hdl)
+	{
+		nmea_parser_remove_handler(nmea_hdl, gps_event_handler);
+		nmea_parser_deinit(nmea_hdl);
+	}
 }
 
 void StartGpsTask(void const *argument)
