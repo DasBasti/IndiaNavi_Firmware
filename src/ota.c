@@ -23,9 +23,7 @@
 #include "gui.h"
 
 static const char *TAG = "OTA";
-extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
-extern const uint8_t server_cert_pem_end[] asm("_binary_ca_cert_pem_end");
-#define OTA_URL_SIZE 256
+#define OTA_URL_SIZE 1024
 char ota_update_url[OTA_URL_SIZE] = {0};
 #define FIRMWARE_UPGRADE_URL "http://laptop.local:8070/firmware.bin"
 
@@ -62,11 +60,15 @@ void StartOTATask(void *pvParameter)
 {
     ESP_LOGI(TAG, "Starting OTA...");
 
+    extern const char server_cert_pem_start[] asm("_binary_AmazonRootCA1_4_pem_start");
+    //extern const uint8_t server_cert_pem_end[] asm("_binary_AmazonRootCA1_4_pem_end");
+    //ESP_ERROR_CHECK(esp_tls_init_global_ca_store());
+    //ESP_ERROR_CHECK(esp_tls_set_global_ca_store(server_cert_pem_start, server_cert_pem_end - server_cert_pem_start));
     esp_http_client_config_t config = {
         .url = FIRMWARE_UPGRADE_URL,
-        .cert_pem = (char *)server_cert_pem_start,
         .event_handler = _http_event_handler,
-        .skip_cert_common_name_check = true,
+        .cert_pem = server_cert_pem_start,
+        .keep_alive_enable = true,
     };
 
     async_file_t AFILE;
@@ -85,20 +87,24 @@ void StartOTATask(void *pvParameter)
             break;
         }
     }
-
+    // Blink Housekeeping LED frequency
+    extern uint32_t ledDelay;
+    ledDelay = 200;
+    esp_err_t ret = ESP_FAIL;
     if (ota_update_url[0] != 0)
     {
         char *url = RTOS_Malloc(sizeof(ota_update_url));
         readline(ota_update_url, url);
         config.url = url;
+        ESP_LOGI(TAG, "Download from: %s", config.url);
+        ret = esp_https_ota(&config);
+        if (ret != ESP_OK)
+        {
+            config.url = FIRMWARE_UPGRADE_URL;
+            ESP_LOGI(TAG, "Download from internal url: %s", config.url);
+            ret = esp_https_ota(&config);
+        }
     }
-
-    ESP_LOGI(TAG, "Download from: %s", config.url);
-    extern uint32_t ledDelay;
-
-    ledDelay = 200;
-
-    esp_err_t ret = esp_https_ota(&config);
     if (ret == ESP_OK)
     {
         esp_restart();
@@ -106,6 +112,13 @@ void StartOTATask(void *pvParameter)
     else
     {
         ESP_LOGE(TAG, "Firmware upgrade failed");
+        /*
+         * TODO:
+         * 
+         * Restart GUI Task
+         * Update info bar
+         * redraw
+         */
     }
     while (1)
     {
