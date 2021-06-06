@@ -167,7 +167,7 @@ void StartSDTask(void const *argument)
 								 tile->z,
 								 tile->x,
 								 tile->y);
-					ESP_LOGI(TAG, "Load %s ", fn);
+					ESP_LOGI(TAG, "Load %s  to %d", fn, (uint)tile->image->data);
 
 					res = f_open(&t_img, fn, FA_READ);
 					if (FR_OK == res && tile->image->data != 0)
