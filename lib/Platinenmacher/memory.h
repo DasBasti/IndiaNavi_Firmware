@@ -21,7 +21,11 @@ inline void *RTOS_Malloc(size_t size)
     memset(mem, 0, size);
     return mem;
 }
-#define RTOS_Free(size) free(size)
+inline void RTOS_Free(void *pointer)
+{
+    ESP_LOGI("MALLOC", "free: %d", xPortGetFreeHeapSize());
+    free(pointer);
+}
 
 #define bit_set(data, pos) (data |= (1U << pos))
 #define bit_clear(data, pos) (data &= (~(1U << pos)))
