@@ -170,19 +170,16 @@ void StartWiFiTask(void const *argument)
             {
                 icon->data = WIFI_3;
                 last_rssi_state = 3;
-                trigger_rendering();
             }
             else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2)
             {
                 icon->data = WIFI_2;
                 last_rssi_state = 2;
-                trigger_rendering();
             }
             else if (sta_record.rssi < -80 && last_rssi_state != 1)
             {
                 icon->data = WIFI_1;
                 last_rssi_state = 1;
-                trigger_rendering();
             }
             /* poll for OTA Button */
             if (!gpio_read(OTA_button))
