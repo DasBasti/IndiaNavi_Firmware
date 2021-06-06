@@ -32,11 +32,15 @@ static const char *TAG = "GPS";
 float _longitude, _latitude, _altitude, _hdop;
 bool _fix;
 int _minute, _hour;
+int8_t timezone;
 char timeString[20];
 const uint8_t tile_zoom = 16;
 uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
 float xf, yf;
 nmea_parser_handle_t nmea_hdl;
+async_file_t AFILE;
+char timezone_file[100];
+
 /**
  * @brief GPS Event Handler
  *
@@ -202,6 +206,36 @@ void StartGpsTask(void const *argument)
 	ESP_LOGI(TAG, "wait for GUI init");
 	/* wait for map tiles to be created */
 	wait_until_gui_ready();
+
+	/* delay to avoid race condition. this is bad! */
+	vTaskDelay(10000 / portTICK_PERIOD_MS);
+	ESP_LOGI(TAG, "Load timezone information");
+	async_file_t *tz_file = &AFILE;
+	tz_file->filename = "//TIMEZONE";
+	tz_file->dest = timezone_file;
+	tz_file->loaded = false;
+	loadFile(tz_file);
+	uint8_t delay = 0;
+	ESP_LOGI(TAG, "Load timezone information queued");
+	while (!tz_file->loaded)
+	{
+		vTaskDelay(100 / portTICK_PERIOD_MS);
+		if (delay++ == 20)
+			break;
+	}
+	ESP_LOGI(TAG, "Load timezone information loaded");
+	if (tz_file->loaded)
+	{
+		char tz[4];
+		readline(timezone_file, tz);
+		timezone = atoi(tz);
+		ESP_LOGI(TAG, "Set timezone to: %d", timezone);
+	}
+	else
+	{
+		timezone = TIME_ZONE;
+		ESP_LOGI(TAG, "Use default timezone: %d", timezone);
+	}
 
 	positon_marker->onBeforeRender = render_position_marker;
 
