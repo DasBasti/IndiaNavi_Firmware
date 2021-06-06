@@ -42,7 +42,6 @@ typedef struct
 render_t render_pipeline[255] = {}; // maximum number of rendered items
 static uint8_t render_slot = 0;
 static uint8_t render_needed = 0;
-uint8_t *imageBuf;
 
 /**
  * Add render function to pipeline
@@ -134,7 +133,7 @@ static void app_render()
 	{
 		if (render_pipeline[i].render)
 			render_pipeline[i].render(eink, render_pipeline[i].comp);
-		vPortYield();
+		vTaskDelay(0);
 	}
 
 	uint64_t end = esp_timer_get_time();
@@ -168,6 +167,8 @@ void wait_until_gui_ready()
 error_code_t load_map_tile_on_demand(display_t *dsp, void *image)
 {
 	uint8_t timeout = 0;
+	uint8_t *imageBuf = RTOS_Malloc(256 * 256 / 2);
+	ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
 	if (!imageBuf)
 		return UNAVAILABLE;
 
@@ -175,6 +176,7 @@ error_code_t load_map_tile_on_demand(display_t *dsp, void *image)
 	if (!uxSemaphoreGetCount(sd_semaphore)) // binary semaphore returns 1 on not taken
 		return UNAVAILABLE;
 
+	img->data = imageBuf;
 	loadTile(img->parent); // queue loading
 
 	while (!img->loaded)
@@ -183,6 +185,8 @@ error_code_t load_map_tile_on_demand(display_t *dsp, void *image)
 		timeout++;
 		if (timeout == 100)
 		{
+			ESP_LOGI(TAG, "load timeout!");
+			RTOS_Free(imageBuf);
 			return TIMEOUT;
 		}
 	}
@@ -196,6 +200,7 @@ error_code_t check_if_map_tile_is_loaded(display_t *dsp, void *image)
 	label_t *lbl = img->child;
 	if (img->loaded == 0)
 		label_render(dsp, lbl);
+	RTOS_Free(img->data);
 	return PM_OK;
 }
 
@@ -204,7 +209,7 @@ error_code_t check_if_map_tile_is_loaded(display_t *dsp, void *image)
  */
 void app_screen(display_t *dsp)
 {
-	imageBuf = RTOS_Malloc(256 * 256 / 2);
+	//imageBuf = RTOS_Malloc(256 * 256 / 2);
 	// we first create the map_tiles to render them on the lowest level
 	for (uint8_t i = 0; i < 2; i++)
 		for (uint8_t j = 0; j < 3; j++)
@@ -223,7 +228,7 @@ void app_screen(display_t *dsp)
 			map_tiles[idx].image->onAfterRender = check_if_map_tile_is_loaded;
 			map_tiles[idx].image->child = map_tiles[idx].label;
 			map_tiles[idx].image->loaded = 0;
-			map_tiles[idx].image->data = imageBuf;
+			//map_tiles[idx].image->data = imageBuf;
 			map_tiles[idx].image->parent = &map_tiles[idx];
 			map_tiles[idx].x = i;
 			map_tiles[idx].y = j;
