@@ -173,8 +173,11 @@ error_code_t load_map_tile_on_demand(display_t *dsp, void *image)
 		return UNAVAILABLE;
 
 	image_t *img = (image_t *)image;
-	if (!uxSemaphoreGetCount(sd_semaphore)) // binary semaphore returns 1 on not taken
+	if (!uxSemaphoreGetCount(sd_semaphore))
+	{ // binary semaphore returns 1 on not taken
+		RTOS_Free(imageBuf);
 		return UNAVAILABLE;
+	}
 
 	img->data = imageBuf;
 	loadTile(img->parent); // queue loading
@@ -228,7 +231,6 @@ void app_screen(display_t *dsp)
 			map_tiles[idx].image->onAfterRender = check_if_map_tile_is_loaded;
 			map_tiles[idx].image->child = map_tiles[idx].label;
 			map_tiles[idx].image->loaded = 0;
-			//map_tiles[idx].image->data = imageBuf;
 			map_tiles[idx].image->parent = &map_tiles[idx];
 			map_tiles[idx].x = i;
 			map_tiles[idx].y = j;
