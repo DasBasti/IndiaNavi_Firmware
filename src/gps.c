@@ -279,7 +279,7 @@ void StartGpsTask(void const *argument)
 			xSemaphoreGive(print_semaphore);
 			clock_label->text = timeString;
 			minute = _minute;
-			//trigger_rendering();
+			trigger_rendering();
 		}
 
 		ESP_LOGI(TAG, "%fN %fE %fm: %d", _latitude, _longitude, _altitude, _fix);
