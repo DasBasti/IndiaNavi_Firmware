@@ -259,7 +259,8 @@ void app_screen(display_t *dsp)
 
 	char *infoText = RTOS_Malloc(dsp->size.width / f8x8.width);
 	xSemaphoreTake(print_semaphore, portMAX_DELAY);
-	sprintf(infoText, "loading...");
+
+	sprintf(infoText, GIT_HASH);
 	xSemaphoreGive(print_semaphore);
 	infoBox = label_create(infoText, &f8x8, 0, dsp->size.height - 14,
 						   dsp->size.width - 1, 13);

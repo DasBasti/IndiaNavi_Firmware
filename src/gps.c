@@ -140,10 +140,13 @@ error_code_t updateInfoText(display_t *dsp, void *comp)
 	/*sprintf(infoBox->text, "%d/%d/%d Sat:%d", tile_zoom, x, y,
 	 gga_frame.satellites_tracked);
 	 */
-	xSemaphoreTake(print_semaphore, portMAX_DELAY);
-	sprintf(infoBox->text, "GPS: %fN %fE %.02fm",
-			_latitude, _longitude, _altitude);
-	xSemaphoreGive(print_semaphore);
+	if (_fix)
+	{
+		xSemaphoreTake(print_semaphore, portMAX_DELAY);
+		sprintf(infoBox->text, "GPS: %fN %fE %.02fm",
+				_latitude, _longitude, _altitude);
+		xSemaphoreGive(print_semaphore);
+	}
 	return PM_OK;
 }
 
