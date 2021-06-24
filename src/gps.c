@@ -274,7 +274,7 @@ void StartGpsTask(void const *argument)
 		if (clock_label && minute != _minute)
 		{
 			xSemaphoreTake(print_semaphore, portMAX_DELAY);
-			sprintf(timeString, "%02d:%02d", _hour,
+			sprintf(timeString, "%02d:%02d", _hour % 24,
 					_minute);
 			xSemaphoreGive(print_semaphore);
 			clock_label->text = timeString;
