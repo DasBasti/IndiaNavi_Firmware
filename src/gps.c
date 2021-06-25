@@ -9,6 +9,8 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <esp_log.h>
+#include "time.h"
+#include <sys/time.h>
 
 #include "freertos/task.h"
 #include "nmea_parser.h"
@@ -31,8 +33,6 @@ static const char *TAG = "GPS";
 #define YEAR_BASE (2000) //date in GPS starts from 2000
 float _longitude, _latitude, _altitude, _hdop;
 bool _fix;
-int _minute, _hour;
-int8_t timezone;
 char timeString[20];
 const uint8_t tile_zoom = 16;
 uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
@@ -40,6 +40,7 @@ float xf, yf;
 nmea_parser_handle_t nmea_hdl;
 async_file_t AFILE;
 char timezone_file[100];
+uint8_t hour;
 
 /**
  * @brief GPS Event Handler
@@ -62,18 +63,21 @@ gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t 
 		_altitude = _gps->altitude;
 		_hdop = _gps->dop_h;
 		_fix = _gps->fix;
-		_minute = _gps->tim.minute;
-		_hour = _gps->tim.hour + TIME_ZONE;
-		/* print information parsed from GPS statements */
-		/*ESP_LOGI(TAG, "%d/%d/%d %d:%d:%d => \r\n"
-					  "\t\t\t\t\t\tlatitude   = %.05f°N\r\n"
-					  "\t\t\t\t\t\tlongitude = %.05f°E\r\n"
-					  "\t\t\t\t\t\taltitude   = %.02fm\r\n"
-					  "\t\t\t\t\t\tspeed      = %fm/s",
-				 gps_info->date.year + YEAR_BASE, gps_info->date.month, gps_info->date.day,
-				 gps_info->tim.hour + TIME_ZONE, gps_info->tim.minute, gps_info->tim.second,
-				 gps_info->latitude, gps_info->longitude, gps_info->altitude, gps_info->speed);
-		*/
+		if (hour != _gps->tim.hour)
+		{
+			hour = _gps->tim.hour;
+			struct tm t = {0};				   // Initalize to all 0's
+			t.tm_year = _gps->date.year + 100; // This is year+100, so 121 = 2021
+			t.tm_mon = _gps->date.month - 1;
+			t.tm_mday = _gps->date.day;
+			t.tm_hour = _gps->tim.hour;
+			t.tm_min = _gps->tim.minute;
+			t.tm_sec = _gps->tim.second;
+
+			struct timeval tv = {mktime(&t), 0}; // epoch time (seconds)
+			settimeofday(&tv, NULL);
+		}
+
 		break;
 	case GPS_UNKNOWN:
 		/* print unknown statements */
@@ -104,34 +108,6 @@ uint32_t lat2tile(float lat, uint8_t zoom)
 	return floor(flat2tile(lat, zoom));
 }
 
-#if 0
-/**
- * Console commands
- */
-void echo_cmd_cb(command_t *cmd)
-{
-	if (strcmp(cmd->args, "gga") == 0)
-	{
-		bit_toggle(echo, MINMEA_SENTENCE_GGA);
-	}
-	else if (strcmp(cmd->args, "txt") == 0)
-	{
-		bit_toggle(echo, MINMEA_SENTENCE_TXT);
-	}
-	else if (strcmp(cmd->args, "raw") == 0)
-	{
-		bit_toggle(echo, (MINMEA_SENTENCE_ZDA + 1));
-	}
-	else if (strcmp(cmd->args, "pos") == 0)
-	{
-		ESP_LOGI(TAG, "GPS: Set position");
-		bit_toggle(echo, (MINMEA_SENTENCE_ZDA + 2));
-		if (echo & (1 << (MINMEA_SENTENCE_ZDA + 2)))
-			parseSentence(
-				"$GNGGA,113519.000,4938.78241,N,00834.39293,E,1,05,1.4,99.4,M,48.2,M,,*75");
-	}
-}
-#endif
 /**
  * Callbacks from renderer
  */
@@ -229,16 +205,17 @@ void StartGpsTask(void const *argument)
 	ESP_LOGI(TAG, "Load timezone information loaded");
 	if (tz_file->loaded)
 	{
-		char tz[4];
+		char tz[50] = {0};
 		readline(timezone_file, tz);
-		timezone = atoi(tz);
-		ESP_LOGI(TAG, "Set timezone to: %d", timezone);
+		setenv("TZ", tz, 1);
+		ESP_LOGI(TAG, "Set timezone to: %s", tz);
 	}
 	else
 	{
-		timezone = TIME_ZONE;
-		ESP_LOGI(TAG, "Use default timezone: %d", timezone);
+		setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1);
+		ESP_LOGI(TAG, "Use default timezone");
 	}
+	tzset();
 
 	positon_marker->onBeforeRender = render_position_marker;
 
@@ -273,15 +250,19 @@ void StartGpsTask(void const *argument)
 		}
 		xSemaphoreTake(print_semaphore, portMAX_DELAY);
 		xSemaphoreGive(print_semaphore);
-		// Run every minute
-		if (clock_label && minute != _minute)
+		// Update every minute
+		//struct tm timeinfo;
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		struct tm *timeinfo = localtime(&tv.tv_sec);
+		if (clock_label && minute != timeinfo->tm_min)
 		{
 			xSemaphoreTake(print_semaphore, portMAX_DELAY);
-			sprintf(timeString, "%02d:%02d", _hour % 24,
-					_minute);
+			sprintf(timeString, "%02d:%02d", timeinfo->tm_hour,
+					timeinfo->tm_min);
 			xSemaphoreGive(print_semaphore);
 			clock_label->text = timeString;
-			minute = _minute;
+			minute = timeinfo->tm_min;
 			trigger_rendering();
 		}
 
