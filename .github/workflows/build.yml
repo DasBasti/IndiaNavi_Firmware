@@ -2,7 +2,8 @@ name: Build IndiaNavi Firmware with platformio
 on:
   push:
     branches: 
-      - '*'
+      - 'main'
+      - 'ci'
   pull_request:
 
 jobs:
@@ -19,43 +20,28 @@ jobs:
         python -m pip install --upgrade pip
         pip install platformio         
     - name: Run PlatformIO build on selected platforms
-      run: platformio run 
+      run: platformio run
       
+    - name: Upload debug.bin file
+      if: success()
+      uses: actions/upload-artifact@v2
+      with:
+        name: firmware_latest_debug.bin
+        path: .pio/build/esp32dev_debug/firmware.bin
+        retention-days: 5   
+
     - name: Upload .bin file
       if: success()
       uses: actions/upload-artifact@v2
       with:
         name: firmware_latest.bin
-        path: .pio/build/esp32dev/firmware.bin
+        path: .pio/build/esp32dev_release/firmware.bin
         retention-days: 5   
         
     - name: Upload .elf file
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware_latest.elf
-        path: .pio/build/esp32dev/firmware.elf
+        name: firmware_latest_debug.elf
+        path: .pio/build/esp32dev_debug/firmware.elf
         retention-days: 5   
-    
-    - name: make deploy folder
-      if: success()
-      run: mkdir .pio/build/esp32dev/deploy
-
-    - name: copy bin to deploy folder
-      if: success()
-      run: cp .pio/build/esp32dev/firmware.bin .pio/build/esp32dev/deploy/firmware_latest.bin
-
-    - name: make hash of binary
-      if: success()
-      run: sha256sum .pio/build/esp32dev/firmware.bin | cut -d' ' -f1 > .pio/build/esp32dev/deploy/firmware_latest.sha
-
-    - name: Deploy to S3
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --delete
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_PRODUCTION_BUCKET_NAME }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        SOURCE_DIR: ".pio/build/esp32dev/deploy"
