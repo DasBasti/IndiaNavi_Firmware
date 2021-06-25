@@ -16,6 +16,9 @@
 #include "tasks.h"
 #include "pins.h"
 
+#include "time.h"
+#include <sys/time.h>
+
 #include <driver/gpio.h>
 
 #include "icons_32/icons_32.h"
@@ -83,6 +86,21 @@ static label_t *create_icon_with_text(display_t *dsp, uint8_t *icon_data,
 	return il;
 }
 
+/**
+ * Callbacks from renderer for clock label
+ */
+error_code_t updateTimeText(display_t *dsp, void *comp)
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	struct tm *timeinfo = localtime(&tv.tv_sec);
+	xSemaphoreTake(print_semaphore, portMAX_DELAY);
+	sprintf(clock_label->text, "%02d:%02d", timeinfo->tm_hour,
+			timeinfo->tm_min);
+	xSemaphoreGive(print_semaphore);
+	return PM_OK;
+}
+
 static void create_top_bar(display_t *dsp)
 {
 	label_t *sb = label_create("", &f8x8, 0, 0, (dsp->size.width - 1),
@@ -114,10 +132,12 @@ static void create_top_bar(display_t *dsp)
 											   &f8x8);
 
 	/* global clock label. */
-	clock_label = label_create("00:00", &f8x8, sb->box.left, sb->box.top,
+	char *time = RTOS_Malloc(6);
+	clock_label = label_create(time, &f8x8, sb->box.left, sb->box.top,
 							   sb->box.width, sb->box.height);
 	clock_label->alignVertical = MIDDLE;
 	clock_label->alignHorizontal = CENTER;
+	clock_label->onBeforeRender = updateTimeText;
 	add_to_render_pipeline(label_render, clock_label);
 }
 

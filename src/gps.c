@@ -257,12 +257,6 @@ void StartGpsTask(void const *argument)
 		struct tm *timeinfo = localtime(&tv.tv_sec);
 		if (clock_label && minute != timeinfo->tm_min)
 		{
-			xSemaphoreTake(print_semaphore, portMAX_DELAY);
-			sprintf(timeString, "%02d:%02d", timeinfo->tm_hour,
-					timeinfo->tm_min);
-			xSemaphoreGive(print_semaphore);
-			clock_label->text = timeString;
-			minute = timeinfo->tm_min;
 			trigger_rendering();
 		}
 
