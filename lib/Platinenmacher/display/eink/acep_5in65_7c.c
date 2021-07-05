@@ -31,8 +31,9 @@ error_code_t ACEP_5IN65_Write(display_t *dsp, uint16_t x, uint16_t y,
 	case DISPLAY_ROTATE_270:												 // switch x and y and invert
 		position = (((ACEP_5IN65_HEIGHT - (x + 1)) * ACEP_5IN65_WIDTH) + y); // -2 to start gui at 0/0
 		break;
-	case DISPLAY_ROTATE_90: // switch x and y
-		position = ((x * ACEP_5IN65_WIDTH) + ACEP_5IN65_HEIGHT - y);
+	case DISPLAY_ROTATE_90:												// switch x and y
+		position = ((x * ACEP_5IN65_WIDTH) + ACEP_5IN65_WIDTH - y - 1); // -2 to start gui at 0/0
+																		//		position = ((x * ACEP_5IN65_WIDTH) + ACEP_5IN65_HEIGHT - y);
 		break;
 	default: // default is rotate 0 and no change
 		position = ((y * ACEP_5IN65_WIDTH) + x);
@@ -202,7 +203,8 @@ display_t *ACEP_5IN65_Init(display_rotation_t rotation)
 	gpio_set_level(EINK_DC, 0);
 	gpio_set_level(EINK_CS, 0);
 
-	spi_device_acquire_bus(spi, portMAX_DELAY);
+	ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+	ESP_ERROR_CHECK(ret);
 	ACEP_5IN65_Reset();
 	ACEP_5IN65_BusyHigh();
 	ACEP_5IN65_SendCommand(0x00);
