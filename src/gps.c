@@ -29,10 +29,9 @@
 
 static const char *TAG = "GPS";
 
-#define TIME_ZONE (+2)	 //Berlin + Sommerzeit
-#define YEAR_BASE (2000) //date in GPS starts from 2000
 float _longitude, _latitude, _altitude, _hdop;
 bool _fix;
+uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
 const uint8_t tile_zoom = 16;
 uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
@@ -63,6 +62,10 @@ gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t 
 		_altitude = _gps->altitude;
 		_hdop = _gps->dop_h;
 		_fix = _gps->fix;
+		//ESP_LOGI(TAG, "%d:%d:%d", _gps->tim.hour, _gps->tim.minute, _gps->tim.second);
+		ESP_LOGI(TAG, "sats: %d/%d", _gps->sats_in_use, _gps->sats_in_view);
+		_sats_in_use = _gps->sats_in_use;
+		_sats_in_view = _gps->sats_in_view;
 		if (hour != _gps->tim.hour)
 		{
 			hour = _gps->tim.hour;
@@ -77,7 +80,6 @@ gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t 
 			struct timeval tv = {mktime(&t), 0}; // epoch time (seconds)
 			settimeofday(&tv, NULL);
 		}
-
 		break;
 	case GPS_UNKNOWN:
 		/* print unknown statements */
@@ -123,6 +125,15 @@ error_code_t updateInfoText(display_t *dsp, void *comp)
 				_latitude, _longitude, _altitude);
 		xSemaphoreGive(print_semaphore);
 	}
+	return PM_OK;
+}
+
+error_code_t updateSatsInView(display_t *dsp, void *comp)
+{
+	xSemaphoreTake(print_semaphore, portMAX_DELAY);
+	sprintf(gps_indicator_label->text, "%d", _sats_in_view);
+	xSemaphoreGive(print_semaphore);
+
 	return PM_OK;
 }
 
@@ -182,6 +193,10 @@ void StartGpsTask(void const *argument)
 		vTaskDelay(100 / portTICK_PERIOD_MS);
 	infoBox->onBeforeRender = updateInfoText;
 
+	while (!gps_indicator_label)
+		vTaskDelay(100 / portTICK_PERIOD_MS);
+	gps_indicator_label->onBeforeRender = updateSatsInView;
+
 	ESP_LOGI(TAG, "wait for GUI init");
 	/* wait for map tiles to be created */
 	wait_until_gui_ready();
@@ -224,6 +239,7 @@ void StartGpsTask(void const *argument)
 	nmea_parser_config_t config = {
 		.uart = {
 			.uart_port = UART_NUM_2,
+			.rx_pin = GPS_UART2_RX,
 			.baud_rate = 9600,
 			.data_bits = UART_DATA_8_BITS,
 			.parity = UART_PARITY_DISABLE,

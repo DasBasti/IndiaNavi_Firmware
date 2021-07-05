@@ -125,10 +125,11 @@ static void create_top_bar(display_t *dsp)
 												 north_indicator_label->box.left + north_indicator_label->box.width + margin_horizontal,
 												 margin_top, "", &f8x8);
 
+	char *GPSView = RTOS_Malloc(5);
 	gps_indicator_label = create_icon_with_text(dsp, noGPS,
-												dsp->size.width - ICON_SIZE - margin_right, margin_top, "", &f8x8);
+												dsp->size.width - ICON_SIZE - (2 * margin_right) - 8, margin_top, GPSView, &f8x8);
 	sd_indicator_label = create_icon_with_text(dsp, noSD,
-											   dsp->size.width - 2 * ICON_SIZE - margin_right, margin_top, "",
+											   gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
 											   &f8x8);
 
 	/* global clock label. */
@@ -310,9 +311,9 @@ void StartGuiTask(void const *argument)
 	font_load_from_array(&f8x8, font8x8, font8x8_name);
 	font_load_from_array(&f8x16, font8x16, font8x16_name);
 
-	gpio_t *eeprom = gpio_create(OUTPUT, 0, EINK_EEPROM_nEN);
-	eeprom->onValue = GPIO_RESET;
-	gpio_write(eeprom, GPIO_SET);
+	//gpio_t *eeprom = gpio_create(OUTPUT, 0, EINK_EEPROM_nEN);
+	//eeprom->onValue = GPIO_RESET;
+	//gpio_write(eeprom, GPIO_SET);
 
 	ESP_LOGI(TAG, "init Display regualtor");
 	gpio_t *reg_gpio = gpio_create(OUTPUT, 0, EINK_VCC_nEN);
@@ -321,7 +322,7 @@ void StartGuiTask(void const *argument)
 	reg->enable(reg);
 
 	ESP_LOGI(TAG, "init E-Ink Display");
-	eink = ACEP_5IN65_Init(DISPLAY_ROTATE_270);
+	eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
 	ESP_LOGI(TAG, "App screen init");
 
 	//ESP_LOGI(TAG, "Screen clear");
