@@ -32,8 +32,7 @@ error_code_t ACEP_5IN65_Write(display_t *dsp, uint16_t x, uint16_t y,
 		position = (((ACEP_5IN65_HEIGHT - (x + 1)) * ACEP_5IN65_WIDTH) + y); // -2 to start gui at 0/0
 		break;
 	case DISPLAY_ROTATE_90:												// switch x and y
-		position = ((x * ACEP_5IN65_WIDTH) + ACEP_5IN65_WIDTH - y - 1); // -2 to start gui at 0/0
-																		//		position = ((x * ACEP_5IN65_WIDTH) + ACEP_5IN65_HEIGHT - y);
+		position = ((x * ACEP_5IN65_WIDTH) + ACEP_5IN65_WIDTH - y - 1); // and mirror both axis
 		break;
 	default: // default is rotate 0 and no change
 		position = ((y * ACEP_5IN65_WIDTH) + x);
