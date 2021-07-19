@@ -319,7 +319,10 @@ void StartGuiTask(void const *argument)
 	gpio_t *reg_gpio = gpio_create(OUTPUT, 0, EINK_VCC_nEN);
 	reg_gpio->onValue = GPIO_RESET;
 	regulator_t *reg = regulator_gpio_create(reg_gpio);
+	reg->disable(reg);
+	vTaskDelay(100);
 	reg->enable(reg);
+	vTaskDelay(100);
 
 	ESP_LOGI(TAG, "init E-Ink Display");
 	eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
