@@ -11,6 +11,7 @@
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <driver/gpio.h>
+#include <driver/adc.h>
 
 #include "pins.h"
 #include "tasks.h"
@@ -99,7 +100,32 @@ void app_main()
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, 5, &gpsTask_h);
     xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
     xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 1, &sdTask_h);
-    xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+    //xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+}
+
+/**
+ * @brief Function to read battery voltage
+ * @param none
+ * @retval int: battery voltage in mV
+ */
+int readBatteryPercent()
+{
+    int batteryVoltage;
+    adc_power_acquire();
+    batteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
+    ESP_LOGI(TAG, "ADC1/6: %d", batteryVoltage);
+    adc_power_release();
+
+    const int min = 1750;
+    const int max = 2100;
+    if (batteryVoltage > max)
+        return 100;
+    
+    /* ganz simpler dreisatz, den man in wenigen
+       sekunden im Kopf lösen kann */
+    int value = batteryVoltage - min;
+
+    return value*100/(max-min);
 }
 
 /**
@@ -109,17 +135,32 @@ void app_main()
  */
 void StartHousekeepingTask(void *argument)
 {
-    uint8_t cnt = 0;
+    uint8_t cnt = 30;
     gpio_t *led = gpio_create(OUTPUT, 0, LED);
     uint8_t ledState = 1;
+    // configure ADC for VBATT measurement
+    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11));
+    ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_6));
+
+    // configure ADC for VIN measurement -> Loading cable attached?
+    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
+    ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
+
     for (;;)
     {
         gpio_write(led, ledState);
         ledState = !ledState;
-        if (++cnt == 60)
+        if (++cnt >= 60)
         {
             ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
             cnt = 0;
+
+            if(battery_label){
+                save_sprintf(battery_label->text, "%03d%%", readBatteryPercent());
+               	label_shrink_to_text(battery_label);
+
+            }
+
         }
         vTaskDelay(ledDelay / portTICK_PERIOD_MS);
     }

@@ -6,6 +6,7 @@
  */
 
 #include "label.h"
+#include "image.h"
 #include "display/display.h"
 
 /*
@@ -176,9 +177,19 @@ error_code_t label_render(display_t *dsp, void *component)
 	return PM_OK;
 }
 
+/*
+ * set label box size to font width and height to 
+ * font hieht or image height if image is larger
+ * than font.
+ */
 error_code_t label_shrink_to_text(label_t *label)
 {
 	label->box.width = font_text_pixel_width(label->font, label->text);
 	label->box.height = font_text_pixel_height(label->font, label->text);
+	if(label->child) {
+		image_t* img = label->child;
+		if(img->box.height > label->box.height)
+			label->box.height = img->box.height;
+	}
 	return PM_OK;
 }

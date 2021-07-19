@@ -76,10 +76,9 @@ static label_t *create_icon_with_text(display_t *dsp, uint8_t *icon_data,
 
 	label_t *il = label_create(text, font,
 							   img->box.left + img->box.width + margin_left, top, 0, 0);
-	label_shrink_to_text(il);
-	il->box.height = img->box.height;
-	il->alignVertical = MIDDLE;
 	il->child = img;
+	label_shrink_to_text(il);
+	il->alignVertical = MIDDLE;
 	add_to_render_pipeline(label_render, il);
 	// render image after Label is rendered
 	add_to_render_pipeline(image_render, img);
@@ -115,8 +114,12 @@ static void create_top_bar(display_t *dsp)
 	add_to_render_pipeline(label_render, sb);
 
 	/* TODO: export battery component */
+	
 	battery_label = create_icon_with_text(dsp, bat_100,
-										  sb->box.left + margin_left, margin_top, "100%", &f8x8);
+										  sb->box.left + margin_left, margin_top, RTOS_Malloc(4), &f8x8);
+	save_sprintf(battery_label->text, "...%%");
+	label_shrink_to_text(battery_label);
+
 	north_indicator_label = create_icon_with_text(dsp, norden,
 												  battery_label->box.left + battery_label->box.width + margin_horizontal,
 												  margin_top, "", &f8x8);
@@ -319,13 +322,19 @@ void StartGuiTask(void const *argument)
 	gpio_t *reg_gpio = gpio_create(OUTPUT, 0, EINK_VCC_nEN);
 	reg_gpio->onValue = GPIO_RESET;
 	regulator_t *reg = regulator_gpio_create(reg_gpio);
-	reg->disable(reg);
-	vTaskDelay(100);
-	reg->enable(reg);
-	vTaskDelay(100);
 
 	ESP_LOGI(TAG, "init E-Ink Display");
-	eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
+	do {
+		reg->disable(reg);
+		vTaskDelay(100);
+		reg->enable(reg);
+		vTaskDelay(100);
+		eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
+		if (!eink){
+			ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
+		}
+	} while (!eink);
+
 	ESP_LOGI(TAG, "App screen init");
 
 	//ESP_LOGI(TAG, "Screen clear");
