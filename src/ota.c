@@ -68,7 +68,7 @@ void StartOTATask(void *pvParameter)
         .url = FIRMWARE_UPGRADE_URL,
         .event_handler = _http_event_handler,
         .cert_pem = server_cert_pem_start,
-        .keep_alive_enable = true,
+        //.keep_alive_enable = true,
     };
 
     async_file_t AFILE;

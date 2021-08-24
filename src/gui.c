@@ -22,6 +22,10 @@
 #include <driver/gpio.h>
 
 #include "icons_32/icons_32.h"
+#ifdef DEBUG
+extern error_code_t render_waypoint_marker(display_t *dsp, void *comp);
+extern waypoint_t waypoints[];
+#endif
 
 const uint16_t margin_top = 5;
 const uint16_t margin_bottom = 5;
@@ -353,6 +357,13 @@ void StartGuiTask(void const *argument)
 */
 	vTaskDelay(100 / portTICK_PERIOD_MS);
 	ESP_LOGI(TAG, "Loop ready.");
+#ifdef DEBUG
+	// load track data if available
+	add_to_render_pipeline(render_waypoint_marker, &waypoints[0]);
+	add_to_render_pipeline(render_waypoint_marker, &waypoints[1]);
+	add_to_render_pipeline(render_waypoint_marker, &waypoints[2]);
+
+#endif
 	for (;;)
 	{
 		/* render trigger TODO: have a way to not do it if other tasks want us to wait*/

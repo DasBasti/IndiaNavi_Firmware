@@ -228,6 +228,8 @@ void StartSDTask(void const *argument)
 			{
 				xSemaphoreTake(sd_semaphore, portMAX_DELAY);
 				sd_status = UNAVAILABLE;
+				// deinit SDMMC periphery
+				esp_vfs_fat_sdmmc_unmount();
 				// show on gui
 				trigger_rendering();
 			}

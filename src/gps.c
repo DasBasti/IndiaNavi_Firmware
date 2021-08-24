@@ -28,9 +28,13 @@
 #include <driver/uart.h>
 
 static const char *TAG = "GPS";
-
+#ifdef DEBUG
+float _longitude = 8.652352436119317, _latitude = 49.64682731901306, _altitude, _hdop;
+bool _fix = GPS_FIX_GPS;
+#else
 float _longitude, _latitude, _altitude, _hdop;
-bool _fix;
+bool _fix = GPS_FIX_INVALID;
+#endif
 uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
 const uint8_t tile_zoom = 16;
@@ -40,7 +44,14 @@ nmea_parser_handle_t nmea_hdl;
 async_file_t AFILE;
 char timezone_file[100];
 uint8_t hour;
-
+#ifdef DEBUG
+const waypoint_t waypoints[4] = {
+	{.lat=49.64713432858306, .lon=8.65252825192456, .next=&waypoints[1]},
+	{.lat=49.64760454371303, .lon=8.650755669691646, .next=&waypoints[2]},
+	{.lat=49.64790284988934, .lon=8.648955756834003, .next=&waypoints[3]},
+	{.lat=49.74790284988934, .lon=8.648955756834003, .next=NULL}
+};
+#endif
 /**
  * @brief GPS Event Handler
  *
@@ -121,8 +132,8 @@ error_code_t updateInfoText(display_t *dsp, void *comp)
 	if (_fix)
 	{
 		xSemaphoreTake(print_semaphore, portMAX_DELAY);
-		sprintf(infoBox->text, "GPS: %fN %fE %.02fm",
-				_latitude, _longitude, _altitude);
+		sprintf(infoBox->text, "GPS: %fN %fE %.02fm (HDOP:%f)",
+				_latitude, _longitude, _altitude, _hdop);
 		xSemaphoreGive(print_semaphore);
 	}
 	return PM_OK;
@@ -148,7 +159,43 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 		label->box.left = pos_x - label->box.width / 2;
 		label->box.top = pos_y - label->box.height / 2;
 		display_circle_fill(dsp, pos_x, pos_y, 6, BLUE);
-		display_circle_draw(dsp, pos_x, pos_y, hdop, BLUE);
+		display_circle_fill(dsp, pos_x, pos_y, 2, WHITE);
+		display_circle_draw(dsp, pos_x, pos_y, hdop, WHITE);
+		return PM_OK;
+	}
+	return ABORT;
+}
+
+error_code_t render_waypoint_marker(display_t *dsp, void *comp)
+{
+	waypoint_t* wp = (waypoint_t*)comp;
+	if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS))
+	{
+		float _xf, _yf;
+		uint32_t _x,_y;
+		uint16_t _pos_x, _pos_y;
+		_xf = flon2tile(wp->lon, tile_zoom);
+		_x = floor(_xf);
+		_yf = flat2tile(wp->lat, tile_zoom);
+		_y = floor(_yf);
+		_pos_x = floor((_xf - _x) * 256); // offset from tile 0
+		_pos_y = floor((_yf - _y) * 256); // offset from tile 0
+
+		for (uint8_t i = 0; i < 2; i++)
+			for (uint8_t j = 0; j < 3; j++)
+			{
+				uint8_t idx = i * 3 + j;
+				// check if we have the tile on the screen
+				if(map_tiles[idx].x == _x && map_tiles[idx].y == _y)
+				{
+					ESP_LOGI(TAG, "WP @ x/y %d/%d", _pos_x, _pos_y);
+					display_circle_fill(dsp, _pos_x+(i*256), _pos_y+(j*256), 3, wp->color);
+					display_pixel_draw(dsp, _pos_x+(i*256), _pos_y+(j*256), WHITE);
+				}
+		}
+				if(wp->next){
+			//wp->next->
+		}
 		return PM_OK;
 	}
 	return ABORT;
@@ -248,8 +295,11 @@ void StartGpsTask(void const *argument)
 	/* init NMEA parser library */
 	nmea_hdl = nmea_parser_init(&config);
 	/* register event handler for NMEA parser library */
+#ifndef DEBUG 
+	// start the parser on release builds
 	nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
-
+#endif
+	uint8_t right_side = 0;
 	for (;;)
 	{
 
@@ -282,21 +332,24 @@ void StartGpsTask(void const *argument)
 		{
 			if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE)
 			{
+				// get tile number of tile with position on it as float and integer
 				if (_longitude != 0.0)
 				{
 					xf = flon2tile(_longitude, tile_zoom);
 					x = floor(xf);
 				}
+				// also for y axis
 				if (_latitude != 0.0)
 				{
 					yf = flat2tile(_latitude, tile_zoom);
 					y = floor(yf);
 				}
+				// get offset to tile corner of tile with position
 				pos_x = floor((xf - x) * 256); // offset from tile 0
 				pos_y = floor((yf - y) * 256); // offset from tile 0
 				ESP_LOGI(TAG, "GPS: Position update");
 				/* grab necessary tiles */
-				uint8_t right_side = 0;
+				// TODO: use threshold to trigger new render not leaving tile
 				if ((x != x_old) | (y != y_old))
 				{
 					ESP_LOGI(TAG, "GPS: Tiles need update, too.");
@@ -315,6 +368,7 @@ void StartGpsTask(void const *argument)
 							else
 							{
 								map_tiles[idx].x = x + i;
+								right_side = 0;
 							}
 							map_tiles[idx].y = y + (-1 + j);
 							map_tiles[idx].z = tile_zoom;

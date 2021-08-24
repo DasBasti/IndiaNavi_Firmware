@@ -106,30 +106,31 @@ void StartWiFiTask(void const *argument)
 
     char *next = readline(wifi_file, (char *)wifi_config.sta.ssid);
     readline(next, (char *)wifi_config.sta.password);
+    
+    wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &event_handler,
+                                                        NULL,
+                                                        &instance_any_id));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                        IP_EVENT_STA_GOT_IP,
+                                                        &event_handler,
+                                                        NULL,
+                                                        &instance_got_ip));
+
+    ESP_ERROR_CHECK(esp_wifi_init(&config));
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(TAG, "wifi_init_sta finished.");
     for (;;)
     {
-        wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
-        esp_event_handler_instance_t instance_any_id;
-        esp_event_handler_instance_t instance_got_ip;
-        ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                            ESP_EVENT_ANY_ID,
-                                                            &event_handler,
-                                                            NULL,
-                                                            &instance_any_id));
-        ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-                                                            IP_EVENT_STA_GOT_IP,
-                                                            &event_handler,
-                                                            NULL,
-                                                            &instance_got_ip));
-
-        ESP_ERROR_CHECK(esp_wifi_init(&config));
-
-        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-        esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
-        ESP_ERROR_CHECK(esp_wifi_start());
-
-        ESP_LOGI(TAG, "wifi_init_sta finished.");
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
@@ -182,7 +183,7 @@ void StartWiFiTask(void const *argument)
                 last_rssi_state = 1;
             }
             /* poll for OTA Button */
-            if (!gpio_read(OTA_button))
+            /*if (!gpio_read(OTA_button))
             {
                 vTaskSuspend(gpsTask_h);
                 vTaskSuspend(guiTask_h);
@@ -191,7 +192,7 @@ void StartWiFiTask(void const *argument)
                 gps_stop_parser();
                 xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
                 vTaskSuspend(NULL);
-            }
+            }*/
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
         icon->data = WIFI_0;
