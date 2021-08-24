@@ -26,7 +26,7 @@
 font_t f8x8, f8x16;
 #include "display/GUI/image.h"
 #include "display/GUI/label.h"
-
+#include "display/GUI/waypoint.h"
 /* SD Card */
 //#include "hw/gpio.h"
 //#include "storage/sdcard/sd_spi.h"
