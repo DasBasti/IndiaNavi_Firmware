@@ -362,6 +362,8 @@ void StartGuiTask(void const *argument)
 	add_to_render_pipeline(render_waypoint_marker, &waypoints[0]);
 	add_to_render_pipeline(render_waypoint_marker, &waypoints[1]);
 	add_to_render_pipeline(render_waypoint_marker, &waypoints[2]);
+	add_to_render_pipeline(render_waypoint_marker, &waypoints[3]);
+	add_to_render_pipeline(render_waypoint_marker, &waypoints[4]);
 
 #endif
 	for (;;)

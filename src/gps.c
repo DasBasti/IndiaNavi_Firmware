@@ -45,11 +45,12 @@ async_file_t AFILE;
 char timezone_file[100];
 uint8_t hour;
 #ifdef DEBUG
-const waypoint_t waypoints[4] = {
+waypoint_t waypoints[5] = {
 	{.lat=49.64713432858306, .lon=8.65252825192456, .next=&waypoints[1]},
 	{.lat=49.64760454371303, .lon=8.650755669691646, .next=&waypoints[2]},
 	{.lat=49.64790284988934, .lon=8.648955756834003, .next=&waypoints[3]},
-	{.lat=49.74790284988934, .lon=8.648955756834003, .next=NULL}
+	{.lat=49.65048678959949, .lon=8.648883393220508, .next=&waypoints[4]},
+	{.lat=49.65048668959949, .lon=8.648783393220508, .next=NULL}
 };
 #endif
 /**
@@ -169,28 +170,28 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 {
 	waypoint_t* wp = (waypoint_t*)comp;
-	if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS))
+	if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS) & (wp->tile_x != 0) & (wp->tile_y != 0))
 	{
-		float _xf, _yf;
-		uint32_t _x,_y;
-		uint16_t _pos_x, _pos_y;
-		_xf = flon2tile(wp->lon, tile_zoom);
-		_x = floor(_xf);
-		_yf = flat2tile(wp->lat, tile_zoom);
-		_y = floor(_yf);
-		_pos_x = floor((_xf - _x) * 256); // offset from tile 0
-		_pos_y = floor((_yf - _y) * 256); // offset from tile 0
-
 		for (uint8_t i = 0; i < 2; i++)
 			for (uint8_t j = 0; j < 3; j++)
 			{
 				uint8_t idx = i * 3 + j;
 				// check if we have the tile on the screen
-				if(map_tiles[idx].x == _x && map_tiles[idx].y == _y)
+				ESP_LOGI(TAG, "Compare WP %d/%d with tile %d/%d[%d]",wp->tile_x, wp->tile_y, map_tiles[idx].x, map_tiles[idx].y, idx);
+				if(map_tiles[idx].x == wp->tile_x && map_tiles[idx].y == wp->tile_y)
 				{
-					ESP_LOGI(TAG, "WP @ x/y %d/%d", _pos_x, _pos_y);
-					display_circle_fill(dsp, _pos_x+(i*256), _pos_y+(j*256), 3, wp->color);
-					display_pixel_draw(dsp, _pos_x+(i*256), _pos_y+(j*256), WHITE);
+					uint16_t x = wp->pos_x+(i*256);
+					uint16_t y = wp->pos_y+(j*256);
+					display_circle_fill(dsp, x, y, 3, wp->color);
+					ESP_LOGI(TAG, "WP @ x/y %d/%d tile %d/%d", x, y, wp->tile_x, wp->tile_y);
+					if(wp->next){
+						// line to next waypoint
+						uint32_t x2 = wp->next->pos_x + (wp->next->tile_x - wp->tile_x + 1)*i*256;
+						uint32_t y2 = wp->next->pos_y + (wp->next->tile_y - wp->tile_y + 1)*j*256;
+						ESP_LOGI(TAG, "WP Line to %d/%d tile %d/%d", x2,y2, wp->next->tile_x, wp->next->tile_y);
+						display_line_draw(dsp, x, y, x2, y2, wp->color);
+					}
+					display_pixel_draw(dsp, x, y, WHITE);
 				}
 		}
 				if(wp->next){
@@ -298,6 +299,17 @@ void StartGpsTask(void const *argument)
 #ifndef DEBUG 
 	// start the parser on release builds
 	nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
+#else
+ESP_LOGI(TAG, "Waypoints: %d", sizeof(waypoints));
+	for(uint8_t wp=0; wp < 5; wp++){
+		float _xf, _yf;
+		_xf = flon2tile(waypoints[wp].lon, tile_zoom);
+		waypoints[wp].tile_x = floor(_xf);
+		_yf = flat2tile(waypoints[wp].lat, tile_zoom);
+		waypoints[wp].tile_y = floor(_yf);
+		waypoints[wp].pos_x = floor((_xf - waypoints[wp].tile_x) * 256); // offset from tile 0
+		waypoints[wp].pos_y = floor((_yf - waypoints[wp].tile_y) * 256); // offset from tile 0
+	}
 #endif
 	uint8_t right_side = 0;
 	for (;;)
