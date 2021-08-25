@@ -82,6 +82,8 @@ char *readline(char *c, char *d)
 {
 	while (c)
 	{
+		if (*c == 0)
+			return 0;
 		if (*c == '\n')
 			break;
 		if (*c == '\r')
@@ -90,6 +92,7 @@ char *readline(char *c, char *d)
 		c++;
 		d++;
 	}
+	d = 0;
 	return ++c;
 }
 
@@ -169,6 +172,7 @@ void StartSDTask(void const *argument)
 								 tile->y);
 					ESP_LOGI(TAG, "Load %s  to %d", fn, (uint)tile->image->data);
 
+					xSemaphoreTake(sd_semaphore, portMAX_DELAY);
 					res = f_open(&t_img, fn, FA_READ);
 					if (FR_OK == res && tile->image->data != 0)
 					{
@@ -187,6 +191,7 @@ void StartSDTask(void const *argument)
 									 "%d/%d not found.", tile->x,
 									 tile->y);
 					}
+					xSemaphoreGive(sd_semaphore);
 					cnt++;
 				}
 				async_file_t *file;
@@ -195,7 +200,7 @@ void StartSDTask(void const *argument)
 					FIL t_file;
 					uint32_t br;
 					ESP_LOGI(TAG, "Load %s ", file->filename);
-
+					xSemaphoreTake(sd_semaphore, portMAX_DELAY);
 					res = f_open(&t_file, file->filename, FA_READ);
 					if (FR_OK == res && file->dest != 0)
 					{
@@ -214,6 +219,7 @@ void StartSDTask(void const *argument)
 									 "%d/%d not found.", tile->x,
 									 tile->y);
 					}
+					xSemaphoreGive(sd_semaphore);
 				}
 
 				if (cnt)

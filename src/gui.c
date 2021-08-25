@@ -55,14 +55,14 @@ static uint8_t render_needed = 0;
  *
  * @return render slot
  */
-static uint8_t
-add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), void *comp)
+uint8_t add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), void *comp)
 {
 	// increase render slot before adding this one. Slot 0 is overflow!
 	render_slot++;
 	if (!render_slot)
 	{
 		render_slot = 255; // reset
+		ESP_LOGE(TAG, "render pipeline full!");
 		return 0;
 	}
 	render_pipeline[render_slot].render = render;
@@ -357,15 +357,7 @@ void StartGuiTask(void const *argument)
 */
 	vTaskDelay(100 / portTICK_PERIOD_MS);
 	ESP_LOGI(TAG, "Loop ready.");
-#ifdef DEBUG
-	// load track data if available
-	add_to_render_pipeline(render_waypoint_marker, &waypoints[0]);
-	add_to_render_pipeline(render_waypoint_marker, &waypoints[1]);
-	add_to_render_pipeline(render_waypoint_marker, &waypoints[2]);
-	add_to_render_pipeline(render_waypoint_marker, &waypoints[3]);
-	add_to_render_pipeline(render_waypoint_marker, &waypoints[4]);
 
-#endif
 	for (;;)
 	{
 		/* render trigger TODO: have a way to not do it if other tasks want us to wait*/

@@ -45,6 +45,7 @@ label_t *scaleBox;
 
 void trigger_rendering();
 void wait_until_gui_ready();
+uint8_t add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), void *comp);
 /* screens */
 void start_screen(display_t *dsp);
 void app_screen(display_t *dsp);
