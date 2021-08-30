@@ -17,6 +17,7 @@ extern SemaphoreHandle_t sd_semaphore;
 
 extern QueueHandle_t mapLoadQueueHandle;
 extern QueueHandle_t fileLoadQueueHandle;
+extern QueueHandle_t gpioEventQueueHandle;
 
 TaskHandle_t housekeepingTask_h;
 TaskHandle_t gpsTask_h;
@@ -45,5 +46,9 @@ error_code_t loadFile(async_file_t *file);
 char *readline(char *c, char *d);
 
 void gps_stop_parser();
+
+void toggleZoom();
+
+void trigger_rendering();
 
 #endif /* INC_TASKS_H_ */

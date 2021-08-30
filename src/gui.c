@@ -275,11 +275,12 @@ void app_screen(display_t *dsp)
 	add_to_render_pipeline(label_render, positon_marker);
 
 	/* scale 63px for 100m | 96px for 500ft @ zoom 16*/
+	/* scale 77px for 500m | 94px for 2000ft @zoom 14 */
 	scaleBox = label_create("100m", &f8x8, 10, dsp->size.height - 34, 63, 13);
 	scaleBox->borderWidth = 1;
 	scaleBox->borderLines = LEFT_SOLID | RIGHT_SOLID | BOTTOM_SOLID;
 	//scaleBox->backgroundColor = WHITE;
-	scaleBox->borderColor = ORANGE;
+	scaleBox->borderColor = BLACK;
 	scaleBox->textColor = BLACK;
 	scaleBox->alignVertical = BOTTOM;
 	scaleBox->alignHorizontal = CENTER;
