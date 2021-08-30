@@ -37,6 +37,8 @@ static uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
 uint8_t zoom_level_selected = 0;
 uint8_t zoom_level[] = {16, 14};
+uint8_t zoom_level_scaleBox_width[] = {63, 77};
+char* zoom_level_scaleBox_text[] = {"100m", "500m"};
 static uint8_t tile_zoom = 16;
 static uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
 static uint8_t right_side = 0;
@@ -202,6 +204,9 @@ void toggleZoom()
 		calculate_waypoints(wp_t);
 		wp_t = wp_t->next; 
 	}
+	scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
+	scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
+
 	update_tiles();
 	trigger_rendering();
 }
@@ -265,7 +270,10 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 				{
 					uint16_t x = wp->pos_x+(i*256);
 					uint16_t y = wp->pos_y+(j*256);
-					display_circle_fill(dsp, x, y, 3, wp->color);
+					if(!zoom_level_selected) // close up
+						display_circle_fill(dsp, x, y, 3, wp->color);
+					else // far
+						display_circle_fill(dsp, x, y, 2, wp->color);
 					ESP_LOGI(TAG, "WP @ x/y %d/%d tile %d/%d", x, y, wp->tile_x, wp->tile_y);
 					if(wp->next){
 						// line to next waypoint
@@ -273,6 +281,10 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 						uint32_t y2 = wp->next->pos_y + (wp->next->tile_y - wp->tile_y + j)*256;
 						ESP_LOGI(TAG, "WP Line to %d/%d tile %d/%d", x2,y2, wp->next->tile_x, wp->next->tile_y);
 						display_line_draw(dsp, x, y, x2, y2, wp->color);
+						if (!zoom_level_selected) {
+							display_line_draw(dsp, x+1, y, x2+1, y2, wp->color);
+							display_line_draw(dsp, x-1, y, x2-1, y2, wp->color);
+						}
 					}
 					display_pixel_draw(dsp, x, y, WHITE);
 				}
