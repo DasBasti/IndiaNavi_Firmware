@@ -33,10 +33,13 @@ bool _fix = GPS_FIX_GPS;
 float _longitude, _latitude, _altitude, _hdop;
 bool _fix = GPS_FIX_INVALID;
 #endif
-uint8_t _sats_in_use = 0, _sats_in_view = 0;
+static uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
-const uint8_t tile_zoom = 16;
-uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
+uint8_t zoom_level_selected = 0;
+uint8_t zoom_level[] = {16, 14};
+static uint8_t tile_zoom = 16;
+static uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
+static uint8_t right_side = 0;
 float xf, yf;
 nmea_parser_handle_t nmea_hdl;
 async_file_t AFILE;
@@ -110,6 +113,97 @@ float flat2tile(float lat, uint8_t zoom)
 uint32_t lat2tile(float lat, uint8_t zoom)
 {
 	return floor(flat2tile(lat, zoom));
+}
+
+void update_tiles()
+{
+				if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE)
+			{
+				// get tile number of tile with position on it as float and integer
+				if (_longitude != 0.0)
+				{
+					xf = flon2tile(_longitude, tile_zoom);
+					x = floor(xf);
+				}
+				// also for y axis
+				if (_latitude != 0.0)
+				{
+					yf = flat2tile(_latitude, tile_zoom);
+					y = floor(yf);
+				}
+				// get offset to tile corner of tile with position
+				pos_x = floor((xf - x) * 256); // offset from tile 0
+				pos_y = floor((yf - y) * 256); // offset from tile 0
+				ESP_LOGI(TAG, "GPS: Position update");
+				/* grab necessary tiles */
+				// TODO: use threshold to trigger new render not leaving tile
+				if ((x != x_old) | (y != y_old))
+				{
+					ESP_LOGI(TAG, "GPS: Tiles need update, too.");
+					x_old = x;
+					y_old = y;
+					for (uint8_t i = 0; i < 2; i++)
+					{
+						for (uint8_t j = 0; j < 3; j++)
+						{
+							uint8_t idx = i * 3 + j;
+							if (pos_x < 128)
+							{
+								map_tiles[idx].x = x - 1 + i;
+								right_side = 1;
+							}
+							else
+							{
+								map_tiles[idx].x = x + i;
+								right_side = 0;
+							}
+							map_tiles[idx].y = y + (-1 + j);
+							map_tiles[idx].z = tile_zoom;
+							map_tiles[idx].image->loaded = 0;
+						}
+					}
+				}
+
+				pos_y += 256;
+				if (right_side)
+					pos_x += 256;
+
+				xSemaphoreGive(gui_semaphore);
+				trigger_rendering();
+			}
+			else
+			{
+				ESP_LOGI(TAG, "gui semaphore taken");
+			}
+}
+
+void calculate_waypoints(waypoint_t *wp_t)
+{
+	float _xf, _yf;
+	_xf = flon2tile(wp_t->lon, tile_zoom);
+	wp_t->tile_x = floor(_xf);
+	_yf = flat2tile(wp_t->lat, tile_zoom);
+	wp_t->tile_y = floor(_yf);
+	wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
+	wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
+	ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
+}
+
+/* Change Zoom level and trigger rendering. 
+   Tiles must be available on SD card! 
+*/
+void toggleZoom()
+{ 
+	zoom_level_selected = !zoom_level_selected;
+	tile_zoom = zoom_level[zoom_level_selected];
+	ESP_LOGI(TAG, "Set zoom level to: %d", tile_zoom);
+	waypoint_t *wp_t = waypoints;
+	while(wp_t){
+		calculate_waypoints(wp_t);
+		wp_t = wp_t->next; 
+	}
+	update_tiles();
+	trigger_rendering();
 }
 
 /**
@@ -332,14 +426,7 @@ void StartGpsTask(void const *argument)
 			}
 			prev_wp = wp_t;
 
-			float _xf, _yf;
-			_xf = flon2tile(wp_t->lon, tile_zoom);
-			wp_t->tile_x = floor(_xf);
-			_yf = flat2tile(wp_t->lat, tile_zoom);
-			wp_t->tile_y = floor(_yf);
-			wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
-			wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
-			ESP_LOGI(TAG, "Caculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
+			calculate_waypoints(wp_t);
 			add_to_render_pipeline(render_waypoint_marker, wp_t);
 
 		}
@@ -351,7 +438,6 @@ void StartGpsTask(void const *argument)
 	free(waypoint_file);
 	free(wp);
 
-	uint8_t right_side = 0;
 	for (;;)
 	{
 
@@ -382,64 +468,7 @@ void StartGpsTask(void const *argument)
 		/* check for lon and lat to be a number */
 		if (_fix)
 		{
-			if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE)
-			{
-				// get tile number of tile with position on it as float and integer
-				if (_longitude != 0.0)
-				{
-					xf = flon2tile(_longitude, tile_zoom);
-					x = floor(xf);
-				}
-				// also for y axis
-				if (_latitude != 0.0)
-				{
-					yf = flat2tile(_latitude, tile_zoom);
-					y = floor(yf);
-				}
-				// get offset to tile corner of tile with position
-				pos_x = floor((xf - x) * 256); // offset from tile 0
-				pos_y = floor((yf - y) * 256); // offset from tile 0
-				ESP_LOGI(TAG, "GPS: Position update");
-				/* grab necessary tiles */
-				// TODO: use threshold to trigger new render not leaving tile
-				if ((x != x_old) | (y != y_old))
-				{
-					ESP_LOGI(TAG, "GPS: Tiles need update, too.");
-					x_old = x;
-					y_old = y;
-					for (uint8_t i = 0; i < 2; i++)
-					{
-						for (uint8_t j = 0; j < 3; j++)
-						{
-							uint8_t idx = i * 3 + j;
-							if (pos_x < 128)
-							{
-								map_tiles[idx].x = x - 1 + i;
-								right_side = 1;
-							}
-							else
-							{
-								map_tiles[idx].x = x + i;
-								right_side = 0;
-							}
-							map_tiles[idx].y = y + (-1 + j);
-							map_tiles[idx].z = tile_zoom;
-							map_tiles[idx].image->loaded = 0;
-						}
-					}
-				}
-
-				pos_y += 256;
-				if (right_side)
-					pos_x += 256;
-
-				xSemaphoreGive(gui_semaphore);
-				trigger_rendering();
-			}
-			else
-			{
-				ESP_LOGI(TAG, "gui semaphore taken");
-			}
+			update_tiles();
 		}
 
 		vTaskDelay(60000 / portTICK_PERIOD_MS);

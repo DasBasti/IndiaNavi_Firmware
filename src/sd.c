@@ -215,9 +215,7 @@ void StartSDTask(void const *argument)
 					}
 					else
 					{
-						save_sprintf(tile->label->text,
-									 "%d/%d not found.", tile->x,
-									 tile->y);
+						ESP_LOGI(TAG, "%s not found.", file->filename);
 					}
 					xSemaphoreGive(sd_semaphore);
 				}

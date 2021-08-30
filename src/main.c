@@ -42,8 +42,11 @@ SemaphoreHandle_t sd_semaphore = NULL;
 // File loading queue
 QueueHandle_t mapLoadQueueHandle = NULL;
 QueueHandle_t fileLoadQueueHandle = NULL;
+QueueHandle_t gpioEventQueueHandle = NULL;
 
 uint32_t ledDelay = 1000;
+
+gpio_config_t esp_btn = {};
 
 static void print_sha256(const uint8_t *image_hash, const char *label)
 {
@@ -73,6 +76,13 @@ static void get_sha256_of_partitions(void)
     print_sha256(sha_256, "SHA-256 for current firmware: ");
 }
 
+static void IRAM_ATTR handleButtonPress(void* arg)
+{
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(gpioEventQueueHandle, &gpio_num, NULL);
+    gpio_isr_handler_remove(BTN);
+}
+
 void app_main()
 {
     //Initialize NVS
@@ -94,7 +104,19 @@ void app_main()
     sd_semaphore = xSemaphoreCreateMutex();
     mapLoadQueueHandle = xQueueCreate(6, sizeof(map_tile_t *));
     fileLoadQueueHandle = xQueueCreate(6, sizeof(async_file_t *));
+    gpioEventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
     ESP_LOGI(TAG, "start");
+    
+    /* Set Button IO to input, with PUI and falling edge IRQ */
+    esp_btn.mode = GPIO_MODE_INPUT;
+    esp_btn.pull_up_en = true;
+    esp_btn.pin_bit_mask = BIT64(BTN);
+    esp_btn.intr_type = GPIO_INTR_NEGEDGE;
+    gpio_config(&esp_btn);
+    gpio_set_intr_type(BTN, GPIO_INTR_NEGEDGE);
+    gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
+    gpio_isr_handler_add(BTN, handleButtonPress, (void*) BTN);
+    
     command_init();
     xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, &housekeepingTask_h);
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, 5, &gpsTask_h);
@@ -136,6 +158,7 @@ int readBatteryPercent()
 void StartHousekeepingTask(void *argument)
 {
     uint8_t cnt = 30;
+    uint32_t io_num;
     gpio_t *led = gpio_create(OUTPUT, 0, LED);
     uint8_t ledState = 1;
     // configure ADC for VBATT measurement
@@ -158,11 +181,16 @@ void StartHousekeepingTask(void *argument)
             if(battery_label){
                 save_sprintf(battery_label->text, "%03d%%", readBatteryPercent());
                	label_shrink_to_text(battery_label);
-
             }
 
         }
+        if(xQueueReceive(gpioEventQueueHandle, &io_num, portMAX_DELAY)) {
+            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+            toggleZoom();
+
+        }
         vTaskDelay(ledDelay / portTICK_PERIOD_MS);
+        gpio_isr_handler_add(BTN, handleButtonPress, (void*) BTN);
     }
 }
 
