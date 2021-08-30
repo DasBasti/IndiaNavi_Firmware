@@ -229,9 +229,11 @@ error_code_t check_if_map_tile_is_loaded(display_t *dsp, void *image)
 {
 	image_t *img = (image_t *)image;
 	label_t *lbl = img->child;
-	if (img->loaded == 0)
+	if (img->loaded == 0) {
 		label_render(dsp, lbl);
-	RTOS_Free(img->data);
+	} else {
+		RTOS_Free(img->data);
+	}
 	return PM_OK;
 }
 
@@ -330,7 +332,7 @@ void StartGuiTask(void const *argument)
 	ESP_LOGI(TAG, "init E-Ink Display");
 	do {
 		reg->disable(reg);
-		vTaskDelay(100);
+		vTaskDelay(1000);
 		reg->enable(reg);
 		vTaskDelay(100);
 		eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
