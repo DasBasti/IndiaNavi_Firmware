@@ -43,12 +43,13 @@ label_t *sd_indicator_label;
 label_t *infoBox;
 label_t *scaleBox;
 
-void trigger_rendering();
-void wait_until_gui_ready();
-rendert_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), void *comp);
-/* screens */
-void start_screen(display_t *dsp);
-void app_screen(display_t *dsp);
+typedef struct Render render_t;
+struct Render
+{
+	error_code_t (*render)(display_t *dsp, void *component);
+	void *comp;
+	render_t* next;
+};
 
 enum RenderLayer {
 	RL_BACKGROUND,
@@ -57,6 +58,16 @@ enum RenderLayer {
 	RL_GUI_BACKGROUND,
 	RL_GUI_ELEMENTS,
 	RL_TOP,
+	RL_MAX, // <- Number of Layers
 };
+
+void trigger_rendering();
+void wait_until_gui_ready();
+render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), 
+	void *comp, 
+	enum RenderLayer layer); /* screens */
+void start_screen(display_t *dsp);
+void app_screen(display_t *dsp);
+
 
 #endif /* INC_GUI_H_ */

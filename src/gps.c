@@ -27,7 +27,7 @@
 
 static const char *TAG = "GPS";
 #ifdef DEBUG 
-float _longitude = 8.685508, _latitude = 49.548917, _altitude, _hdop;
+float _longitude = 8.059061, _latitude = 49.430406, _altitude, _hdop;
 bool _fix = GPS_FIX_GPS;
 #else
 float _longitude, _latitude, _altitude, _hdop;
@@ -274,12 +274,12 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 						display_circle_fill(dsp, x, y, 3, wp->color);
 					else // far
 						display_circle_fill(dsp, x, y, 2, wp->color);
-					ESP_LOGI(TAG, "WP @ x/y %d/%d tile %d/%d", x, y, wp->tile_x, wp->tile_y);
+					//ESP_LOGI(TAG, "WP @ x/y %d/%d tile %d/%d", x, y, wp->tile_x, wp->tile_y);
 					if(wp->next){
 						// line to next waypoint
 						uint32_t x2 = wp->next->pos_x + (wp->next->tile_x - wp->tile_x + i)*256;
 						uint32_t y2 = wp->next->pos_y + (wp->next->tile_y - wp->tile_y + j)*256;
-						ESP_LOGI(TAG, "WP Line to %d/%d tile %d/%d", x2,y2, wp->next->tile_x, wp->next->tile_y);
+						//ESP_LOGI(TAG, "WP Line to %d/%d tile %d/%d", x2,y2, wp->next->tile_x, wp->next->tile_y);
 						display_line_draw(dsp, x, y, x2, y2, wp->color);
 						if (!zoom_level_selected) {
 							display_line_draw(dsp, x+1, y, x2+1, y2, wp->color);
@@ -436,7 +436,7 @@ void StartGpsTask(void const *argument)
 			prev_wp = wp_t;
 
 			calculate_waypoints(wp_t);
-			add_to_render_pipeline(render_waypoint_marker, wp_t);
+			add_to_render_pipeline(render_waypoint_marker, wp_t, RL_PATH);
 
 		}
 	}

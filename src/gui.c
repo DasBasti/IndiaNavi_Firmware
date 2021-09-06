@@ -27,10 +27,6 @@ extern error_code_t render_waypoint_marker(display_t *dsp, void *comp);
 extern waypoint_t waypoints[];
 #endif
 
-#ifndef RENDER_PIPLINE_LENGTH
-#define RENDER_PIPLINE_LENGTH 1024
-#endif
-
 const uint16_t margin_top = 5;
 const uint16_t margin_bottom = 5;
 const uint16_t margin_vertical = 10;
@@ -44,14 +40,8 @@ static display_t *eink;
 
 extern void vTaskGetRunTimeStats(char *pcWriteBuffer);
 
-typedef struct
-{
-	error_code_t (*render)(display_t *dsp, void *component);
-	void *comp;
-} render_t;
-
-render_t render_pipeline[RENDER_PIPLINE_LENGTH] = {}; // maximum number of rendered items
-static uint32_t render_slot = 0;
+render_t *render_pipeline[RL_MAX]; // maximum number of rendered items
+render_t *render_last[RL_MAX]; // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
 /**
@@ -59,20 +49,28 @@ static uint8_t render_needed = 0;
  *
  * @return render slot
  */
-uint8_t add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), void *comp)
+render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), 
+	void *comp, 
+	enum RenderLayer layer)
 {
 	// increase render slot before adding this one. Slot 0 is overflow!
-	render_slot++;
-	if (!render_slot)
+	render_t *rd = RTOS_Malloc(sizeof(render_t));
+	if (!rd)
 	{
-		render_slot = RENDER_PIPLINE_LENGTH; // reset
 		ESP_LOGE(TAG, "render pipeline full!");
 		return 0;
 	}
-	render_pipeline[render_slot].render = render;
-	render_pipeline[render_slot].comp = comp;
+	rd->render = render;
+	rd->comp = comp;
+	
+	if(render_pipeline[layer] == NULL){
+		render_pipeline[layer] = rd;
+	} else {
+		render_last[layer]->next = rd;
+	}
+	render_last[layer] = rd;
 
-	return render_slot;
+	return rd;
 }
 
 static label_t *create_icon_with_text(display_t *dsp, uint8_t *icon_data,
@@ -87,9 +85,9 @@ static label_t *create_icon_with_text(display_t *dsp, uint8_t *icon_data,
 	il->child = img;
 	label_shrink_to_text(il);
 	il->alignVertical = MIDDLE;
-	add_to_render_pipeline(label_render, il);
+	add_to_render_pipeline(label_render, il, RL_GUI_ELEMENTS);
 	// render image after Label is rendered
-	add_to_render_pipeline(image_render, img);
+	add_to_render_pipeline(image_render, img, RL_GUI_ELEMENTS);
 	return il;
 }
 
@@ -119,7 +117,7 @@ static void create_top_bar(display_t *dsp)
 	sb->alignHorizontal = CENTER;
 	sb->alignVertical = MIDDLE;
 	sb->backgroundColor = WHITE;
-	add_to_render_pipeline(label_render, sb);
+	add_to_render_pipeline(label_render, sb, RL_GUI_BACKGROUND);
 
 	/* TODO: export battery component */
 	
@@ -150,7 +148,7 @@ static void create_top_bar(display_t *dsp)
 	clock_label->alignVertical = MIDDLE;
 	clock_label->alignHorizontal = CENTER;
 	clock_label->onBeforeRender = updateTimeText;
-	add_to_render_pipeline(label_render, clock_label);
+	add_to_render_pipeline(label_render, clock_label, RL_GUI_ELEMENTS);
 }
 
 /**
@@ -159,12 +157,17 @@ static void create_top_bar(display_t *dsp)
  */
 static void app_render()
 {
+	render_t *rd;
 	uint64_t start = esp_timer_get_time();
 	display_fill(eink, WHITE);
-	for (uint8_t i = 1; i < 255; i++)
+	for (uint8_t layer = 0; layer < RL_MAX; layer++)
 	{
-		if (render_pipeline[i].render)
-			render_pipeline[i].render(eink, render_pipeline[i].comp);
+		rd = render_pipeline[layer];
+		while(rd){
+			if (rd->render)
+				rd->render(eink, rd->comp);
+			rd = rd->next;
+		}
 		vTaskDelay(0);
 	}
 
@@ -268,7 +271,7 @@ void app_screen(display_t *dsp)
 			map_tiles[idx].image->parent = &map_tiles[idx];
 			map_tiles[idx].x = i;
 			map_tiles[idx].y = j;
-			add_to_render_pipeline(image_render, map_tiles[idx].image);
+			add_to_render_pipeline(image_render, map_tiles[idx].image, RL_MAP);
 		}
 
 	/* position marker */
@@ -276,7 +279,7 @@ void app_screen(display_t *dsp)
 	positon_marker->textColor = BLUE;
 	positon_marker->alignHorizontal = CENTER;
 	positon_marker->alignVertical = MIDDLE;
-	add_to_render_pipeline(label_render, positon_marker);
+	add_to_render_pipeline(label_render, positon_marker, RL_TOP);
 
 	/* scale 63px for 100m | 96px for 500ft @ zoom 16*/
 	/* scale 77px for 500m | 94px for 2000ft @zoom 14 */
@@ -288,7 +291,7 @@ void app_screen(display_t *dsp)
 	scaleBox->textColor = BLACK;
 	scaleBox->alignVertical = BOTTOM;
 	scaleBox->alignHorizontal = CENTER;
-	add_to_render_pipeline(label_render, scaleBox);
+	add_to_render_pipeline(label_render, scaleBox, RL_TOP);
 
 
 	create_top_bar(dsp);
@@ -305,12 +308,12 @@ void app_screen(display_t *dsp)
 	infoBox->alignVertical = MIDDLE;
 	infoBox->backgroundColor = WHITE;
 
-	add_to_render_pipeline(label_render, infoBox);
+	add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 
 	label_t *map_copyright = label_create("(c) OpenStreetMap contributors", &f8x8, 0,infoBox->box.top - 8, 0,0);
 	label_shrink_to_text(map_copyright);
 	map_copyright->box.left = dsp->size.width - map_copyright->box.width;
-	add_to_render_pipeline(label_render, map_copyright);
+	add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 
 }
 
