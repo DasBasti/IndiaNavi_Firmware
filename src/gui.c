@@ -217,26 +217,38 @@ error_code_t load_map_tile_on_demand(display_t *dsp, void *image)
 	img->data = imageBuf;
 	loadTile(img->parent); // queue loading
 
-	while (!img->loaded)
+	while (img->loaded != LOADED)
 	{
+		label_t *l = (label_t*)img->child;
+		if (img->loaded == ERROR){
+			l->text = "Error";
+			goto freeImageMemory;
+		}
+		if (img->loaded == NOT_FOUND){
+			//l->text = "Not Found";
+			goto freeImageMemory;
+		}
 		vTaskDelay(10);
 		timeout++;
 		if (timeout == 100)
 		{
 			ESP_LOGI(TAG, "load timeout!");
-			RTOS_Free(imageBuf);
-			return TIMEOUT;
+			goto freeImageMemory;
 		}
 	}
 
 	return PM_OK;
+
+freeImageMemory:
+	RTOS_Free(imageBuf);
+	return TIMEOUT;
 }
 
 error_code_t check_if_map_tile_is_loaded(display_t *dsp, void *image)
 {
 	image_t *img = (image_t *)image;
 	label_t *lbl = img->child;
-	if (img->loaded == 0) {
+	if (img->loaded != LOADED) {
 		label_render(dsp, lbl);
 	} else {
 		RTOS_Free(img->data);

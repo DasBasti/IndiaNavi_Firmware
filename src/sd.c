@@ -181,12 +181,13 @@ void StartSDTask(void const *argument)
 									 &br); // Tilesize 256*256/2 bytes
 						if (FR_OK == res)
 						{
-							tile->image->loaded = true;
+							tile->image->loaded = LOADED;
 						}
 						f_close(&t_img);
 					}
 					else
 					{
+						tile->image->loaded = NOT_FOUND;
 						save_sprintf(tile->label->text,
 									 "%d/%d not found.", tile->x,
 									 tile->y);
