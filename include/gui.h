@@ -45,9 +45,18 @@ label_t *scaleBox;
 
 void trigger_rendering();
 void wait_until_gui_ready();
-uint8_t add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), void *comp);
+rendert_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), void *comp);
 /* screens */
 void start_screen(display_t *dsp);
 void app_screen(display_t *dsp);
+
+enum RenderLayer {
+	RL_BACKGROUND,
+	RL_MAP,
+	RL_PATH,
+	RL_GUI_BACKGROUND,
+	RL_GUI_ELEMENTS,
+	RL_TOP,
+};
 
 #endif /* INC_GUI_H_ */
