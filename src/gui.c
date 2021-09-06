@@ -27,6 +27,10 @@ extern error_code_t render_waypoint_marker(display_t *dsp, void *comp);
 extern waypoint_t waypoints[];
 #endif
 
+#ifndef RENDER_PIPLINE_LENGTH
+#define RENDER_PIPLINE_LENGTH 1024
+#endif
+
 const uint16_t margin_top = 5;
 const uint16_t margin_bottom = 5;
 const uint16_t margin_vertical = 10;
@@ -46,8 +50,8 @@ typedef struct
 	void *comp;
 } render_t;
 
-render_t render_pipeline[255] = {}; // maximum number of rendered items
-static uint8_t render_slot = 0;
+render_t render_pipeline[RENDER_PIPLINE_LENGTH] = {}; // maximum number of rendered items
+static uint32_t render_slot = 0;
 static uint8_t render_needed = 0;
 
 /**
@@ -61,7 +65,7 @@ uint8_t add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *comp
 	render_slot++;
 	if (!render_slot)
 	{
-		render_slot = 255; // reset
+		render_slot = RENDER_PIPLINE_LENGTH; // reset
 		ESP_LOGE(TAG, "render pipeline full!");
 		return 0;
 	}
@@ -286,6 +290,7 @@ void app_screen(display_t *dsp)
 	scaleBox->alignHorizontal = CENTER;
 	add_to_render_pipeline(label_render, scaleBox);
 
+
 	create_top_bar(dsp);
 
 	char *infoText = RTOS_Malloc(dsp->size.width / f8x8.width);
@@ -301,6 +306,12 @@ void app_screen(display_t *dsp)
 	infoBox->backgroundColor = WHITE;
 
 	add_to_render_pipeline(label_render, infoBox);
+
+	label_t *map_copyright = label_create("(c) OpenStreetMap contributors", &f8x8, 0,infoBox->box.top - 8, 0,0);
+	label_shrink_to_text(map_copyright);
+	map_copyright->box.left = dsp->size.width - map_copyright->box.width;
+	add_to_render_pipeline(label_render, map_copyright);
+
 }
 
 void trigger_rendering()
