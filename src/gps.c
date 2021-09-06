@@ -288,10 +288,7 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 					}
 					display_pixel_draw(dsp, x, y, WHITE);
 				}
-		}
-				if(wp->next){
-			//wp->next->
-		}
+			}
 		return PM_OK;
 	}
 	return ABORT;
