@@ -22,10 +22,6 @@
 #include <driver/gpio.h>
 
 #include "icons_32/icons_32.h"
-#ifdef DEBUG
-extern error_code_t render_waypoint_marker(display_t *dsp, void *comp);
-extern waypoint_t waypoints[];
-#endif
 
 const uint16_t margin_top = 5;
 const uint16_t margin_bottom = 5;
@@ -71,6 +67,16 @@ render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *co
 	render_last[layer] = rd;
 
 	return rd;
+}
+
+void free_render_pipeline(enum RenderLayer layer){
+	render_t *r = render_pipeline[layer];
+	while(r){
+		render_t *rn;
+		rn = r;
+		r = r->next;
+		free(rn);
+	}
 }
 
 static label_t *create_icon_with_text(display_t *dsp, uint8_t *icon_data,
@@ -358,10 +364,12 @@ void StartGuiTask(void const *argument)
 
 	ESP_LOGI(TAG, "init E-Ink Display");
 	do {
+
+
 		reg->disable(reg);
-		vTaskDelay(1000);
+		vTaskDelay(500);
 		reg->enable(reg);
-		vTaskDelay(100);
+		vTaskDelay(10);
 		eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
 		if (!eink){
 			ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
@@ -395,6 +403,7 @@ void StartGuiTask(void const *argument)
 			if (xSemaphoreTake(gui_semaphore, 0) == pdTRUE)
 			{
 				xSemaphoreGive(gui_semaphore);
+				pre_render_cb();
 				app_render();
 				render_needed = 0;
 				ESP_LOGI(TAG, "Refresh.");

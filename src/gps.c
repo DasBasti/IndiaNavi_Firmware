@@ -26,8 +26,8 @@
 #include "icons_32/icons_32.h"
 
 static const char *TAG = "GPS";
-#ifdef DEBUG 
-float _longitude = 8.059061, _latitude = 49.430406, _altitude, _hdop;
+#ifdef DEBUG
+float _longitude = 8.68575379, _latitude = 49.7258546, _altitude, _hdop;
 bool _fix = GPS_FIX_GPS;
 #else
 float _longitude, _latitude, _altitude, _hdop;
@@ -188,7 +188,7 @@ void calculate_waypoints(waypoint_t *wp_t)
 	wp_t->tile_y = floor(_yf);
 	wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
 	wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
-	ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
+	//ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
 }
 
 /* Change Zoom level and trigger rendering. 
@@ -285,6 +285,8 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 							display_line_draw(dsp, x+1, y, x2+1, y2, wp->color);
 							display_line_draw(dsp, x-1, y, x2-1, y2, wp->color);
 						}
+						uint16_t vec_len = length(x,y,x2,y2);
+						display_line_draw(dsp, x, y, x+(x/vec_len*5), y+(y/vec_len*5), BLACK);
 					}
 					display_pixel_draw(dsp, x, y, WHITE);
 				}
@@ -292,6 +294,86 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 		return PM_OK;
 	}
 	return ABORT;
+}
+
+void pre_render_cb(){
+	char *waypoint_file = RTOS_Malloc(32000);
+	char *wp = RTOS_Malloc(50);
+	async_file_t *wp_file = &AFILE;
+	wp_file->filename = "//TRACK";
+	wp_file->dest = waypoint_file;
+	wp_file->loaded = false;
+	loadFile(wp_file);
+	uint8_t delay = 0;
+	ESP_LOGI(TAG, "Load waypoint information queued");
+	while (!wp_file->loaded)
+	{
+		vTaskDelay(100 / portTICK_PERIOD_MS);
+		if (delay++ == 20)
+			break;
+	}
+
+	//free_render_pipeline(RL_PATH);
+
+	waypoint_t *wp_ = waypoints;
+	while(wp_){
+		waypoint_t *nwp;
+		nwp = wp_;
+		wp_ = wp_->next;
+		free(nwp);
+
+	}
+
+	waypoint_t *prev_wp = NULL;
+	uint16_t num=0;
+	if (wp_file->loaded)
+	{
+		ESP_LOGI(TAG, "Load waypoint information ");
+		char* f = waypoint_file;
+		while (1) {
+			f = readline(f, wp);
+			if (!f)
+				break;
+			float flon = atoff(strtok(wp, " "));
+			float flat = atoff(strtok(NULL, " "));
+			//ESP_LOGI(TAG, "Read waypoint: %f - %f", flon, flat);
+			// only load wp that are on currently shown tiles 
+			waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
+			wp_t->lat = flat;
+			wp_t->lon = flon;
+			wp_t->num = num;
+			wp_t->color = BLUE;
+			calculate_waypoints(wp_t);
+			for (uint8_t i = 0; i < 6; i++) {
+				if(wp_t->tile_x == map_tiles[i].x && wp_t->tile_y == map_tiles[i].y) {
+					num++;
+					if (prev_wp){
+						prev_wp->next = wp_t;
+					}
+					else {
+						waypoints = wp_t;
+					}
+					prev_wp = wp_t;
+					add_to_render_pipeline(render_waypoint_marker, wp_t, RL_PATH);
+					break;
+				} 
+				if(i == 5) {
+					RTOS_Free(wp_t);
+				}
+			}
+		
+			if(wp_t->num % 10 == 0){
+				vTaskDelay(1);
+			}
+		}
+		ESP_LOGI(TAG, "Number of waypoints: %d", num);
+	}
+	else {
+		ESP_LOGI(TAG, "Load waypoint information failed");
+	}
+	ESP_LOGI(TAG, "Load waypoint information done");
+	free(waypoint_file);
+	free(wp);
 }
 
 void gps_stop_parser()
@@ -391,62 +473,9 @@ void StartGpsTask(void const *argument)
 #ifndef DEBUG 
 	// start the parser on release builds
 	nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
+#else
+	uint8_t t=0; // toggle
 #endif
-
-	char *waypoint_file = RTOS_Malloc(32000);
-	char *wp = RTOS_Malloc(50);
-	async_file_t *wp_file = &AFILE;
-	wp_file->filename = "//TRACK";
-	wp_file->dest = waypoint_file;
-	wp_file->loaded = false;
-	loadFile(wp_file);
-	delay = 0;
-	ESP_LOGI(TAG, "Load waypoint information queued");
-	while (!wp_file->loaded)
-	{
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		if (delay++ == 20)
-			break;
-	}
-	waypoint_t *prev_wp = NULL;
-	uint16_t num=0;
-	if (wp_file->loaded)
-	{
-		ESP_LOGI(TAG, "Load waypoint information ");
-		char* f = waypoint_file;
-		while (1) {
-			f = readline(f, wp);
-			if (!f)
-				break;
-			float flon = atoff(strtok(wp, " "));
-			float flat = atoff(strtok(NULL, " "));
-			ESP_LOGI(TAG, "Read waypoint: %f - %f", flon, flat);
-			waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
-			wp_t->lat = flat;
-			wp_t->lon = flon;
-			wp_t->num = num;
-			wp_t->color = BLUE;
-			num++;
-			if (prev_wp){
-				prev_wp->next = wp_t;
-			}
-			else {
-				waypoints = wp_t;
-			}
-			prev_wp = wp_t;
-
-			calculate_waypoints(wp_t);
-			add_to_render_pipeline(render_waypoint_marker, wp_t, RL_PATH);
-
-		}
-	}
-	else {
-		ESP_LOGI(TAG, "Load waypoint information failed");
-	}
-	ESP_LOGI(TAG, "Load waypoint information done");
-	free(waypoint_file);
-	free(wp);
-
 	for (;;)
 	{
 
@@ -479,7 +508,16 @@ void StartGpsTask(void const *argument)
 		{
 			update_tiles();
 		}
-
+#ifdef DEBUG
 		vTaskDelay(60000 / portTICK_PERIOD_MS);
+		if(t){
+		_longitude = 8.68575379;
+		_latitude = 49.7258546;
+		} else {
+		_longitude = 8.618592083105439;
+		_latitude = 49.70174410208734;
+		}
+		t=!t;
+#endif
 	}
 }

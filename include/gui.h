@@ -62,6 +62,8 @@ enum RenderLayer {
 };
 
 void trigger_rendering();
+void pre_render_cb();
+void free_render_pipeline(enum RenderLayer layer);
 void wait_until_gui_ready();
 render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), 
 	void *comp, 

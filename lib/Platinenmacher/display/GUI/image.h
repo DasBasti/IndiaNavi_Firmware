@@ -12,6 +12,14 @@
 #include "display/GUI/geometric.h"
 #include "display/display.h"
 
+enum LoadStatus {
+	NOT_LOADED,
+	LOADING,
+	LOADED,
+	NOT_FOUND,
+	ERROR,
+};
+
 typedef struct
 {
 	const uint8_t *data;
@@ -19,7 +27,7 @@ typedef struct
 
 	void *child;  /// Pointer to child element.
 	void *parent; /// Pointer to parent element.
-	int8_t loaded;
+	enum LoadStatus loaded;
 
 	error_code_t (*onBeforeRender)(display_t *dsp, void *image);
 	error_code_t (*onAfterRender)(display_t *dsp, void *image);

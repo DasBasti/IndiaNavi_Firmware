@@ -9,6 +9,8 @@
 #define PLATINENMACHER_DISPLAY_GUI_GEOMETRIC_H_
 
 #include <stdint.h>
+#include <math.h>
+
 typedef struct {
 	uint16_t left;
 	uint16_t top;
@@ -42,5 +44,7 @@ typedef enum {
 	ALL_SOLID = 0x55,
 	ALL_DOTTET = 0xaa,
 } border_line_t;
+
+#define length(x,x2,y,y2) (sqrt((x*x2)+(y*y2))) 
 
 #endif /* PLATINENMACHER_DISPLAY_GUI_GEOMETRIC_H_ */
