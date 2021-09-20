@@ -297,8 +297,8 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 }
 
 void pre_render_cb(){
-	char *waypoint_file = RTOS_Malloc(32000);
-	char *wp = RTOS_Malloc(50);
+	char *waypoint_file = RTOS_Malloc(32768);
+	char *wp_line = RTOS_Malloc(50);
 	async_file_t *wp_file = &AFILE;
 	wp_file->filename = "//TRACK";
 	wp_file->dest = waypoint_file;
@@ -312,8 +312,10 @@ void pre_render_cb(){
 		if (delay++ == 20)
 			break;
 	}
-
-	//free_render_pipeline(RL_PATH);
+	ESP_LOGI(TAG, "Loaded waypoint information. Calculating...");
+    uint64_t start = esp_timer_get_time();
+	
+	free_render_pipeline(RL_PATH);
 
 	waypoint_t *wp_ = waypoints;
 	while(wp_){
@@ -325,28 +327,29 @@ void pre_render_cb(){
 	}
 
 	waypoint_t *prev_wp = NULL;
-	uint16_t num=0;
+	waypoint_t cur_wp = {};
+	cur_wp.color = BLUE;
 	if (wp_file->loaded)
 	{
 		ESP_LOGI(TAG, "Load waypoint information ");
 		char* f = waypoint_file;
 		while (1) {
-			f = readline(f, wp);
+			f = readline(f, wp_line);
 			if (!f)
 				break;
-			float flon = atoff(strtok(wp, " "));
+			float flon = atoff(strtok(wp_line, " "));
 			float flat = atoff(strtok(NULL, " "));
 			//ESP_LOGI(TAG, "Read waypoint: %f - %f", flon, flat);
 			// only load wp that are on currently shown tiles 
-			waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
-			wp_t->lat = flat;
-			wp_t->lon = flon;
-			wp_t->num = num;
-			wp_t->color = BLUE;
-			calculate_waypoints(wp_t);
+			
+			cur_wp.lon = flon;
+			cur_wp.lat = flat;
+			calculate_waypoints(&cur_wp);
+			//ESP_LOGI(TAG, "Waypoint %d: %d/%d", cur_wp.num, cur_wp.tile_x, cur_wp.tile_y);
 			for (uint8_t i = 0; i < 6; i++) {
-				if(wp_t->tile_x == map_tiles[i].x && wp_t->tile_y == map_tiles[i].y) {
-					num++;
+				if(cur_wp.tile_x == map_tiles[i].x && cur_wp.tile_y == map_tiles[i].y) {
+					waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
+					memcpy(wp_t, &cur_wp, sizeof(waypoint_t));
 					if (prev_wp){
 						prev_wp->next = wp_t;
 					}
@@ -355,25 +358,24 @@ void pre_render_cb(){
 					}
 					prev_wp = wp_t;
 					add_to_render_pipeline(render_waypoint_marker, wp_t, RL_PATH);
+					// increase for next tile
+					cur_wp.num++;
 					break;
 				} 
-				if(i == 5) {
-					RTOS_Free(wp_t);
-				}
 			}
-		
-			if(wp_t->num % 10 == 0){
+			if(cur_wp.num % 10 == 0){
 				vTaskDelay(1);
 			}
 		}
-		ESP_LOGI(TAG, "Number of waypoints: %d", num);
+		ESP_LOGI(TAG, "Number of waypoints: %d", cur_wp.num);
 	}
 	else {
 		ESP_LOGI(TAG, "Load waypoint information failed");
-	}
-	ESP_LOGI(TAG, "Load waypoint information done");
-	free(waypoint_file);
-	free(wp);
+	}	
+	RTOS_Free(waypoint_file);
+	RTOS_Free(wp_line);
+	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
+	ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
 }
 
 void gps_stop_parser()
@@ -510,12 +512,12 @@ void StartGpsTask(void const *argument)
 		}
 #ifdef DEBUG
 		vTaskDelay(60000 / portTICK_PERIOD_MS);
-		if(t){
-		_longitude = 8.68575379;
-		_latitude = 49.7258546;
+		if(t){    
+		_longitude = 8.055898;
+		_latitude = 49.427578;
 		} else {
-		_longitude = 8.618592083105439;
-		_latitude = 49.70174410208734;
+		_longitude = 8.043859;
+		_latitude = 49.394235;
 		}
 		t=!t;
 #endif
