@@ -184,7 +184,7 @@ void StartHousekeepingTask(void *argument)
             }
 
         }
-        if(xQueueReceive(gpioEventQueueHandle, &io_num, portMAX_DELAY)) {
+        if(xQueueReceive(gpioEventQueueHandle, &io_num, 0)) {
             printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
             toggleZoom();
 
