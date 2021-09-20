@@ -232,7 +232,7 @@ error_code_t updateInfoText(display_t *dsp, void *comp)
 error_code_t updateSatsInView(display_t *dsp, void *comp)
 {
 	xSemaphoreTake(print_semaphore, portMAX_DELAY);
-	sprintf(gps_indicator_label->text, "%d", _sats_in_view);
+	sprintf(gps_indicator_label->text, "%d", _sats_in_use);
 	xSemaphoreGive(print_semaphore);
 
 	return PM_OK;
@@ -241,9 +241,8 @@ error_code_t updateSatsInView(display_t *dsp, void *comp)
 error_code_t render_position_marker(display_t *dsp, void *comp)
 {
 	label_t *label = (label_t *)comp;
-	uint8_t hdop = floor(_hdop / 5);
-	if (hdop < 8)
-		hdop = 8;
+	uint8_t hdop = floor(_hdop / 2);
+	hdop += 8;
 	if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS))
 	{
 		label->box.left = pos_x - label->box.width / 2;
