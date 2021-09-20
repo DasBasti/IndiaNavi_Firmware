@@ -75,7 +75,7 @@ void free_render_pipeline(enum RenderLayer layer){
 		render_t *rn;
 		rn = r;
 		r = r->next;
-		free(rn);
+		RTOS_Free(rn);
 	}
 }
 
@@ -373,6 +373,10 @@ void StartGuiTask(void const *argument)
 		eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
 		if (!eink){
 			ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
+			reg->disable(reg);
+			vTaskDelay(5000);
+			reg->enable(reg);
+			vTaskDelay(10);
 		}
 	} while (!eink);
 
