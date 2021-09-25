@@ -38,7 +38,7 @@ char timeString[20];
 uint8_t zoom_level_selected = 0;
 uint8_t zoom_level[] = {16, 14};
 uint8_t zoom_level_scaleBox_width[] = {63, 77};
-char* zoom_level_scaleBox_text[] = {"100m", "500m"};
+char *zoom_level_scaleBox_text[] = {"100m", "500m"};
 static uint8_t tile_zoom = 16;
 static uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
 static uint8_t right_side = 0;
@@ -119,64 +119,64 @@ uint32_t lat2tile(float lat, uint8_t zoom)
 
 void update_tiles()
 {
-				if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE)
+	if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE)
+	{
+		// get tile number of tile with position on it as float and integer
+		if (_longitude != 0.0)
+		{
+			xf = flon2tile(_longitude, tile_zoom);
+			x = floor(xf);
+		}
+		// also for y axis
+		if (_latitude != 0.0)
+		{
+			yf = flat2tile(_latitude, tile_zoom);
+			y = floor(yf);
+		}
+		// get offset to tile corner of tile with position
+		pos_x = floor((xf - x) * 256); // offset from tile 0
+		pos_y = floor((yf - y) * 256); // offset from tile 0
+		ESP_LOGI(TAG, "GPS: Position update");
+		/* grab necessary tiles */
+		// TODO: use threshold to trigger new render not leaving tile
+		if ((x != x_old) | (y != y_old))
+		{
+			ESP_LOGI(TAG, "GPS: Tiles need update, too.");
+			x_old = x;
+			y_old = y;
+			for (uint8_t i = 0; i < 2; i++)
 			{
-				// get tile number of tile with position on it as float and integer
-				if (_longitude != 0.0)
+				for (uint8_t j = 0; j < 3; j++)
 				{
-					xf = flon2tile(_longitude, tile_zoom);
-					x = floor(xf);
-				}
-				// also for y axis
-				if (_latitude != 0.0)
-				{
-					yf = flat2tile(_latitude, tile_zoom);
-					y = floor(yf);
-				}
-				// get offset to tile corner of tile with position
-				pos_x = floor((xf - x) * 256); // offset from tile 0
-				pos_y = floor((yf - y) * 256); // offset from tile 0
-				ESP_LOGI(TAG, "GPS: Position update");
-				/* grab necessary tiles */
-				// TODO: use threshold to trigger new render not leaving tile
-				if ((x != x_old) | (y != y_old))
-				{
-					ESP_LOGI(TAG, "GPS: Tiles need update, too.");
-					x_old = x;
-					y_old = y;
-					for (uint8_t i = 0; i < 2; i++)
+					uint8_t idx = i * 3 + j;
+					if (pos_x < 128)
 					{
-						for (uint8_t j = 0; j < 3; j++)
-						{
-							uint8_t idx = i * 3 + j;
-							if (pos_x < 128)
-							{
-								map_tiles[idx].x = x - 1 + i;
-								right_side = 1;
-							}
-							else
-							{
-								map_tiles[idx].x = x + i;
-								right_side = 0;
-							}
-							map_tiles[idx].y = y + (-1 + j);
-							map_tiles[idx].z = tile_zoom;
-							map_tiles[idx].image->loaded = 0;
-						}
+						map_tiles[idx].x = x - 1 + i;
+						right_side = 1;
 					}
+					else
+					{
+						map_tiles[idx].x = x + i;
+						right_side = 0;
+					}
+					map_tiles[idx].y = y + (-1 + j);
+					map_tiles[idx].z = tile_zoom;
+					map_tiles[idx].image->loaded = 0;
 				}
-
-				pos_y += 256;
-				if (right_side)
-					pos_x += 256;
-
-				xSemaphoreGive(gui_semaphore);
-				trigger_rendering();
 			}
-			else
-			{
-				ESP_LOGI(TAG, "gui semaphore taken");
-			}
+		}
+
+		pos_y += 256;
+		if (right_side)
+			pos_x += 256;
+
+		xSemaphoreGive(gui_semaphore);
+		trigger_rendering();
+	}
+	else
+	{
+		ESP_LOGI(TAG, "gui semaphore taken");
+	}
 }
 
 void calculate_waypoints(waypoint_t *wp_t)
@@ -188,21 +188,22 @@ void calculate_waypoints(waypoint_t *wp_t)
 	wp_t->tile_y = floor(_yf);
 	wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
 	wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
-	//ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
+													 //ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
 }
 
 /* Change Zoom level and trigger rendering. 
    Tiles must be available on SD card! 
 */
 void toggleZoom()
-{ 
+{
 	zoom_level_selected = !zoom_level_selected;
 	tile_zoom = zoom_level[zoom_level_selected];
 	ESP_LOGI(TAG, "Set zoom level to: %d", tile_zoom);
 	waypoint_t *wp_t = waypoints;
-	while(wp_t){
+	while (wp_t)
+	{
 		calculate_waypoints(wp_t);
-		wp_t = wp_t->next; 
+		wp_t = wp_t->next;
 	}
 	scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
 	scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
@@ -257,7 +258,7 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 
 error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 {
-	waypoint_t* wp = (waypoint_t*)comp;
+	waypoint_t *wp = (waypoint_t *)comp;
 	if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS) & (wp->tile_x != 0) & (wp->tile_y != 0))
 	{
 		for (uint8_t i = 0; i < 2; i++)
@@ -265,27 +266,29 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 			{
 				uint8_t idx = i * 3 + j;
 				// check if we have the tile on the screen
-				if(map_tiles[idx].x == wp->tile_x && map_tiles[idx].y == wp->tile_y)
+				if (map_tiles[idx].x == wp->tile_x && map_tiles[idx].y == wp->tile_y)
 				{
-					uint16_t x = wp->pos_x+(i*256);
-					uint16_t y = wp->pos_y+(j*256);
-					if(!zoom_level_selected) // close up
+					uint16_t x = wp->pos_x + (i * 256);
+					uint16_t y = wp->pos_y + (j * 256);
+					if (!zoom_level_selected) // close up
 						display_circle_fill(dsp, x, y, 3, wp->color);
 					else // far
 						display_circle_fill(dsp, x, y, 2, wp->color);
 					//ESP_LOGI(TAG, "WP @ x/y %d/%d tile %d/%d", x, y, wp->tile_x, wp->tile_y);
-					if(wp->next){
+					if (wp->next)
+					{
 						// line to next waypoint
-						uint32_t x2 = wp->next->pos_x + (wp->next->tile_x - wp->tile_x + i)*256;
-						uint32_t y2 = wp->next->pos_y + (wp->next->tile_y - wp->tile_y + j)*256;
+						uint32_t x2 = wp->next->pos_x + (wp->next->tile_x - wp->tile_x + i) * 256;
+						uint32_t y2 = wp->next->pos_y + (wp->next->tile_y - wp->tile_y + j) * 256;
 						//ESP_LOGI(TAG, "WP Line to %d/%d tile %d/%d", x2,y2, wp->next->tile_x, wp->next->tile_y);
 						display_line_draw(dsp, x, y, x2, y2, wp->color);
-						if (!zoom_level_selected) {
-							display_line_draw(dsp, x+1, y, x2+1, y2, wp->color);
-							display_line_draw(dsp, x-1, y, x2-1, y2, wp->color);
+						if (!zoom_level_selected)
+						{
+							display_line_draw(dsp, x + 1, y, x2 + 1, y2, wp->color);
+							display_line_draw(dsp, x - 1, y, x2 - 1, y2, wp->color);
 						}
-						uint16_t vec_len = length(x,y,x2,y2);
-						display_line_draw(dsp, x, y, x+(x/vec_len*5), y+(y/vec_len*5), BLACK);
+						uint16_t vec_len = length(x, y, x2, y2);
+						display_line_draw(dsp, x, y, x + (x / vec_len * 5), y + (y / vec_len * 5), BLACK);
 					}
 					display_pixel_draw(dsp, x, y, WHITE);
 				}
@@ -295,7 +298,8 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 	return ABORT;
 }
 
-void pre_render_cb(){
+void pre_render_cb()
+{
 	char *waypoint_file = RTOS_Malloc(32768);
 	char *wp_line = RTOS_Malloc(50);
 	async_file_t *wp_file = &AFILE;
@@ -312,17 +316,17 @@ void pre_render_cb(){
 			break;
 	}
 	ESP_LOGI(TAG, "Loaded waypoint information. Calculating...");
-    uint64_t start = esp_timer_get_time();
-	
+	uint64_t start = esp_timer_get_time();
+
 	free_render_pipeline(RL_PATH);
 
 	waypoint_t *wp_ = waypoints;
-	while(wp_){
+	while (wp_)
+	{
 		waypoint_t *nwp;
 		nwp = wp_;
 		wp_ = wp_->next;
 		free(nwp);
-
 	}
 
 	waypoint_t *prev_wp = NULL;
@@ -331,28 +335,33 @@ void pre_render_cb(){
 	if (wp_file->loaded)
 	{
 		ESP_LOGI(TAG, "Load waypoint information ");
-		char* f = waypoint_file;
-		while (1) {
+		char *f = waypoint_file;
+		while (1)
+		{
 			f = readline(f, wp_line);
 			if (!f)
 				break;
 			float flon = atoff(strtok(wp_line, " "));
 			float flat = atoff(strtok(NULL, " "));
 			//ESP_LOGI(TAG, "Read waypoint: %f - %f", flon, flat);
-			// only load wp that are on currently shown tiles 
-			
+			// only load wp that are on currently shown tiles
+
 			cur_wp.lon = flon;
 			cur_wp.lat = flat;
 			calculate_waypoints(&cur_wp);
 			//ESP_LOGI(TAG, "Waypoint %d: %d/%d", cur_wp.num, cur_wp.tile_x, cur_wp.tile_y);
-			for (uint8_t i = 0; i < 6; i++) {
-				if(cur_wp.tile_x == map_tiles[i].x && cur_wp.tile_y == map_tiles[i].y) {
+			for (uint8_t i = 0; i < 6; i++)
+			{
+				if (cur_wp.tile_x == map_tiles[i].x && cur_wp.tile_y == map_tiles[i].y)
+				{
 					waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
 					memcpy(wp_t, &cur_wp, sizeof(waypoint_t));
-					if (prev_wp){
+					if (prev_wp)
+					{
 						prev_wp->next = wp_t;
 					}
-					else {
+					else
+					{
 						waypoints = wp_t;
 					}
 					prev_wp = wp_t;
@@ -360,17 +369,19 @@ void pre_render_cb(){
 					// increase for next tile
 					cur_wp.num++;
 					break;
-				} 
+				}
 			}
-			if(cur_wp.num % 10 == 0){
+			if (cur_wp.num % 10 == 0)
+			{
 				vTaskDelay(1);
 			}
 		}
 		ESP_LOGI(TAG, "Number of waypoints: %d", cur_wp.num);
 	}
-	else {
+	else
+	{
 		ESP_LOGI(TAG, "Load waypoint information failed");
-	}	
+	}
 	RTOS_Free(waypoint_file);
 	RTOS_Free(wp_line);
 	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
@@ -463,6 +474,7 @@ void StartGpsTask(void const *argument)
 		.uart = {
 			.uart_port = UART_NUM_2,
 			.rx_pin = GPS_UART2_RX,
+			.tx_pin = GPS_UART2_TX,
 			.baud_rate = 9600,
 			.data_bits = UART_DATA_8_BITS,
 			.parity = UART_PARITY_DISABLE,
@@ -471,11 +483,11 @@ void StartGpsTask(void const *argument)
 	/* init NMEA parser library */
 	nmea_hdl = nmea_parser_init(&config);
 	/* register event handler for NMEA parser library */
-#ifndef DEBUG 
+#ifndef DEBUG
 	// start the parser on release builds
 	nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
 #else
-	uint8_t t=0; // toggle
+	uint8_t t = 0; // toggle
 #endif
 	for (;;)
 	{
@@ -511,14 +523,17 @@ void StartGpsTask(void const *argument)
 		}
 #ifdef DEBUG
 		vTaskDelay(60000 / portTICK_PERIOD_MS);
-		if(t){    
-		_longitude = 8.055898;
-		_latitude = 49.427578;
-		} else {
-		_longitude = 8.043859;
-		_latitude = 49.394235;
+		if (t)
+		{
+			_longitude = 8.055898;
+			_latitude = 49.427578;
 		}
-		t=!t;
+		else
+		{
+			_longitude = 8.043859;
+			_latitude = 49.394235;
+		}
+		t = !t;
 #endif
 	}
 }

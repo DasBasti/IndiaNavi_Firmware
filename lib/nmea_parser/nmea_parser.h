@@ -131,6 +131,7 @@ typedef struct {
     struct {
         uart_port_t uart_port;        /*!< UART port number */
         uint32_t rx_pin;              /*!< UART Rx Pin number */
+        uint32_t tx_pin;              /*!< UART Tx Pin number */
         uint32_t baud_rate;           /*!< UART baud rate */
         uart_word_length_t data_bits; /*!< UART data bits length */
         uart_parity_t parity;         /*!< UART parity */
