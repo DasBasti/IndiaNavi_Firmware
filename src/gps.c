@@ -31,7 +31,7 @@ float _longitude = 8.68575379, _latitude = 49.7258546, _altitude, _hdop;
 bool _fix = GPS_FIX_GPS;
 #else
 float _longitude, _latitude, _altitude, _hdop;
-bool _fix = GPS_FIX_INVALID;
+gps_fix_t _fix = GPS_FIX_INVALID;
 #endif
 static uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
