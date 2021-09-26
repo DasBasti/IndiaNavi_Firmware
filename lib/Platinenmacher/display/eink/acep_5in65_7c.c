@@ -10,7 +10,7 @@
 #include <freertos/task.h>
 #include "acep_5in65_7c.h"
 #include <esp_log.h>
-const char* TAG = "eink";
+const char *TAG = "eink";
 // The framebuffer for the display
 #define FB_SIZE (ACEP_5IN65_WIDTH * ACEP_5IN65_HEIGHT / 2)
 uint8_t fb[FB_SIZE] = {0};
@@ -58,7 +58,7 @@ error_code_t ACEP_5IN65_Write(display_t *dsp, uint16_t x, uint16_t y,
  */
 void ACEP_5IN65_Commit_Fb()
 {
-	if(ACEP_5IN65_Display(fb)==TIMEOUT)
+	if (ACEP_5IN65_Display(fb) == TIMEOUT)
 		ESP_LOGE(TAG, "Timeout during commiting FB");
 }
 
@@ -130,11 +130,12 @@ static void ACEP_5IN65_SendDataStream(uint8_t *Data, uint32_t length) {
 
 static error_code_t ACEP_5IN65_BusyHigh(void) // If BUSYN=0 then waiting
 {
-	uint8_t timeout=0;
+	uint8_t timeout = 0;
 	while (!(gpio_get_level(EINK_BUSY)))
 	{
 		vTaskDelay(100);
-		if (timeout++ == 60) {
+		if (timeout++ == 60)
+		{
 			return TIMEOUT;
 		}
 	}
@@ -143,11 +144,12 @@ static error_code_t ACEP_5IN65_BusyHigh(void) // If BUSYN=0 then waiting
 
 static error_code_t ACEP_5IN65_BusyLow(void) // If BUSYN=1 then waiting
 {
-	uint8_t timeout=0;
+	uint8_t timeout = 0;
 	while (gpio_get_level(EINK_BUSY))
 	{
 		vTaskDelay(100);
-		if (timeout++ == 60) {
+		if (timeout++ == 60)
+		{
 			return TIMEOUT;
 		}
 	}
@@ -184,13 +186,13 @@ display_t *ACEP_5IN65_Init(display_rotation_t rotation)
 	};
 	//Initialize the SPI bus
 	ret = spi_bus_initialize(EINK_SPI_HOST, &buscfg, 0);
-	if(ret != ESP_OK)
+	if (ret != ESP_OK)
 		goto spi_bus_initialize_failed;
 	//Attach the LCD to the SPI bus
 	ret = spi_bus_add_device(EINK_SPI_HOST, &devcfg, &spi);
-	if(ret != ESP_OK)
+	if (ret != ESP_OK)
 		goto spi_bus_add_device_failed;
-	
+
 	/* create display object */
 	display_t *disp;
 	switch (rotation)
@@ -219,7 +221,7 @@ display_t *ACEP_5IN65_Init(display_rotation_t rotation)
 	ret = spi_device_acquire_bus(spi, portMAX_DELAY);
 	ESP_ERROR_CHECK(ret);
 	ACEP_5IN65_Reset();
-	if(ACEP_5IN65_BusyHigh() == TIMEOUT)
+	if (ACEP_5IN65_BusyHigh() == TIMEOUT)
 		goto display_busyhigh_timeout;
 	ACEP_5IN65_SendCommand(0x00);
 	ACEP_5IN65_SendData(0xEF);
@@ -291,14 +293,14 @@ static error_code_t ACEP_5IN65_Display(uint8_t *image)
 		}
 	}
 	ACEP_5IN65_SendCommand(0x04); //0x04
-	if(ACEP_5IN65_BusyHigh() == TIMEOUT)
+	if (ACEP_5IN65_BusyHigh() == TIMEOUT)
 		return TIMEOUT;
 	ACEP_5IN65_SendCommand(0x12); //0x12
-	if(ACEP_5IN65_BusyHigh() == TIMEOUT)
+	if (ACEP_5IN65_BusyHigh() == TIMEOUT)
 		return TIMEOUT;
 	ACEP_5IN65_SendCommand(0x02); //0x02
 	spi_device_release_bus(spi);
-	if(ACEP_5IN65_BusyLow() == TIMEOUT)
+	if (ACEP_5IN65_BusyLow() == TIMEOUT)
 		return TIMEOUT;
 	return PM_OK;
 }
