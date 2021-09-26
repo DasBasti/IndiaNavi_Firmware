@@ -37,7 +37,7 @@ static display_t *eink;
 extern void vTaskGetRunTimeStats(char *pcWriteBuffer);
 
 render_t *render_pipeline[RL_MAX]; // maximum number of rendered items
-render_t *render_last[RL_MAX]; // pointer to end of render pipeline
+render_t *render_last[RL_MAX];	   // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
 /**
@@ -45,9 +45,9 @@ static uint8_t render_needed = 0;
  *
  * @return render slot
  */
-render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), 
-	void *comp, 
-	enum RenderLayer layer)
+render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component),
+								 void *comp,
+								 enum RenderLayer layer)
 {
 	// increase render slot before adding this one. Slot 0 is overflow!
 	render_t *rd = RTOS_Malloc(sizeof(render_t));
@@ -58,10 +58,13 @@ render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *co
 	}
 	rd->render = render;
 	rd->comp = comp;
-	
-	if(render_pipeline[layer] == NULL){
+
+	if (render_pipeline[layer] == NULL)
+	{
 		render_pipeline[layer] = rd;
-	} else {
+	}
+	else
+	{
 		render_last[layer]->next = rd;
 	}
 	render_last[layer] = rd;
@@ -69,9 +72,11 @@ render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *co
 	return rd;
 }
 
-void free_render_pipeline(enum RenderLayer layer){
+void free_render_pipeline(enum RenderLayer layer)
+{
 	render_t *r = render_pipeline[layer];
-	while(r){
+	while (r)
+	{
 		render_t *rn;
 		rn = r;
 		r = r->next;
@@ -126,7 +131,7 @@ static void create_top_bar(display_t *dsp)
 	add_to_render_pipeline(label_render, sb, RL_GUI_BACKGROUND);
 
 	/* TODO: export battery component */
-	
+
 	battery_label = create_icon_with_text(dsp, bat_100,
 										  sb->box.left + margin_left, margin_top, RTOS_Malloc(4), &f8x8);
 	save_sprintf(battery_label->text, "...%%");
@@ -169,7 +174,8 @@ static void app_render()
 	for (uint8_t layer = 0; layer < RL_MAX; layer++)
 	{
 		rd = render_pipeline[layer];
-		while(rd){
+		while (rd)
+		{
 			if (rd->render)
 				rd->render(eink, rd->comp);
 			rd = rd->next;
@@ -225,12 +231,14 @@ error_code_t load_map_tile_on_demand(display_t *dsp, void *image)
 
 	while (img->loaded != LOADED)
 	{
-		label_t *l = (label_t*)img->child;
-		if (img->loaded == ERROR){
+		label_t *l = (label_t *)img->child;
+		if (img->loaded == ERROR)
+		{
 			l->text = "Error";
 			goto freeImageMemory;
 		}
-		if (img->loaded == NOT_FOUND){
+		if (img->loaded == NOT_FOUND)
+		{
 			//l->text = "Not Found";
 			goto freeImageMemory;
 		}
@@ -254,9 +262,12 @@ error_code_t check_if_map_tile_is_loaded(display_t *dsp, void *image)
 {
 	image_t *img = (image_t *)image;
 	label_t *lbl = img->child;
-	if (img->loaded != LOADED) {
+	if (img->loaded != LOADED)
+	{
 		label_render(dsp, lbl);
-	} else {
+	}
+	else
+	{
 		RTOS_Free(img->data);
 	}
 	return PM_OK;
@@ -311,7 +322,6 @@ void app_screen(display_t *dsp)
 	scaleBox->alignHorizontal = CENTER;
 	add_to_render_pipeline(label_render, scaleBox, RL_TOP);
 
-
 	create_top_bar(dsp);
 
 	char *infoText = RTOS_Malloc(dsp->size.width / f8x8.width);
@@ -328,11 +338,10 @@ void app_screen(display_t *dsp)
 
 	add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 
-	label_t *map_copyright = label_create("(c) OpenStreetMap contributors", &f8x8, 0,infoBox->box.top - 8, 0,0);
+	label_t *map_copyright = label_create("(c) OpenStreetMap contributors", &f8x8, 0, infoBox->box.top - 8, 0, 0);
 	label_shrink_to_text(map_copyright);
 	map_copyright->box.left = dsp->size.width - map_copyright->box.width;
 	add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
-
 }
 
 void trigger_rendering()
@@ -362,16 +371,17 @@ void StartGuiTask(void const *argument)
 	reg_gpio->onValue = GPIO_RESET;
 	regulator_t *reg = regulator_gpio_create(reg_gpio);
 
+	ESP_LOGI(TAG, "reset E-Ink Display");
+	reg->disable(reg);
+	vTaskDelay(3000);
+	reg->enable(reg);
+	vTaskDelay(10);
 	ESP_LOGI(TAG, "init E-Ink Display");
-	do {
-
-
-		reg->disable(reg);
-		vTaskDelay(500);
-		reg->enable(reg);
-		vTaskDelay(10);
+	do
+	{
 		eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
-		if (!eink){
+		if (!eink)
+		{
 			ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
 			reg->disable(reg);
 			vTaskDelay(5000);
@@ -382,10 +392,10 @@ void StartGuiTask(void const *argument)
 
 	ESP_LOGI(TAG, "App screen init");
 
-	//ESP_LOGI(TAG, "Screen clear");
-	//display_fill(eink, TRANSPARENT);
-	//display_commit_fb(eink);
-	//ESP_LOGI(TAG, "Screen clear done");
+	ESP_LOGI(TAG, "Screen clear");
+	display_fill(eink, TRANSPARENT);
+	display_commit_fb(eink);
+	ESP_LOGI(TAG, "Screen clear done");
 
 	app_screen(eink);
 	ESP_LOGI(TAG, "App screen init done");
