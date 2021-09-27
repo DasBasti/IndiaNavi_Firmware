@@ -152,6 +152,7 @@ static void create_top_bar(display_t *dsp)
 											   gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
 											   &f8x8);
 
+#ifdef CLOCK
 	/* global clock label. */
 	char *time = RTOS_Malloc(6);
 	clock_label = label_create(time, &f8x8, sb->box.left, sb->box.top,
@@ -160,6 +161,7 @@ static void create_top_bar(display_t *dsp)
 	clock_label->alignHorizontal = CENTER;
 	clock_label->onBeforeRender = updateTimeText;
 	add_to_render_pipeline(label_render, clock_label, RL_GUI_ELEMENTS);
+#endif
 }
 
 /**
@@ -416,7 +418,6 @@ void StartGuiTask(void const *argument)
 		{
 			if (xSemaphoreTake(gui_semaphore, 0) == pdTRUE)
 			{
-				xSemaphoreGive(gui_semaphore);
 				pre_render_cb();
 				app_render();
 				render_needed = 0;
@@ -425,6 +426,7 @@ void StartGuiTask(void const *argument)
 				display_commit_fb(eink);
 				//vTaskPrioritySet(NULL, 5);
 				ESP_LOGI(TAG, "Refresh finished.");
+				xSemaphoreGive(gui_semaphore);
 			}
 			else
 			{
