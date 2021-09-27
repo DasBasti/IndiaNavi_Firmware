@@ -755,7 +755,7 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t *config)
         ESP_LOGE(GPS_TAG, "config uart parameter failed");
         goto err_uart_config;
     }
-    if (uart_set_pin(esp_gps->uart_port, UART_PIN_NO_CHANGE, config->uart.rx_pin,
+    if (uart_set_pin(esp_gps->uart_port, config->uart.tx_pin, config->uart.rx_pin,
                      UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK)
     {
         ESP_LOGE(GPS_TAG, "config uart gpio failed");
@@ -854,4 +854,29 @@ esp_err_t nmea_parser_remove_handler(nmea_parser_handle_t nmea_hdl, esp_event_ha
 {
     esp_gps_t *esp_gps = (esp_gps_t *)nmea_hdl;
     return esp_event_handler_unregister_with(esp_gps->event_loop_hdl, ESP_NMEA_EVENT, ESP_EVENT_ANY_ID, event_handler);
+}
+
+/**
+ * @brief Send String cmd to GPS module
+ * 
+ * @param nmea_hdl handle of NMEA parser
+ * @param cmd command string to send
+ * @param length of the comamnd sequence
+ * @return esp_err_t
+ *  - EPS_OK: Success
+ *  - ESP_ERR_NO_MEM: TX buffer not big enough for command sequence
+ *  - ESP_ERR_INVALID_STATE: Parser Task not initialized or not running
+ *  - Others: Fail
+ */
+esp_err_t nmea_send_command(nmea_parser_handle_t nmea_hdl, char *cmd, uint16_t length)
+{
+    esp_gps_t *esp_gps = (esp_gps_t *)nmea_hdl;
+    // break if parser task is not running
+    if (!esp_gps->tsk_hdl)
+        return ESP_ERR_INVALID_STATE;
+
+    if (uart_write_bytes(esp_gps->uart_port, cmd, length) != length)
+        return ESP_ERR_NO_MEM;
+
+    return ESP_OK;
 }

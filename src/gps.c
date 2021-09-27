@@ -17,6 +17,7 @@
 #include <sys/time.h>
 
 #include "nmea_parser.h"
+#include "l96.h"
 
 #include <string.h>
 #include <math.h>
@@ -28,7 +29,7 @@
 static const char *TAG = "GPS";
 #ifdef DEBUG
 float _longitude = 8.68575379, _latitude = 49.7258546, _altitude, _hdop;
-bool _fix = GPS_FIX_GPS;
+gps_fix_t _fix = GPS_FIX_GPS;
 #else
 float _longitude, _latitude, _altitude, _hdop;
 gps_fix_t _fix = GPS_FIX_INVALID;
@@ -220,11 +221,17 @@ error_code_t updateInfoText(display_t *dsp, void *comp)
 	/*sprintf(infoBox->text, "%d/%d/%d Sat:%d", tile_zoom, x, y,
 	 gga_frame.satellites_tracked);
 	 */
-	if (_fix)
+	if (_fix != GPS_FIX_INVALID)
 	{
 		xSemaphoreTake(print_semaphore, portMAX_DELAY);
 		sprintf(infoBox->text, "GPS: %fN %fE %.02fm (HDOP:%f)",
 				_latitude, _longitude, _altitude, _hdop);
+		xSemaphoreGive(print_semaphore);
+	}
+	else
+	{
+		xSemaphoreTake(print_semaphore, portMAX_DELAY);
+		sprintf(infoBox->text, "No GPS Signal found!");
 		xSemaphoreGive(print_semaphore);
 	}
 	return PM_OK;
@@ -244,7 +251,7 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 	label_t *label = (label_t *)comp;
 	uint8_t hdop = floor(_hdop / 2);
 	hdop += 8;
-	if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS))
+	if (_fix != GPS_FIX_INVALID)
 	{
 		label->box.left = pos_x - label->box.width / 2;
 		label->box.top = pos_y - label->box.height / 2;
@@ -259,7 +266,7 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 {
 	waypoint_t *wp = (waypoint_t *)comp;
-	if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS) & (wp->tile_x != 0) & (wp->tile_y != 0))
+	if ((_fix != GPS_FIX_INVALID) && (wp->tile_x != 0) && (wp->tile_y != 0))
 	{
 		for (uint8_t i = 0; i < 2; i++)
 			for (uint8_t j = 0; j < 3; j++)
@@ -300,6 +307,9 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 
 void pre_render_cb()
 {
+	// Only render wb if we are fixed
+	if (_fix == GPS_FIX_INVALID)
+		return;
 	char *waypoint_file = RTOS_Malloc(32768);
 	char *wp_line = RTOS_Malloc(50);
 	async_file_t *wp_file = &AFILE;
@@ -489,6 +499,10 @@ void StartGpsTask(void const *argument)
 #else
 	uint8_t t = 0; // toggle
 #endif
+	// send initial commands to GPS module
+	ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO, sizeof(L96_SEARCH_GPS_GLONASS_GALILEO)));
+	ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_FULL_ON, sizeof(L96_ENTER_FULL_ON)));
+
 	for (;;)
 	{
 
@@ -498,13 +512,11 @@ void StartGpsTask(void const *argument)
 		if (gps_indicator_label)
 		{
 			image_t *icon = gps_indicator_label->child;
-			if (_fix & (GPS_FIX_GPS | GPS_FIX_DGPS))
+			if (_fix != GPS_FIX_INVALID)
 				icon->data = GPS_lock;
 			else
 				icon->data = GPS;
 		}
-		xSemaphoreTake(print_semaphore, portMAX_DELAY);
-		xSemaphoreGive(print_semaphore);
 		// Update every minute
 		//struct tm timeinfo;
 		struct timeval tv;
@@ -515,14 +527,16 @@ void StartGpsTask(void const *argument)
 			trigger_rendering();
 		}
 
-		ESP_LOGI(TAG, "%fN %fE %fm: %d", _latitude, _longitude, _altitude, _fix);
+		//ESP_LOGI(TAG, "%fN %fE %fm: %d", _latitude, _longitude, _altitude, _fix);
 		/* check for lon and lat to be a number */
-		if (_fix)
+		if ((_fix != GPS_FIX_INVALID))
 		{
+			ESP_LOGI(TAG, "Fix: %d", _fix);
 			update_tiles();
 		}
-#ifdef DEBUG
+
 		vTaskDelay(60000 / portTICK_PERIOD_MS);
+#ifdef DEBUG
 		if (t)
 		{
 			_longitude = 8.055898;
