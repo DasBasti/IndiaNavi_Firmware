@@ -2,6 +2,8 @@
 #ifndef __PINS_H__
 #define __PINS_H__
 
+#include <driver/gpio.h>
+
 #define UART_TX 1
 #define UART_RX 3
 
@@ -30,10 +32,13 @@
 #define SD_CARD_nDET 36
 
 #define BTN 27
+#define BTN_LEVEL 0
 #define LED 33
 
+#define I2C_MASTER_NUM 0
 #define I2C_SDA 0
 #define I2C_SCL 22
 #define I2C_INT 21
+#define I2C_INT_LEVEL 0
 
 #endif

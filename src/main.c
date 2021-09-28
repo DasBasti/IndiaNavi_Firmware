@@ -13,6 +13,8 @@
 #include <driver/gpio.h>
 #include <driver/adc.h>
 
+#include <lsm303.h>
+
 #include "pins.h"
 #include "tasks.h"
 #include "gui.h"
@@ -47,6 +49,7 @@ QueueHandle_t gpioEventQueueHandle = NULL;
 uint32_t ledDelay = 1000;
 
 gpio_config_t esp_btn = {};
+gpio_config_t esp_acc = {};
 
 static void print_sha256(const uint8_t *image_hash, const char *label)
 {
@@ -78,9 +81,20 @@ static void get_sha256_of_partitions(void)
 
 static void IRAM_ATTR handleButtonPress(void* arg)
 {
-    uint32_t gpio_num = (uint32_t) arg;
-    xQueueSendFromISR(gpioEventQueueHandle, &gpio_num, NULL);
-    gpio_isr_handler_remove(BTN);
+    uint32_t gpio_num = UINT32_MAX;
+    if (gpio_get_level(BTN) == BTN_LEVEL)
+    {
+        gpio_num = BTN;
+        xQueueSendFromISR(gpioEventQueueHandle, &gpio_num, NULL);
+    }
+    if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL)
+    {
+        gpio_num = I2C_INT;
+        xQueueSendFromISR(gpioEventQueueHandle, &gpio_num, NULL);
+    }
+    // deactivate isr handler until reinitialized by queue handling
+    if (gpio_num != UINT32_MAX)
+        gpio_isr_handler_remove(gpio_num);
 }
 
 void app_main()
@@ -115,8 +129,17 @@ void app_main()
     gpio_config(&esp_btn);
     gpio_set_intr_type(BTN, GPIO_INTR_NEGEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
-    gpio_isr_handler_add(BTN, handleButtonPress, (void*) BTN);
     
+    /* Set Accelerator IO to input, with PUI and falling edge IRQ */
+    esp_acc.mode = GPIO_MODE_INPUT;
+    esp_acc.pull_up_en = true;
+    esp_acc.pin_bit_mask = BIT64(I2C_INT);
+    esp_acc.intr_type = GPIO_INTR_NEGEDGE;
+    gpio_config(&esp_acc);
+    gpio_set_intr_type(I2C_INT, GPIO_INTR_NEGEDGE);
+    gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
+    gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
+
     command_init();
     xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, &housekeepingTask_h);
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
@@ -169,8 +192,18 @@ void StartHousekeepingTask(void *argument)
     ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
     ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
 
+    ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
+    ESP_ERROR_CHECK(lsm303_enable_taping(1));
+
     for (;;)
     {
+        uint8_t tap_register;
+        ESP_ERROR_CHECK(lsm303_read_tap(&tap_register));
+        if(tap_register & 0x09) // double tap
+        {
+            ESP_LOGI(TAG, "Double Tap recognized. rerender.");
+            trigger_rendering();
+        }
         gpio_write(led, ledState);
         ledState = !ledState;
         if (++cnt >= 60)
@@ -184,13 +217,20 @@ void StartHousekeepingTask(void *argument)
             }
 
         }
-        if(xQueueReceive(gpioEventQueueHandle, &io_num, 0)) {
-            printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
-            toggleZoom();
-
+        // Delay for LED blinking. LED blinks faster if ISRs are handled
+        if(xQueueReceive(gpioEventQueueHandle, &io_num, ledDelay / portTICK_PERIOD_MS)) {
+            ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+            if (io_num == BTN)
+            {
+                toggleZoom();
+                gpio_isr_handler_add(BTN, handleButtonPress, (void*) BTN);
+            }
+            if (io_num == I2C_INT)
+            {
+                ESP_LOGI(TAG, "Acc");
+                //gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
+            }
         }
-        vTaskDelay(ledDelay / portTICK_PERIOD_MS);
-        gpio_isr_handler_add(BTN, handleButtonPress, (void*) BTN);
     }
 }
 
