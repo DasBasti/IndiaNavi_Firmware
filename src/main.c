@@ -27,7 +27,7 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 #define taskGPSStackSize 1024 * 3
 #define taskGUIStackSize 1024 * 2
 #define taskSDStackSize 1024 * 8
-#define taskWifiStackSize 1024 * 3
+#define taskWifiStackSize 1024 * 5
 
 void StartHousekeepingTask(void *argument);
 void StartGpsTask(void *argument);
@@ -44,9 +44,9 @@ SemaphoreHandle_t sd_semaphore = NULL;
 // File loading queue
 QueueHandle_t mapLoadQueueHandle = NULL;
 QueueHandle_t fileLoadQueueHandle = NULL;
-QueueHandle_t gpioEventQueueHandle = NULL;
+QueueHandle_t eventQueueHandle = NULL;
 
-uint32_t ledDelay = 1000;
+uint32_t ledDelay = 100;
 
 gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
@@ -79,18 +79,18 @@ static void get_sha256_of_partitions(void)
     print_sha256(sha_256, "SHA-256 for current firmware: ");
 }
 
-static void IRAM_ATTR handleButtonPress(void* arg)
+static void IRAM_ATTR handleButtonPress(void *arg)
 {
     uint32_t gpio_num = UINT32_MAX;
     if (gpio_get_level(BTN) == BTN_LEVEL)
     {
         gpio_num = BTN;
-        xQueueSendFromISR(gpioEventQueueHandle, &gpio_num, NULL);
+        xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
     }
     if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL)
     {
         gpio_num = I2C_INT;
-        xQueueSendFromISR(gpioEventQueueHandle, &gpio_num, NULL);
+        xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
     }
     // deactivate isr handler until reinitialized by queue handling
     if (gpio_num != UINT32_MAX)
@@ -118,9 +118,8 @@ void app_main()
     sd_semaphore = xSemaphoreCreateMutex();
     mapLoadQueueHandle = xQueueCreate(6, sizeof(map_tile_t *));
     fileLoadQueueHandle = xQueueCreate(6, sizeof(async_file_t *));
-    gpioEventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
-    ESP_LOGI(TAG, "start");
-    
+    eventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
+
     /* Set Button IO to input, with PUI and falling edge IRQ */
     esp_btn.mode = GPIO_MODE_INPUT;
     esp_btn.pull_up_en = true;
@@ -129,7 +128,7 @@ void app_main()
     gpio_config(&esp_btn);
     gpio_set_intr_type(BTN, GPIO_INTR_NEGEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
-    
+
     /* Set Accelerator IO to input, with PUI and falling edge IRQ */
     esp_acc.mode = GPIO_MODE_INPUT;
     esp_acc.pull_up_en = true;
@@ -139,13 +138,19 @@ void app_main()
     gpio_set_intr_type(I2C_INT, GPIO_INTR_NEGEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
+    ESP_LOGI(TAG, "start");
 
-    command_init();
     xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, &housekeepingTask_h);
-    xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
-    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
+    //xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
+    //xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
     xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 1, &sdTask_h);
     //xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+
+    uint32_t evt;
+    evt = TASK_EVENT_ENABLE_DISPLAY;
+    xQueueSend(eventQueueHandle, &evt, 0);
+    evt = TASK_EVENT_ENABLE_GPS;
+    xQueueSend(eventQueueHandle, &evt, 0);
 }
 
 /**
@@ -156,21 +161,30 @@ void app_main()
 int readBatteryPercent()
 {
     int batteryVoltage;
+    int chargerVoltage;
     adc_power_acquire();
     batteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
     ESP_LOGI(TAG, "ADC1/6: %d", batteryVoltage);
+    chargerVoltage = adc1_get_raw(ADC1_CHANNEL_7);
+    ESP_LOGI(TAG, "ADC1/7: %d", chargerVoltage);
     adc_power_release();
+
+    if (chargerVoltage > batteryVoltage)
+        return -1;
 
     const int min = 1750;
     const int max = 2100;
     if (batteryVoltage > max)
         return 100;
-    
+
+    if (batteryVoltage < min)
+        return 0;
+
     /* ganz simpler dreisatz, den man in wenigen
        sekunden im Kopf lösen kann */
     int value = batteryVoltage - min;
 
-    return value*100/(max-min);
+    return value * 100 / (max - min);
 }
 
 /**
@@ -180,8 +194,8 @@ int readBatteryPercent()
  */
 void StartHousekeepingTask(void *argument)
 {
-    uint8_t cnt = 30;
-    uint32_t io_num;
+    uint16_t cnt = 300;
+    uint32_t event_num;
     gpio_t *led = gpio_create(OUTPUT, 0, LED);
     uint8_t ledState = 1;
     // configure ADC for VBATT measurement
@@ -197,38 +211,72 @@ void StartHousekeepingTask(void *argument)
 
     for (;;)
     {
-        uint8_t tap_register;
+        /*uint8_t tap_register;
         ESP_ERROR_CHECK(lsm303_read_tap(&tap_register));
         if(tap_register & 0x09) // double tap
         {
             ESP_LOGI(TAG, "Double Tap recognized. rerender.");
             trigger_rendering();
         }
+        */
         gpio_write(led, ledState);
         ledState = !ledState;
-        if (++cnt >= 60)
+        if (++cnt >= 300)
         {
             ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
             cnt = 0;
 
-            if(battery_label){
-                save_sprintf(battery_label->text, "%03d%%", readBatteryPercent());
-               	label_shrink_to_text(battery_label);
+            if (battery_label)
+            {
+                int bat = readBatteryPercent();
+                if (bat >= 0)
+                {
+                    save_sprintf(battery_label->text, "%03d%%", bat);
+                }
+                else
+                {
+                    save_sprintf(battery_label->text, "CHRG");
+                }
+                label_shrink_to_text(battery_label);
             }
-
         }
         // Delay for LED blinking. LED blinks faster if ISRs are handled
-        if(xQueueReceive(gpioEventQueueHandle, &io_num, ledDelay / portTICK_PERIOD_MS)) {
-            ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
-            if (io_num == BTN)
+        if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS))
+        {
+            //ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+            if (event_num == BTN)
             {
                 toggleZoom();
-                gpio_isr_handler_add(BTN, handleButtonPress, (void*) BTN);
+                gpio_isr_handler_add(BTN, handleButtonPress, (void *)BTN);
             }
-            if (io_num == I2C_INT)
+            if (event_num == I2C_INT)
             {
                 ESP_LOGI(TAG, "Acc");
                 //gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
+            }
+            if (event_num == TASK_EVENT_ENABLE_GPS)
+            {
+                xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
+            }
+            if (event_num == TASK_EVENT_DISABLE_GPS)
+            {
+                vTaskDelete(&gpsTask_h);
+            }
+            if (event_num == TASK_EVENT_ENABLE_DISPLAY)
+            {
+                xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
+            }
+            if (event_num == TASK_EVENT_DISABLE_DISPLAY)
+            {
+                vTaskDelete(&guiTask_h);
+            }
+            if (event_num == TASK_EVENT_ENABLE_WIFI)
+            {
+                xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+            }
+            if (event_num == TASK_EVENT_DISABLE_WIFI)
+            {
+                vTaskDelete(&wifiTask_h);
             }
         }
     }
