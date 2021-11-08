@@ -207,6 +207,6 @@ esp_err_t lsm303_read_tap(uint8_t *tap_src)
     uint8_t data;
     esp_err_t ret;
     ret = lsm303_acc_register_read(TAP_SRC_A, tap_src, 1);
-    ESP_LOGI(TAG, "TAP_SRC_A: 0x%X", *tap_src);
+    //ESP_LOGI(TAG, "TAP_SRC_A: 0x%X", *tap_src);
     return ret;
 }
