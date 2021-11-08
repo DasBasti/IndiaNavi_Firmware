@@ -239,8 +239,8 @@ display_t *ACEP_5IN65_Init(display_rotation_t rotation)
 	ACEP_5IN65_SendData(0x1D);
 	ACEP_5IN65_SendCommand(0x30);
 	ACEP_5IN65_SendData(0x3C);
-	ACEP_5IN65_SendCommand(0x40);
-	ACEP_5IN65_SendData(0x00);
+	ACEP_5IN65_SendCommand(0x41);
+	ACEP_5IN65_SendData(0x80);
 	ACEP_5IN65_SendCommand(0x50);
 	ACEP_5IN65_SendData(0x3f);
 	ACEP_5IN65_SendCommand(0x60);
