@@ -17,7 +17,7 @@ extern SemaphoreHandle_t sd_semaphore;
 
 extern QueueHandle_t mapLoadQueueHandle;
 extern QueueHandle_t fileLoadQueueHandle;
-extern QueueHandle_t gpioEventQueueHandle;
+extern QueueHandle_t eventQueueHandle;
 
 TaskHandle_t housekeepingTask_h;
 TaskHandle_t gpsTask_h;
@@ -25,6 +25,17 @@ TaskHandle_t guiTask_h;
 TaskHandle_t powerTask_h;
 TaskHandle_t sdTask_h;
 TaskHandle_t wifiTask_h;
+
+enum {
+    TASK_EVENT_ENTER_LOW_POWER = 50,
+    TASK_EVENT_ENABLE_GPS,
+    TASK_EVENT_DISABLE_GPS,
+    TASK_EVENT_ENABLE_DISPLAY,
+    TASK_EVENT_DISABLE_DISPLAY,
+    TASK_EVENT_ENABLE_WIFI,
+    TASK_EVENT_DISABLE_WIFI
+} task_events_e;
+
 
 typedef struct
 {
