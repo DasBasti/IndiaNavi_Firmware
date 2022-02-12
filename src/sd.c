@@ -119,8 +119,43 @@ error_code_t fileExists(async_file_t *file)
 
 error_code_t openFileForWriting(async_file_t *file)
 {
+	// try to open file
 	FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
-	ESP_LOGI(TAG, "File %s -> %d", file->filename, res);
+	if (res == FR_NO_PATH)
+	{
+		// 1. try to create path to file if a path is given
+		if (strlen(file->filename) < 2)
+			return PM_FAIL;
+
+		char *path = RTOS_Malloc(strlen(file->filename));
+		char *tmp_path = RTOS_Malloc(strlen(file->filename));
+
+		// 2. skip first // for root
+		strcpy(path, file->filename);
+		path += 2;
+		//strcat(tmp_path, "/");
+
+		// 3. loop through folders
+		char *strtokCtx;
+		char *token = strtok_r(path, "/", &strtokCtx);
+		while (token != NULL)
+		{
+			strcat(tmp_path, token);
+			// Create the folder in the path
+			res = f_mkdir(tmp_path);
+			strcat(tmp_path, "/");
+			token = strtok_r(NULL, "/", &strtokCtx);
+
+			// Check if the path has a "File extention" so we skip creating a folder for it
+			if (strchr(token, '.'))
+				break;
+		}
+		RTOS_Free(tmp_path);
+		// Retry to open file for writing
+		res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
+	}
+
+	ESP_LOGD(TAG, "File %s -> %d", file->filename, res);
 	if (FR_OK == res)
 		return PM_OK;
 	return PM_FAIL;
@@ -155,12 +190,13 @@ void closePhysicalFile(async_file_t *file)
 	{
 		if (file->file)
 		{
-			if (file->file->fptr)
+			if (file->file->obj.fs)
 				f_close(file->file);
 			RTOS_Free(file->file);
 		}
 		if (file->dest)
 		{
+			ESP_LOGI(TAG, "FRee fiel->dest");
 			RTOS_Free(file->dest);
 		}
 		RTOS_Free(file);
@@ -198,11 +234,11 @@ void StartSDTask(void const *argument)
 				{
 					if (ret == ESP_FAIL)
 					{
-						ESP_LOGE("SD", "Failed to mount filesystem.");
+						ESP_LOGE(TAG, "Failed to mount filesystem.");
 					}
 					else
 					{
-						ESP_LOGE("SD", "Failed to initialize the card (0x%x).", ret);
+						ESP_LOGE(TAG, "Failed to initialize the card (0x%x).", ret);
 						ESP_LOGE("mem", "free: %d", xPortGetFreeHeapSize());
 					}
 					sd_status = !OK;
@@ -287,6 +323,8 @@ void StartSDTask(void const *argument)
 		{
 			if (sd_status == OK)
 			{
+				ESP_LOGE("SD", "Unmount filesystem.");
+
 				xSemaphoreTake(sd_semaphore, portMAX_DELAY);
 				sd_status = UNAVAILABLE;
 				// deinit SDMMC periphery
