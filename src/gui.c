@@ -84,7 +84,7 @@ void free_render_pipeline(enum RenderLayer layer)
 	}
 }
 
-static label_t *create_icon_with_text(display_t *dsp, uint8_t *icon_data,
+static label_t *create_icon_with_text(const display_t *dsp, const uint8_t *icon_data,
 									  uint16_t left, uint16_t top, char *text, font_t *font)
 {
 
@@ -105,7 +105,7 @@ static label_t *create_icon_with_text(display_t *dsp, uint8_t *icon_data,
 /**
  * Callbacks from renderer for clock label
  */
-error_code_t updateTimeText(display_t *dsp, void *comp)
+error_code_t updateTimeText(const display_t *dsp, void *comp)
 {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -117,7 +117,7 @@ error_code_t updateTimeText(display_t *dsp, void *comp)
 	return PM_OK;
 }
 
-static void create_top_bar(display_t *dsp)
+static void create_top_bar(const display_t *dsp)
 {
 	label_t *sb = label_create("", &f8x8, 0, 0, (dsp->size.width - 1),
 							   ICON_SIZE + margin_vertical);
@@ -213,7 +213,7 @@ void wait_until_gui_ready()
  * returns PK_OK if loaded, UNAVAILABLE if buffer of sd semaphore is not available and
  * TIMEOUT if loading timed out
  */
-error_code_t load_map_tile_on_demand(display_t *dsp, void *image)
+error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
 {
 	uint8_t timeout = 0;
 	uint8_t *imageBuf = RTOS_Malloc(256 * 256 / 2);
@@ -260,7 +260,7 @@ freeImageMemory:
 	return TIMEOUT;
 }
 
-error_code_t check_if_map_tile_is_loaded(display_t *dsp, void *image)
+error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
 {
 	image_t *img = (image_t *)image;
 	label_t *lbl = img->child;
@@ -278,7 +278,7 @@ error_code_t check_if_map_tile_is_loaded(display_t *dsp, void *image)
 /**
  * Display App
  */
-void app_screen(display_t *dsp)
+void app_screen(const display_t *dsp)
 {
 	//imageBuf = RTOS_Malloc(256 * 256 / 2);
 	// we first create the map_tiles to render them on the lowest level
@@ -351,7 +351,7 @@ void trigger_rendering()
 	render_needed = 1;
 }
 
-void render_cmd_cb(command_t *cmd)
+void render_cmd_cb(const command_t *cmd)
 {
 	ESP_LOGI(TAG, "manual redraw");
 	trigger_rendering();
@@ -386,7 +386,7 @@ void StartGuiTask(void const *argument)
 		{
 			ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
 			reg->disable(reg);
-			vTaskDelay(5000);
+			vTaskDelay(100);
 			reg->enable(reg);
 			vTaskDelay(10);
 		}

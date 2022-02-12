@@ -12,7 +12,8 @@
 #include "display/GUI/geometric.h"
 #include "display/display.h"
 
-enum LoadStatus {
+enum LoadStatus
+{
 	NOT_LOADED,
 	LOADING,
 	LOADED,
@@ -33,8 +34,8 @@ typedef struct
 	error_code_t (*onAfterRender)(display_t *dsp, void *image);
 } image_t;
 
-image_t *image_create(uint8_t *data, uint16_t left, uint16_t top,
+image_t *image_create(const uint8_t *data, uint16_t left, uint16_t top,
 					  uint16_t width, uint16_t height);
-error_code_t image_render(display_t *dsp, void *image);
+error_code_t image_render(const display_t *dsp, void *image);
 
 #endif /* PLATINENMACHER_DISPLAY_GUI_IMAGE_H_ */

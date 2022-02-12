@@ -48,10 +48,11 @@ struct Render
 {
 	error_code_t (*render)(display_t *dsp, void *component);
 	void *comp;
-	render_t* next;
+	render_t *next;
 };
 
-enum RenderLayer {
+enum RenderLayer
+{
 	RL_BACKGROUND,
 	RL_MAP,
 	RL_PATH,
@@ -65,11 +66,10 @@ void trigger_rendering();
 void pre_render_cb();
 void free_render_pipeline(enum RenderLayer layer);
 void wait_until_gui_ready();
-render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component), 
-	void *comp, 
-	enum RenderLayer layer); /* screens */
-void start_screen(display_t *dsp);
-void app_screen(display_t *dsp);
-
+render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component),
+								 void *comp,
+								 enum RenderLayer layer); /* screens */
+void start_screen(const display_t *dsp);
+void app_screen(const display_t *dsp);
 
 #endif /* INC_GUI_H_ */

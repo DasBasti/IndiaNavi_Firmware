@@ -19,9 +19,24 @@
 #include "tasks.h"
 #include "gui.h"
 
+typedef struct tileset tileset_t;
+struct tileset
+{
+    uint8_t zoom;
+    uint32_t folder_min;
+    uint32_t folder_max;
+    uint32_t file_min;
+    uint32_t file_max;
+    char *wp_line;
+    char *baseurl;
+    uint32_t *file_count;
+    tileset_t *next;
+};
+
 static const char *TAG = "DL";
 static uint32_t filePosition = 0;
 static async_file_t *downloadfile;
+
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
     switch (evt->event_id)
@@ -42,7 +57,7 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
         {
             if (PM_OK != openFileForWriting(downloadfile))
                 return ESP_FAIL;
-            ESP_LOGI(TAG, "Create File to download: %s", downloadfile->filename);
+            ESP_LOGD(TAG, "Create File to download: %s", downloadfile->filename);
         }
         break;
     case HTTP_EVENT_ON_DATA:
@@ -67,129 +82,38 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-void StartMapDownloaderTask(void *pvParameter)
+static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
 {
-    async_file_t AFILE;
-    async_file_t *wp_file = &AFILE;
-    ESP_LOGI(TAG, "Checking Map files...");
-    char *waypoint_file = RTOS_Malloc(32768);
-    char *wp_line = RTOS_Malloc(50);
-    // Load TRACK file to get track parameters
-    wp_file->filename = RTOS_Malloc(512);
-    save_sprintf(wp_file->filename, "//TRACK");
-    wp_file->dest = waypoint_file;
-    wp_file->loaded = false;
-    uint8_t delay = 0;
-    ESP_ERROR_CHECK(loadFile(wp_file));
-    ESP_LOGI(TAG, "Load track information queued.");
-    while (!wp_file->loaded)
-    {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-        //if (delay++ == 20)
-        //	break;
-    }
-    ESP_LOGI(TAG, "Loaded track information.");
-
-    char *f = waypoint_file;
-    f = readline(f, wp_line);
-    if (!f)
-    {
-        ESP_LOGE(TAG, "No URL in TRACK. %s", waypoint_file);
-        goto fail_url;
-    }
-    uint32_t length = strlen(wp_line);
-    char *baseurl = RTOS_Malloc(length + 1);
-    char *url = RTOS_Malloc(length + 20); // base+/zz/xxxxx/yyyyy.raw
-    strncpy(baseurl, wp_line, length);
-
-    f = readline(f, wp_line);
-    if (!f)
-    {
-        ESP_LOGE(TAG, "No Zoom found in TRACK");
-        goto fail_url;
-    }
-    uint32_t zoom = atoi(wp_line);
-
-    // loop for multiple zooms
-
-    f = readline(f, wp_line);
-    if (!f)
-    {
-        ESP_LOGE(TAG, "No folder_min found in TRACK");
-        goto fail_url;
-    }
-    uint32_t folder_min = atoi(wp_line);
-
-    f = readline(f, wp_line);
-    if (!f)
-    {
-        ESP_LOGE(TAG, "No folder_max found in TRACK");
-        goto fail_url;
-    }
-    uint32_t folder_max = atoi(wp_line);
-
-    f = readline(f, wp_line);
-    if (!f)
-    {
-        ESP_LOGE(TAG, "No file_min found in TRACK");
-        goto fail_url;
-    }
-    uint32_t file_min = atoi(wp_line);
-
-    f = readline(f, wp_line);
-    if (!f)
-    {
-        ESP_LOGE(TAG, "No file_max found in TRACK");
-        goto fail_url;
-    }
-    uint32_t file_max = atoi(wp_line);
-
-    ESP_LOGI(TAG, "Get Map for [%d-%d]/[%d-%d]", folder_min, folder_max, file_min, file_max);
-    ESP_LOGI(TAG, "Download from: %s", url);
-
-    uint32_t file_count = 0;
-    uint32_t file_sum = (folder_max - folder_min) * (file_max - file_min);
-
-    RTOS_Free(waypoint_file);
-    RTOS_Free(wp_line);
-
-    // Wait for WiFi to be established
-    while (!isConnected())
-    {
-        vTaskDelay(100);
-    }
-
     esp_http_client_config_t client_config = {
         //.url is set in loop
-        .url = "http://platinenmacher.tech",
+        .url = "http://platinenmacher.tech/navi/",
         .method = HTTP_METHOD_GET,
         .is_async = false,
         .event_handler = _http_event_handler,
         .timeout_ms = 3000,
         //.cert_pem = server_cert_pem_start,
-        .keep_alive_enable = false,
+        .keep_alive_enable = true,
     };
     esp_http_client_handle_t client = esp_http_client_init(&client_config);
     uint32_t fail_counter = 0;
+    char *url = RTOS_Malloc(strlen(t->wp_line) + 20); // base+/zz/xxxxx/yyyyy.raw
     downloadfile = createPhysicalFile();
-    for (uint32_t x = folder_min; x <= folder_max; x++)
+    ESP_LOGI(TAG, "Run zoom level:%d", t->zoom);
+    for (uint32_t x = t->folder_min; x <= t->folder_max; x++)
     {
-        for (uint32_t y = file_min; y <= file_max; y++)
+        for (uint32_t y = t->file_min; y <= t->file_max; y++)
         {
-            file_count++;
-            save_sprintf(wp_file->filename, "//MAPS/%d/%d/%d.raw", zoom, x, y);
-            save_sprintf(url, "%s%d/%d/%d.raw", baseurl, zoom, x, y);
+            save_sprintf(wp_file->filename, "//MAPS/%d/%d/%d.raw", t->zoom, x, y);
+            save_sprintf(url, "%s/%d/%d/%d.raw", t->baseurl, t->zoom, x, y);
             if (fileExists(wp_file) != PM_OK)
             {
-                ESP_LOGI(TAG, "MapTile (%d/%d)", file_count, file_sum);
+                // Get File because we cann not find it on the SD card
                 downloadfile->filename = wp_file->filename;
-                esp_http_client_cleanup(client);
                 client_config.url = url;
-                client = esp_http_client_init(&client_config);
                 esp_err_t err;
                 do
                 {
-                    ESP_LOGI(TAG, "Get %s -> '%s'", url, wp_file->filename);
+                    ESP_LOGI(TAG, "Get %s -> '%s'", client_config.url, wp_file->filename);
                     err = esp_http_client_perform(client);
                     if (err == ESP_OK)
                     {
@@ -208,18 +132,144 @@ void StartMapDownloaderTask(void *pvParameter)
                         vTaskDelay(1000 / portTICK_PERIOD_MS);
                     }
                 } while (err != ESP_OK);
+                //esp_http_client_cleanup(client);
             }
             else
             {
-                //ESP_LOGI(TAG, "File %s exists!", wp_file->filename);
+                ESP_LOGD(TAG, "File %s exists!", wp_file->filename);
             }
             vPortYield();
         }
     }
     closePhysicalFile(downloadfile);
 
-    esp_http_client_cleanup(client);
+    if (client)
+        esp_http_client_cleanup(client);
+    RTOS_Free(url);
+}
 
+void StartMapDownloaderTask(void *pvParameter)
+{
+    async_file_t AFILE;
+    async_file_t *wp_file = &AFILE;
+    ESP_LOGI(TAG, "Checking Map files...");
+    char *waypoint_file = RTOS_Malloc(32768);
+    char *wp_line = RTOS_Malloc(50);
+    // Load TRACK file to get track parameters
+    wp_file->filename = RTOS_Malloc(512);
+    save_sprintf(wp_file->filename, "//TRACK");
+    wp_file->dest = waypoint_file;
+    wp_file->loaded = false;
+    uint8_t delay = 0;
+    ESP_ERROR_CHECK(loadFile(wp_file));
+    ESP_LOGI(TAG, "Load track information queued.");
+    /*
+    esp_http_client_config_t client_config = {
+        //.url is set in loop
+        .url = "http://platinenmacher.tech/indianavi/",
+        .method = HTTP_METHOD_GET,
+        .is_async = false,
+        //.event_handler = _http_event_handler,
+        .timeout_ms = 3000,
+        //.cert_pem = server_cert_pem_start,
+        .keep_alive_enable = false,
+    };
+    esp_http_client_handle_t client;
+    client = esp_http_client_init(&client_config);
+
+    // Wait for WiFi to be established
+    while (1)
+    {
+        esp_err_t err = esp_http_client_perform(client);
+        if (err == ESP_OK)
+            break;
+        ESP_LOGI(TAG, "Waiting for WiFi Connection");
+        vTaskDelay(1000);
+    }
+*/
+    while (!wp_file->loaded)
+    {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        //if (delay++ == 20)
+        //	break;
+    }
+    ESP_LOGI(TAG, "Loaded track information.");
+
+    tileset_t *base_tileset = RTOS_Malloc(sizeof(tileset_t));
+    tileset_t *tileset = base_tileset;
+    char *f = waypoint_file;
+    f = readline(f, wp_line);
+    if (!f)
+    {
+        ESP_LOGE(TAG, "No URL in TRACK. %s", waypoint_file);
+        goto fail_url;
+    }
+    uint32_t length = strlen(wp_line);
+    char *baseurl = RTOS_Malloc(length + 1);
+    strncpy(baseurl, wp_line, length);
+
+    tileset->baseurl = baseurl;
+    tileset->wp_line = wp_line;
+    while (1)
+    {
+        f = readline(f, wp_line);
+        if (!f)
+        {
+            ESP_LOGE(TAG, "No Zoom found in TRACK");
+            goto fail_url;
+        }
+        ESP_LOGI(TAG, "Zoomline: %s", wp_line);
+        uint8_t zoom = atoi(wp_line);
+
+        // loop for multiple zooms
+        if (zoom == 0)
+            break;
+
+        tileset->zoom = zoom;
+
+        f = readline(f, wp_line);
+        if (!f)
+        {
+            ESP_LOGE(TAG, "No folder_min found in TRACK");
+            goto fail_url;
+        }
+        tileset->folder_min = atoi(wp_line);
+
+        f = readline(f, wp_line);
+        if (!f)
+        {
+            ESP_LOGE(TAG, "No folder_max found in TRACK");
+            goto fail_url;
+        }
+        tileset->folder_max = atoi(wp_line);
+
+        f = readline(f, wp_line);
+        if (!f)
+        {
+            ESP_LOGE(TAG, "No file_min found in TRACK");
+            goto fail_url;
+        }
+        tileset->file_min = atoi(wp_line);
+
+        f = readline(f, wp_line);
+        if (!f)
+        {
+            ESP_LOGE(TAG, "No file_max found in TRACK");
+            goto fail_url;
+        }
+        tileset->file_max = atoi(wp_line);
+
+        ESP_LOGI(TAG, "Get Map for [%d-%d]/[%d-%d]", tileset->folder_min, tileset->folder_max, tileset->file_min, tileset->file_max);
+        ESP_LOGI(TAG, "Download from: %s", baseurl);
+
+        tileset->file_count = 0;
+
+        ESP_LOGI(TAG, "Connected. Start downloading maps");
+        downloadMapTilesForZoomLevel(tileset, wp_file);
+    }
+    RTOS_Free(base_tileset);
+    RTOS_Free(waypoint_file);
+    RTOS_Free(wp_line);
 #if 0
 
     esp_http_client_config_t config = {

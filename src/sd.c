@@ -80,6 +80,7 @@ error_code_t loadTile(map_tile_t *tile)
  */
 char *readline(char *c, char *d)
 {
+
 	while (c)
 	{
 		if (*c == 0)
@@ -92,7 +93,7 @@ char *readline(char *c, char *d)
 		c++;
 		d++;
 	}
-	d = 0;
+	*d = 0;
 	return ++c;
 }
 
@@ -190,13 +191,14 @@ void closePhysicalFile(async_file_t *file)
 	{
 		if (file->file)
 		{
-			if (file->file->obj.fs)
-				f_close(file->file);
+			if (file->file->fptr)
+				ESP_LOGI(TAG, "File: %d is still open", file->file->fptr);
+			//f_close(file->file);
 			//RTOS_Free(file->file);
 		}
 		if (file->dest)
 		{
-			ESP_LOGI(TAG, "FRee fiel->dest");
+			ESP_LOGI(TAG, "Free file->dest");
 			RTOS_Free(file->dest);
 		}
 		RTOS_Free(file);

@@ -8,7 +8,7 @@
 #include "display/GUI/image.h"
 #include "display/display.h"
 
-image_t *image_create(uint8_t *data, uint16_t left, uint16_t top,
+image_t *image_create(const uint8_t *data, uint16_t left, uint16_t top,
 					  uint16_t width, uint16_t height)
 {
 	image_t *image = RTOS_Malloc(sizeof(image_t));
@@ -27,7 +27,7 @@ image_t *image_create(uint8_t *data, uint16_t left, uint16_t top,
 /**
  * Draws the image to the display if data is not NULL
  */
-error_code_t image_render(display_t *dsp, void *component)
+error_code_t image_render(const display_t *dsp, void *component)
 {
 	image_t *image = (image_t *)component;
 	if (image->onBeforeRender)
