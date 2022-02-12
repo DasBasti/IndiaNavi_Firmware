@@ -192,7 +192,7 @@ void closePhysicalFile(async_file_t *file)
 		{
 			if (file->file->obj.fs)
 				f_close(file->file);
-			RTOS_Free(file->file);
+			//RTOS_Free(file->file);
 		}
 		if (file->dest)
 		{
