@@ -27,7 +27,7 @@ static const char *TAG = "OTA";
 char ota_update_url[OTA_URL_SIZE] = {0};
 #define FIRMWARE_UPGRADE_URL "http://laptop.local:8070/firmware.bin"
 
-esp_err_t _http_event_handler(esp_http_client_event_t *evt)
+static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
     switch (evt->event_id)
     {

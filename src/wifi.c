@@ -4,13 +4,16 @@
  * running if WiFi connection is available 
  * else wait for wifi available
  *
- *  Created on: Juin 1, 2021
+ *  Created on: Juni 1, 2021
  *      Author: Bastian Neumann
  */
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <freertos/event_groups.h>
+
+#include <lwip/dns.h>
+
 #include <esp_log.h>
 #include <esp_wifi.h>
 #include <esp_event.h>
@@ -24,7 +27,7 @@ wifi_config_t wifi_config;
 static int s_retry_num = 0;
 static int s_max_retry_num = 1;
 static const char *TAG = "WIFI";
-async_file_t AFILE;
+static async_file_t AFILE;
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -83,6 +86,18 @@ void start_mdns_service()
     mdns_instance_name_set("India Navi");
 }
 
+bool isConnected()
+{
+    if (esp_wifi_sta_get_ap_info(&sta_record) != ESP_OK)
+        return PM_FAIL;
+
+    const ip_addr_t *ip = dns_getserver(0);
+    if (ip->u_addr.ip4.addr)
+        return PM_OK;
+
+    return PM_FAIL;
+}
+
 void StartWiFiTask(void const *argument)
 {
     ESP_LOGI(TAG, "Start");
@@ -91,22 +106,21 @@ void StartWiFiTask(void const *argument)
     creds->filename = "//WIFI";
     creds->dest = wifi_file;
     creds->loaded = false;
-    loadFile(creds);
+    ESP_ERROR_CHECK(loadFile(creds));
     while (!creds->loaded)
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
-    s_wifi_event_group = xEventGroupCreate();
     esp_netif_create_default_wifi_sta();
 
-    //wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    //wifi_config.sta.threshold.authmode = WIFI_AUTH_WEP;
     //wifi_config.sta.pmf_cfg.capable = true;
     //wifi_config.sta.pmf_cfg.required = false;
 
     char *next = readline(wifi_file, (char *)wifi_config.sta.ssid);
     readline(next, (char *)wifi_config.sta.password);
-    
+
     wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
@@ -131,8 +145,11 @@ void StartWiFiTask(void const *argument)
     ESP_LOGI(TAG, "wifi_init_sta finished.");
     for (;;)
     {
+        s_wifi_event_group = xEventGroupCreate();
+
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+         * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) 
+         */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
                                                WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
                                                pdFALSE,
@@ -140,7 +157,8 @@ void StartWiFiTask(void const *argument)
                                                portMAX_DELAY);
 
         /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-     * happened. */
+         * happened. 
+         */
         if (bits & WIFI_CONNECTED_BIT)
         {
             ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
@@ -151,10 +169,12 @@ void StartWiFiTask(void const *argument)
         {
             ESP_LOGI(TAG, "Failed to connect to SSID:'%s', password:'%s'",
                      wifi_config.sta.ssid, wifi_config.sta.password);
+            continue;
         }
         else
         {
             ESP_LOGE(TAG, "UNEXPECTED EVENT");
+            continue;
         }
 
         /* The event will not be processed after unregister */
@@ -163,27 +183,30 @@ void StartWiFiTask(void const *argument)
         vEventGroupDelete(s_wifi_event_group);
 
         gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
-        image_t *icon = wifi_indicator_label->child;
-        uint8_t last_rssi_state = 0;
-        while (esp_wifi_sta_get_ap_info(&sta_record) == ESP_OK)
+
+        while (isConnected())
         {
-            if (sta_record.rssi >= -70 && last_rssi_state != 3)
+            if (wifi_indicator_label)
             {
-                icon->data = WIFI_3;
-                last_rssi_state = 3;
-            }
-            else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2)
-            {
-                icon->data = WIFI_2;
-                last_rssi_state = 2;
-            }
-            else if (sta_record.rssi < -80 && last_rssi_state != 1)
-            {
-                icon->data = WIFI_1;
-                last_rssi_state = 1;
-            }
-            /* poll for OTA Button */
-            /*if (!gpio_read(OTA_button))
+                image_t *icon = wifi_indicator_label->child;
+                uint8_t last_rssi_state = 0;
+                if (sta_record.rssi >= -70 && last_rssi_state != 3)
+                {
+                    icon->data = WIFI_3;
+                    last_rssi_state = 3;
+                }
+                else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2)
+                {
+                    icon->data = WIFI_2;
+                    last_rssi_state = 2;
+                }
+                else if (sta_record.rssi < -80 && last_rssi_state != 1)
+                {
+                    icon->data = WIFI_1;
+                    last_rssi_state = 1;
+                }
+                /* poll for OTA Button */
+                /*if (!gpio_read(OTA_button))
             {
                 vTaskSuspend(gpsTask_h);
                 vTaskSuspend(guiTask_h);
@@ -193,11 +216,12 @@ void StartWiFiTask(void const *argument)
                 xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
                 vTaskSuspend(NULL);
             }*/
+                icon->data = WIFI_0;
+                trigger_rendering();
+            }
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
-        icon->data = WIFI_0;
-        trigger_rendering();
         ESP_LOGI(TAG, "Reconnect....");
     }
-    vTaskDelay(60000 / portTICK_PERIOD_MS);
+    vTaskDelay(30000 / portTICK_PERIOD_MS);
 }

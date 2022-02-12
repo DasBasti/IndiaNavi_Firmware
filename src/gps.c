@@ -346,11 +346,19 @@ void pre_render_cb()
 	{
 		ESP_LOGI(TAG, "Load waypoint information ");
 		char *f = waypoint_file;
+		bool header=true;
 		while (1)
 		{
 			f = readline(f, wp_line);
-			if (!f)
-				break;
+			if (!f) break;
+			if (f[0] == '-' && f[1] == '-') {
+				header =false;
+				continue;
+			};
+			if(header) {
+				continue;
+			}
+
 			float flon = atoff(strtok(wp_line, " "));
 			float flat = atoff(strtok(NULL, " "));
 			//ESP_LOGI(TAG, "Read waypoint: %f - %f", flon, flat);
@@ -475,6 +483,7 @@ void StartGpsTask(void const *argument)
 		ESP_LOGI(TAG, "Use default timezone");
 	}
 	tzset();
+while(1) vTaskDelay(100);
 
 	positon_marker->onBeforeRender = render_position_marker;
 

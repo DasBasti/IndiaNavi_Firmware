@@ -106,6 +106,67 @@ error_code_t loadFile(async_file_t *file)
 	return PM_FAIL;
 }
 
+error_code_t fileExists(async_file_t *file)
+{
+	xSemaphoreTake(sd_semaphore, portMAX_DELAY);
+	FILINFO fno;
+	FRESULT fres = f_stat(file->filename, &fno);
+	xSemaphoreGive(sd_semaphore);
+	if (FR_OK == fres)
+		return PM_OK;
+	return PM_FAIL;
+}
+
+error_code_t openFileForWriting(async_file_t *file)
+{
+	FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
+	ESP_LOGI(TAG, "File %s -> %d", file->filename, res);
+	if (FR_OK == res)
+		return PM_OK;
+	return PM_FAIL;
+}
+
+async_file_t *createPhysicalFile()
+{
+	async_file_t *f = RTOS_Malloc(sizeof(async_file_t));
+	f->file = RTOS_Malloc(sizeof(FIL));
+	return f;
+}
+
+error_code_t writeToFile(async_file_t *file, void *in_data, uint32_t count, uint32_t *written)
+{
+	FRESULT res = f_write(file->file, in_data, count, written);
+	if (FR_OK == res)
+		return PM_OK;
+	return PM_FAIL;
+}
+
+error_code_t closeFile(async_file_t *file)
+{
+	FRESULT res = f_close(file->file);
+	if (FR_OK == res)
+		return PM_OK;
+	return PM_FAIL;
+}
+
+void closePhysicalFile(async_file_t *file)
+{
+	if (file)
+	{
+		if (file->file)
+		{
+			if (file->file->fptr)
+				f_close(file->file);
+			RTOS_Free(file->file);
+		}
+		if (file->dest)
+		{
+			RTOS_Free(file->dest);
+		}
+		RTOS_Free(file);
+	}
+}
+
 void StartSDTask(void const *argument)
 {
 	xSemaphoreTake(sd_semaphore, portMAX_DELAY); // block SD mutex
@@ -124,12 +185,6 @@ void StartSDTask(void const *argument)
 
 	/* initialize SD card */
 	vTaskDelay(100 / portTICK_PERIOD_MS);
-
-	ESP_LOGI(TAG, "SDC: wait for indicator");
-
-	while (!sd_indicator_label)
-		vTaskDelay(1);
-	sd_indicator_label->onBeforeRender = statusRender;
 
 	for (;;)
 	{
@@ -210,6 +265,7 @@ void StartSDTask(void const *argument)
 									 &br);
 						if (FR_OK == res)
 						{
+							//ESP_LOGI(TAG, "--- %s", file->dest);
 							file->loaded = true;
 						}
 						f_close(&t_file);
@@ -239,6 +295,9 @@ void StartSDTask(void const *argument)
 				trigger_rendering();
 			}
 		}
+
+		if (sd_indicator_label)
+			sd_indicator_label->onBeforeRender = statusRender;
 
 		vTaskDelay(100 / portTICK_PERIOD_MS);
 	}

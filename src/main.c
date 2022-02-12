@@ -28,6 +28,7 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 #define taskGUIStackSize 1024 * 2
 #define taskSDStackSize 1024 * 8
 #define taskWifiStackSize 1024 * 5
+#define taskDownloaderStackSize 1024 * 8
 
 void StartHousekeepingTask(void *argument);
 void StartGpsTask(void *argument);
@@ -35,6 +36,7 @@ void StartGuiTask(void *argument);
 void StartPowerTask(void *argument);
 void StartSDTask(void *argument);
 void StartWiFiTask(void *argument);
+void StartMapDownloaderTask(void *argument);
 
 //Create semphore
 SemaphoreHandle_t print_semaphore = NULL;
@@ -188,7 +190,7 @@ int readBatteryPercent()
 }
 
 /**
- * @brief  Function implementing the housekeepingTas thread.
+ * @brief  Function implementing the housekeepingTask thread.
  * @param  argument: Not used
  * @retval None
  */
@@ -206,8 +208,24 @@ void StartHousekeepingTask(void *argument)
     ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
     ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
 
-    ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
-    ESP_ERROR_CHECK(lsm303_enable_taping(1));
+    //ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
+    //ESP_ERROR_CHECK(lsm303_enable_taping(1));
+
+    /* Run Map Loader Task to fetch missing Tiles */
+    xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+    xTaskCreate(&StartMapDownloaderTask, "maploader", taskDownloaderStackSize, NULL, tskIDLE_PRIORITY, &mapLoaderTask_h);
+
+    while (1)
+    {
+        eTaskState loader_task = eTaskStateGet(mapLoaderTask_h);
+        if (loader_task == eDeleted)
+        {
+            ESP_LOGI(TAG, "Task deleted");
+            //vTaskDelete(wifiTask_h);
+            break;
+        }
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 
     for (;;)
     {
@@ -340,6 +358,19 @@ __weak void StartSDTask(void *argument)
  * @retval None
  */
 __weak void StartWiFiTask(void *argument)
+{
+    for (;;)
+    {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+/**
+ * @brief Function implementing the MapDownloaderTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+__weak void StartMapDownloaderTask(void *argument)
 {
     for (;;)
     {

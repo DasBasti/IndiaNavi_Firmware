@@ -32,15 +32,15 @@ inline static void *RTOS_Malloc(size_t size)
 inline static void RTOS_Free(void *pointer)
 {
     if(pointer) {
-#ifdef PM_MEMORY_DEBUG
+//#ifdef PM_MEMORY_DEBUG
         ESP_LOGI("MALLOC", "free: 0x%x %d free", (uint32_t)pointer, heap_caps_get_free_size(MALLOC_CAP_8BIT));
-#endif
+//#endif
         free(pointer);
     } 
-#ifdef PM_MEMORY_DEBUG
+//#ifdef PM_MEMORY_DEBUG
     else 
         ESP_LOGI("MALLOC", "free called with zero pointer!");
-#endif
+//#endif
     
 }
 
