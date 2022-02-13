@@ -29,6 +29,13 @@ typedef struct
 	uint8_t loaded;
 } map_tile_t;
 
+typedef enum
+{
+	APP_MODE_NONE,
+	APP_MODE_DOWNLOAD,
+	APP_MODE_GPS,
+} app_mode_t;
+
 /* 6 map tiles */
 map_tile_t map_tiles[6];
 label_t *positon_marker;
@@ -71,5 +78,6 @@ render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *co
 								 enum RenderLayer layer); /* screens */
 void start_screen(const display_t *dsp);
 void app_screen(const display_t *dsp);
+void gui_set_app_mode(app_mode_t mode);
 
 #endif /* INC_GUI_H_ */

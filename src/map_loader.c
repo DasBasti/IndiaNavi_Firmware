@@ -35,6 +35,8 @@ struct tileset
 static const char *TAG = "DL";
 static uint32_t filePosition = 0;
 static async_file_t *downloadfile;
+label_t *download_status;
+char *download_status_text = "Downloader active";
 
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
@@ -84,8 +86,8 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
 {
     uint32_t fail_counter = 0;
-    char url[255] = {};
-    //RTOS_Malloc(strlen(t->wp_line) + 20); // base+/zz/xxxxx/yyyyy.raw
+    ESP_LOGE(TAG, "URL Size is:%d", strlen(t->baseurl) + 26);
+    char *url = RTOS_Malloc(strlen(t->baseurl) + 26); // base+/zz/xxxxx/yyyyy.raw
     downloadfile = createPhysicalFile();
     ESP_LOGI(TAG, "Run zoom level:%d from %s", t->zoom, t->baseurl);
     for (uint32_t x = t->folder_min; x <= t->folder_max; x++)
@@ -96,7 +98,7 @@ static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
             save_sprintf(wp_file->filename, "//MAPS/%d/%d/%d.raw", t->zoom, x, y);
             if (fileExists(wp_file) != PM_OK)
             {
-                // Get File because we cann not find it on the SD card
+                // Get File because we can not find it on the SD card
                 downloadfile->filename = wp_file->filename;
                 esp_err_t err;
                 do
@@ -128,6 +130,15 @@ static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
         }
     }
     closePhysicalFile(downloadfile);
+    RTOS_Free(url);
+}
+
+void maploader_screen_element(const display_t *dsp)
+{
+    download_status = label_create(download_status_text, &f8x8, 0, 100, 0, 0);
+    label_shrink_to_text(download_status);
+    download_status->box.left = dsp->size.width - download_status->box.width;
+    add_to_render_pipeline(label_render, download_status, RL_GUI_ELEMENTS);
 }
 
 void StartMapDownloaderTask(void *pvParameter)
@@ -192,6 +203,7 @@ void StartMapDownloaderTask(void *pvParameter)
 
     tileset->baseurl = baseurl;
     tileset->wp_line = wp_line;
+    gui_set_app_mode(APP_MODE_DOWNLOAD);
     while (1)
     {
         f = readline(f, wp_line);

@@ -69,6 +69,7 @@ char *readline(char *c, char *d);
 void closePhysicalFile(async_file_t *file);
 
 // From gps.c
+void gps_screen_element(const display_t *dsp);
 void gps_stop_parser();
 
 // From main.c
@@ -77,8 +78,11 @@ void toggleZoom();
 // From gui.c
 void trigger_rendering();
 
-// fRom wifi.c
+// From wifi.c
 bool isConnected();
 esp_err_t startDownloadFile(void *handler, const char *url);
+
+// From map_loader.c
+void maploader_screen_element(const display_t *dsp);
 
 #endif /* INC_TASKS_H_ */

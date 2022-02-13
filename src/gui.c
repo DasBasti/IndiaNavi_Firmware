@@ -40,6 +40,8 @@ render_t *render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t *render_last[RL_MAX];	   // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
+app_mode_t _app_mode = APP_MODE_NONE;
+
 /**
  * Add render function to pipeline
  *
@@ -204,75 +206,16 @@ void wait_until_gui_ready()
 	}
 }
 
-/*
- * Load tile data from SD Card on render command
- *
- * We share a global memory buffer since it is not enough memory available
- * to hold all 6 tiles in memory at once.
- * 
- * returns PK_OK if loaded, UNAVAILABLE if buffer of sd semaphore is not available and
- * TIMEOUT if loading timed out
+/**
+ * Set App mode
  */
-error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
+void gui_set_app_mode(app_mode_t mode)
 {
-	uint8_t timeout = 0;
-	uint8_t *imageBuf = RTOS_Malloc(256 * 256 / 2);
-	ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
-	if (!imageBuf)
-		return UNAVAILABLE;
-
-	image_t *img = (image_t *)image;
-	if (!uxSemaphoreGetCount(sd_semaphore))
-	{ // binary semaphore returns 1 on not taken
-		RTOS_Free(imageBuf);
-		return UNAVAILABLE;
-	}
-
-	img->data = imageBuf;
-	loadTile(img->parent); // queue loading
-
-	while (img->loaded != LOADED)
-	{
-		label_t *l = (label_t *)img->child;
-		if (img->loaded == ERROR)
-		{
-			l->text = "Error";
-			goto freeImageMemory;
-		}
-		if (img->loaded == NOT_FOUND)
-		{
-			//l->text = "Not Found";
-			goto freeImageMemory;
-		}
-		vTaskDelay(10);
-		timeout++;
-		if (timeout == 100)
-		{
-			ESP_LOGI(TAG, "load timeout!");
-			goto freeImageMemory;
-		}
-	}
-
-	return PM_OK;
-
-freeImageMemory:
-	RTOS_Free(imageBuf);
-	return TIMEOUT;
-}
-
-error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
-{
-	image_t *img = (image_t *)image;
-	label_t *lbl = img->child;
-	if (img->loaded != LOADED)
-	{
-		label_render(dsp, lbl);
-	}
-	else
-	{
-		RTOS_Free(img->data);
-	}
-	return PM_OK;
+	// If we do not change mode we do not need to rerender
+	if (mode == _app_mode)
+		return;
+	_app_mode = mode;
+	render_needed = true;
 }
 
 /**
@@ -280,30 +223,16 @@ error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
  */
 void app_screen(const display_t *dsp)
 {
-	//imageBuf = RTOS_Malloc(256 * 256 / 2);
-	// we first create the map_tiles to render them on the lowest level
-	for (uint8_t i = 0; i < 2; i++)
-		for (uint8_t j = 0; j < 3; j++)
-		{
-			uint8_t idx = i * 3 + j;
-			map_tiles[idx].image = image_create(NULL, i * 255, j * 255, 256,
-												256);
-			map_tiles[idx].label = label_create(RTOS_Malloc(21), &f8x8, i * 255,
-												j * 255, 256, 256);
-			save_sprintf(map_tiles[idx].label->text, "loading...");
-
-			map_tiles[idx].label->alignHorizontal = CENTER;
-			map_tiles[idx].label->alignVertical = MIDDLE;
-			map_tiles[idx].label->backgroundColor = WHITE;
-			map_tiles[idx].image->onBeforeRender = load_map_tile_on_demand;
-			map_tiles[idx].image->onAfterRender = check_if_map_tile_is_loaded;
-			map_tiles[idx].image->child = map_tiles[idx].label;
-			map_tiles[idx].image->loaded = 0;
-			map_tiles[idx].image->parent = &map_tiles[idx];
-			map_tiles[idx].x = i;
-			map_tiles[idx].y = j;
-			add_to_render_pipeline(image_render, map_tiles[idx].image, RL_MAP);
-		}
+	switch (_app_mode)
+	{
+	case APP_MODE_DOWNLOAD:
+		maploader_screen_element(dsp);
+		break;
+	case APP_MODE_GPS:
+	default:
+		gps_screen_element(dsp);
+		break;
+	}
 
 	/* position marker */
 	positon_marker = label_create("", &f8x16, 0, 0, 24, 24);
