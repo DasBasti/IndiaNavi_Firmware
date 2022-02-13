@@ -30,7 +30,8 @@ TaskHandle_t sdTask_h;
 TaskHandle_t wifiTask_h;
 TaskHandle_t mapLoaderTask_h;
 
-enum {
+enum
+{
     TASK_EVENT_ENTER_LOW_POWER = 50,
     TASK_EVENT_ENABLE_GPS,
     TASK_EVENT_DISABLE_GPS,
@@ -39,7 +40,6 @@ enum {
     TASK_EVENT_ENABLE_WIFI,
     TASK_EVENT_DISABLE_WIFI
 } task_events_e;
-
 
 typedef struct
 {
@@ -62,11 +62,11 @@ error_code_t loadTile(map_tile_t *tile);
 error_code_t loadFile(async_file_t *file);
 error_code_t fileExists(async_file_t *file);
 error_code_t openFileForWriting(async_file_t *file);
-async_file_t* createPhysicalFile();
-error_code_t writeToFile(async_file_t* file, void* in_data, uint32_t count, uint32_t* written);
+async_file_t *createPhysicalFile();
+error_code_t writeToFile(async_file_t *file, void *in_data, uint32_t count, uint32_t *written);
 error_code_t closeFile(async_file_t *file);
 char *readline(char *c, char *d);
-void closePhysicalFile(async_file_t* file);
+void closePhysicalFile(async_file_t *file);
 
 // From gps.c
 void gps_stop_parser();
@@ -79,5 +79,6 @@ void trigger_rendering();
 
 // fRom wifi.c
 bool isConnected();
+esp_err_t startDownloadFile(void *handler, const char *url);
 
 #endif /* INC_TASKS_H_ */

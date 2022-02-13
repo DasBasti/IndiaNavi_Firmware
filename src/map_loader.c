@@ -7,7 +7,6 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
-#include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "string.h"
 
@@ -84,44 +83,32 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 
 static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
 {
-    esp_http_client_config_t client_config = {
-        //.url is set in loop
-        .url = "http://platinenmacher.tech/navi/",
-        .method = HTTP_METHOD_GET,
-        .is_async = false,
-        .event_handler = _http_event_handler,
-        .timeout_ms = 3000,
-        //.cert_pem = server_cert_pem_start,
-        .keep_alive_enable = true,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&client_config);
     uint32_t fail_counter = 0;
-    char *url = RTOS_Malloc(strlen(t->wp_line) + 20); // base+/zz/xxxxx/yyyyy.raw
+    char url[255] = {};
+    //RTOS_Malloc(strlen(t->wp_line) + 20); // base+/zz/xxxxx/yyyyy.raw
     downloadfile = createPhysicalFile();
-    ESP_LOGI(TAG, "Run zoom level:%d", t->zoom);
+    ESP_LOGI(TAG, "Run zoom level:%d from %s", t->zoom, t->baseurl);
     for (uint32_t x = t->folder_min; x <= t->folder_max; x++)
     {
         for (uint32_t y = t->file_min; y <= t->file_max; y++)
         {
-            save_sprintf(wp_file->filename, "//MAPS/%d/%d/%d.raw", t->zoom, x, y);
             save_sprintf(url, "%s/%d/%d/%d.raw", t->baseurl, t->zoom, x, y);
+            save_sprintf(wp_file->filename, "//MAPS/%d/%d/%d.raw", t->zoom, x, y);
             if (fileExists(wp_file) != PM_OK)
             {
                 // Get File because we cann not find it on the SD card
                 downloadfile->filename = wp_file->filename;
-                client_config.url = url;
                 esp_err_t err;
                 do
                 {
-                    ESP_LOGI(TAG, "Get %s -> '%s'", client_config.url, wp_file->filename);
-                    err = esp_http_client_perform(client);
-                    if (err == ESP_OK)
+                    while (isConnected() != PM_OK)
                     {
-                        ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d\n",
-                                 esp_http_client_get_status_code(client),
-                                 esp_http_client_get_content_length(client));
+                        ESP_LOGI(TAG, "Wait for WiFi connection");
+                        vTaskDelay(3000 / portTICK_PERIOD_MS);
                     }
-                    else
+                    ESP_LOGI(TAG, "Get %s -> '%s'", url, wp_file->filename);
+                    err = startDownloadFile(_http_event_handler, url);
+                    if (err != ESP_OK)
                     {
                         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
                         if (++fail_counter == 10)
@@ -132,7 +119,6 @@ static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
                         vTaskDelay(1000 / portTICK_PERIOD_MS);
                     }
                 } while (err != ESP_OK);
-                //esp_http_client_cleanup(client);
             }
             else
             {
@@ -142,10 +128,6 @@ static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
         }
     }
     closePhysicalFile(downloadfile);
-
-    if (client)
-        esp_http_client_cleanup(client);
-    RTOS_Free(url);
 }
 
 void StartMapDownloaderTask(void *pvParameter)

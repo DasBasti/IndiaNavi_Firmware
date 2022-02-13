@@ -18,6 +18,7 @@
 #include <esp_wifi.h>
 #include <esp_event.h>
 #include <mdns.h>
+#include <esp_http_client.h>
 
 #include "gui.h"
 #include "tasks.h"
@@ -96,6 +97,39 @@ bool isConnected()
         return PM_OK;
 
     return PM_FAIL;
+}
+
+/**
+ * Downlaod from a URL using the given handler function
+ * 
+ * @param
+ * handler  The handler function for processing HTTP events.
+ * url      The location to get the data from.
+ * 
+ * @return
+ *  - ESP_OK on successful
+ *  - ESP_FAIL on error
+ */
+esp_err_t startDownloadFile(void *handler, const char *url)
+{
+    esp_http_client_config_t client_config = {
+        .url = url,
+        .method = HTTP_METHOD_GET,
+        .disable_auto_redirect = true,
+        .is_async = false,
+        .event_handler = handler,
+        .timeout_ms = 3000,
+        //.cert_pem = server_cert_pem_start,
+        .keep_alive_enable = true,
+        .user_agent = "IndiaNavi 1.0",
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&client_config);
+    esp_err_t err = esp_http_client_perform(client);
+    ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d\n",
+             esp_http_client_get_status_code(client),
+             esp_http_client_get_content_length(client));
+    esp_http_client_cleanup(client);
+    return err;
 }
 
 void StartWiFiTask(void const *argument)
