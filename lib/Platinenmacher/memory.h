@@ -21,7 +21,7 @@ inline static void *RTOS_Malloc(size_t size)
     ESP_LOGI("MALLOC", "allocate: %d from %d", size, heap_caps_get_free_size(MALLOC_CAP_8BIT));
 #endif
     void *mem = malloc(size);
-    if(mem)
+    if (mem)
         memset(mem, 0, size);
 #ifdef PM_MEMORY_DEBUG
     else
@@ -31,17 +31,18 @@ inline static void *RTOS_Malloc(size_t size)
 }
 inline static void RTOS_Free(void *pointer)
 {
-    if(pointer) {
-//#ifdef PM_MEMORY_DEBUG
+    if (pointer)
+    {
+#ifdef PM_MEMORY_DEBUG
         ESP_LOGI("MALLOC", "free: 0x%x %d free", (uint32_t)pointer, heap_caps_get_free_size(MALLOC_CAP_8BIT));
-//#endif
+#endif
         free(pointer);
-    } 
-//#ifdef PM_MEMORY_DEBUG
-    else 
+        pointer = NULL;
+    }
+#ifdef PM_MEMORY_DEBUG
+    else
         ESP_LOGI("MALLOC", "free called with zero pointer!");
-//#endif
-    
+#endif
 }
 
 #define bit_set(data, pos) (data |= (1U << pos))
