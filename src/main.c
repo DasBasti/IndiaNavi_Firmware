@@ -213,6 +213,7 @@ void StartHousekeepingTask(void *argument)
 
     /* Run Map Loader Task to fetch missing Tiles */
     xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
     xTaskCreate(&StartMapDownloaderTask, "maploader", taskDownloaderStackSize, NULL, tskIDLE_PRIORITY, &mapLoaderTask_h);
 
     while (1)
@@ -280,14 +281,14 @@ void StartHousekeepingTask(void *argument)
             {
                 vTaskDelete(&gpsTask_h);
             }
-            if (event_num == TASK_EVENT_ENABLE_DISPLAY)
+            /*if (event_num == TASK_EVENT_ENABLE_DISPLAY)
             {
                 xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
             }
             if (event_num == TASK_EVENT_DISABLE_DISPLAY)
             {
                 vTaskDelete(&guiTask_h);
-            }
+            }*/
             if (event_num == TASK_EVENT_ENABLE_WIFI)
             {
                 xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
