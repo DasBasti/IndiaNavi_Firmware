@@ -26,9 +26,11 @@
 char wifi_file[32 + 1 + 64];
 wifi_config_t wifi_config;
 static int s_retry_num = 0;
-static int s_max_retry_num = 1;
+static int s_max_retry_num = 10;
 static const char *TAG = "WIFI";
 static async_file_t AFILE;
+
+static bool _is_connected = false;
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -67,6 +69,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
+        _is_connected = true;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
@@ -90,7 +93,12 @@ void start_mdns_service()
 bool isConnected()
 {
     if (esp_wifi_sta_get_ap_info(&sta_record) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "No Station available!");
+        esp_wifi_connect();
+        vTaskDelay(100);
         return PM_FAIL;
+    }
 
     const ip_addr_t *ip = dns_getserver(0);
     if (ip->u_addr.ip4.addr)
@@ -118,7 +126,7 @@ esp_err_t startDownloadFile(void *handler, const char *url)
         .disable_auto_redirect = true,
         .is_async = false,
         .event_handler = handler,
-        .timeout_ms = 3000,
+        .timeout_ms = 30000,
         //.cert_pem = server_cert_pem_start,
         .keep_alive_enable = true,
         .user_agent = "IndiaNavi 1.0",
@@ -173,13 +181,14 @@ void StartWiFiTask(void const *argument)
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
+    esp_wifi_set_ps(WIFI_PS_NONE);
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
     for (;;)
     {
         s_wifi_event_group = xEventGroupCreate();
+        _is_connected = false;
 
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
          * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) 
