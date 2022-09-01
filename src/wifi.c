@@ -101,7 +101,7 @@ bool isConnected()
     }
 
     const ip_addr_t *ip = dns_getserver(0);
-    if (ip->u_addr.ip4.addr)
+    if (ip->addr)
         return PM_OK;
 
     return PM_FAIL;
