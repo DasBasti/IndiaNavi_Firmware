@@ -2,3 +2,8 @@
 .vscode/
 build
 sdkconfig*
+
+#gcov coverage
+cov/
+filtered_lcov.info
+lcov.info
