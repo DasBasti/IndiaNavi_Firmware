@@ -352,7 +352,7 @@ void pre_render_cb()
 			f = readline(f, wp_line);
 			if (!f)
 				break;
-			if (f[0] == '-' && f[1] == '-')
+			if (wp_line[0] == '-' && wp_line[1] == '-')
 			{
 				header = false;
 				continue;
