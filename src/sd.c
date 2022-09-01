@@ -18,6 +18,7 @@
 #include <driver/sdmmc_host.h>
 #include <driver/sdmmc_defs.h>
 #include <Platinenmacher.h>
+#include "helper.h"
 
 #include "icons_32/icons_32.h"
 #include "gui.h"
@@ -73,28 +74,6 @@ error_code_t loadTile(map_tile_t *tile)
 	if (xQueueSend(mapLoadQueueHandle, &tile, 0) == pdTRUE)
 		return PM_OK;
 	return PM_FAIL;
-}
-
-/*
- * Read one line from string
- */
-char *readline(char *c, char *d)
-{
-
-	while (c)
-	{
-		if (*c == 0)
-			return 0;
-		if (*c == '\n')
-			break;
-		if (*c == '\r')
-			continue;
-		*d = *c;
-		c++;
-		d++;
-	}
-	*d = 0;
-	return ++c;
 }
 
 /*
