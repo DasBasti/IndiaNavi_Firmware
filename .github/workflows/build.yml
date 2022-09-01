@@ -20,12 +20,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install platformio         
 
-    - name: Run PlatformIO build on embedded platforms
-      run: platformio run -e esp32dev_debug esp32dev_release
-      
     - name: Run PlatformIO test on host platform
-      run: platformio run test -e native
+      run: platformio test -e native
 
+    - name: Run PlatformIO build on embedded platforms
+      run: platformio run -e esp32dev_debug -e esp32dev_release
+      
     - name: Upload debug.bin file
       if: success()
       uses: actions/upload-artifact@v2
