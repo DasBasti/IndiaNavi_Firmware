@@ -9,8 +9,8 @@
 #define PLATINENMACHER_DISPLAY_GUI_IMAGE_H_
 
 #include "error.h"
-#include "display/GUI/geometric.h"
-#include "display/display.h"
+#include "gui/geometric.h"
+#include "display.h"
 
 enum LoadStatus
 {

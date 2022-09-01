@@ -6,8 +6,6 @@
  */
 
 #include "command.h"
-#include <esp_log.h>
-static const char *TAG = "CMD";
 
 char *cmd_buffer;
 cmd_t state;
@@ -40,8 +38,6 @@ static void run_command(uint8_t idx)
 	cmd_list[idx]->args = args_buf;
 	if (cmd_list[idx]->function_cb)
 		cmd_list[idx]->function_cb(cmd_list[idx]);
-	else
-		ESP_LOGE(TAG, "Unknown command: %s", cmd_buf);
 	cmd = cmd_buf;
 	memset(cmd, 0, CMD_LENGTH + 1);
 	args = args_buf;
@@ -84,7 +80,6 @@ static void command_parse_char(char c)
 			args++;
 			break;
 		default:
-			ESP_LOGW(TAG, "IO-Error. State Reset.");
 			state = CMD_COMMAND;
 		}
 	}

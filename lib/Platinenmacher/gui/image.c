@@ -5,8 +5,8 @@
  *      Author: bastian
  */
 
-#include "display/GUI/image.h"
-#include "display/display.h"
+#include "gui/image.h"
+#include "display.h"
 
 image_t *image_create(const uint8_t *data, uint16_t left, uint16_t top,
 					  uint16_t width, uint16_t height)

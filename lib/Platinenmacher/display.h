@@ -10,11 +10,11 @@
 
 #include <stddef.h>
 
-#include "display/colors.h"
-#include "display/font.h"
-#include "display/GUI/geometric.h"
-#include "memory.h"
+#include "colors.h"
+#include "font.h"
+#include "gui/geometric.h"
 #include "error.h"
+#include "memory.h"
 
 typedef enum
 {

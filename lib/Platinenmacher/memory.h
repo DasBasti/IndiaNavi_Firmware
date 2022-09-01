@@ -8,6 +8,11 @@
 #ifndef PLATINENMACHER_MEMORY_H_
 #define PLATINENMACHER_MEMORY_H_
 
+#ifdef TESTING
+#include <stdlib.h>
+	#define RTOS_Malloc 	malloc
+	#define RTOS_Free 		free
+#else
 #include "rtos.h"
 #include <freertos/FreeRTOS.h>
 #include <esp_heap_caps.h>
@@ -44,6 +49,7 @@ inline static void RTOS_Free(void *pointer)
         ESP_LOGI("MALLOC", "free called with zero pointer!");
 #endif
 }
+#endif /* TESTING */
 
 #define bit_set(data, pos) (data |= (1U << pos))
 #define bit_clear(data, pos) (data &= (~(1U << pos)))

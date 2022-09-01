@@ -6,7 +6,7 @@
  */
 
 #include "display.h"
-#include "display/font.h"
+#include "font.h"
 
 /*
  * Intialize Display memory
@@ -56,6 +56,7 @@ error_code_t display_fill(display_t *dsp, color_t color)
  *
  * @return PM_OK if driver is unloaded
  * @return OUT_OF_BOUNDS if one or more pixels where out of bounds
+ * @return PM_FAIL if write_pixel is NULL
  *
  */
 error_code_t display_pixel_draw(display_t *dsp, uint16_t x, uint16_t y,
@@ -67,7 +68,10 @@ error_code_t display_pixel_draw(display_t *dsp, uint16_t x, uint16_t y,
 	if (color == TRANSPARENT)
 		return PM_OK;
 
-	dsp->write_pixel(dsp, x, y, color);
+	if(dsp->write_pixel)
+		dsp->write_pixel(dsp, x, y, color);
+	else
+		return PM_FAIL;
 
 	return PM_OK;
 }
@@ -84,6 +88,8 @@ error_code_t display_pixel_draw(display_t *dsp, uint16_t x, uint16_t y,
 error_code_t display_rect_draw(display_t *dsp, uint16_t x, uint16_t y,
 							   uint16_t width, uint16_t height, uint8_t color)
 {
+	height -= 1; //line at start coordinate counts as one
+	width -= 1;
 	display_line_draw(dsp, x, y, x, y + height, color);
 	display_line_draw(dsp, x, y + height, x + width, y + height, color);
 	display_line_draw(dsp, x + width, y + height, x + width, y, color);
@@ -234,8 +240,7 @@ error_code_t display_circle_fill(display_t *dsp, uint16_t x0, uint16_t y0,
  * Draws a circle on the framebuffer at x,y
  * with radius r and color.
  *
- * @return PM_OK if driver is unloaded
- * @return OUT_OF_BOUNDS if one or more pixels where out of bounds
+ * @return PM_OK
  *
  */
 error_code_t display_circle_draw(display_t *dsp, uint16_t x0, uint16_t y0,
@@ -294,13 +299,12 @@ error_code_t display_circle_draw_segment(display_t *dsp, uint16_t x0,
  *
  * Draws a rectangle on the framebuffer filling it's area.
  *
- * @return PM_OK if driver is unloaded
- * @return OUT_OF_BOUNDS if one or more pixels where out of bounds
+ * @return PM_OK
  *
  */
 error_code_t display_rect_fill(display_t *dsp, uint16_t x0, uint16_t y0,
 							   uint16_t width, uint16_t height, uint8_t color)
-{
+{		
 	for (uint16_t x = 0; x < width; x++)
 		for (uint16_t y = 0; y < height; y++)
 		{
@@ -350,11 +354,11 @@ inline error_code_t display_draw_raw(display_t *dsp, uint8_t *img,
 }
 
 /**
- * @brief Renders text on display starting at x,y
+ * @brief copy text on display starting at x,y
  *
  * Text is a fixed size
  *
- * @return SUCCESS
+ * @return PM_OK
  */
 error_code_t display_text_draw(display_t *dsp, font_t *font, uint16_t x,
 							   uint16_t y, const char *text, uint8_t color)

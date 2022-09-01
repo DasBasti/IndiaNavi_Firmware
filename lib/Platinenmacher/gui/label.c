@@ -7,7 +7,7 @@
 
 #include "label.h"
 #include "image.h"
-#include "display/display.h"
+#include "display.h"
 
 /*
  * Create a label and returns a pointer to the label_t

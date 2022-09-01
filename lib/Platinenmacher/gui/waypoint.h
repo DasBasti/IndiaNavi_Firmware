@@ -1,9 +1,9 @@
 #ifndef PLATINENMACHER_DISPLAY_GUI_WAYPOINT_H_
 #define PLATINENMACHER_DISPLAY_GUI_WAYPOINT_H_
 
-#include "display/display.h"
-#include "display/GUI/geometric.h"
-#include "display/colors.h"
+#include "display.h"
+#include "gui/geometric.h"
+#include "colors.h"
 
 typedef struct Waypoint waypoint_t;
 struct Waypoint {

@@ -8,10 +8,10 @@
 #ifndef PLATINENMACHER_DISPLAY_GUI_LABEL_H_
 #define PLATINENMACHER_DISPLAY_GUI_LABEL_H_
 
-#include "display/display.h"
-#include "display/GUI/geometric.h"
-#include "display/colors.h"
-#include "display/font.h"
+#include "display.h"
+#include "geometric.h"
+#include "colors.h"
+#include "font.h"
 
 typedef struct label {
 	char *text;

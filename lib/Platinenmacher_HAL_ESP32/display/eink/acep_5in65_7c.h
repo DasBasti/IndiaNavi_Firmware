@@ -7,7 +7,7 @@
 #ifndef __EPD_5IN65F_H__
 #define __EPD_5IN65F_H__
 
-#include "display/display.h"
+#include "display.h"
 #include "error.h"
 
 // TODO: SPI transaktion kapseln!
