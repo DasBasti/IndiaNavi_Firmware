@@ -30,7 +30,6 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 #define taskWifiStackSize 1024 * 5
 #define taskDownloaderStackSize 1024 * 8
 
-void StartHousekeepingTask(void *argument);
 void StartGpsTask(void *argument);
 void StartGuiTask(void *argument);
 void StartPowerTask(void *argument);
@@ -62,6 +61,40 @@ static void print_sha256(const uint8_t *image_hash, const char *label)
         sprintf(&hash_print[i * 2], "%02x", image_hash[i]);
     }
     ESP_LOGI(TAG, "%s %s", label, hash_print);
+}
+
+/**
+ * @brief Function to read battery voltage
+ * @param none
+ * @retval int: battery voltage in mV
+ */
+int readBatteryPercent()
+{
+    int batteryVoltage;
+    int chargerVoltage;
+    adc_power_acquire();
+    batteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
+    ESP_LOGI(TAG, "ADC1/6: %d", batteryVoltage);
+    chargerVoltage = adc1_get_raw(ADC1_CHANNEL_7);
+    ESP_LOGI(TAG, "ADC1/7: %d", chargerVoltage);
+    adc_power_release();
+
+    if (chargerVoltage > batteryVoltage)
+        return -1;
+
+    const int min = 1750;
+    const int max = 2100;
+    if (batteryVoltage > max)
+        return 100;
+
+    if (batteryVoltage < min)
+        return 0;
+
+    /* ganz simpler dreisatz, den man in wenigen
+       sekunden im Kopf lösen kann */
+    int value = batteryVoltage - min;
+
+    return value * 100 / (max - min);
 }
 
 static void get_sha256_of_partitions(void)
@@ -101,6 +134,10 @@ static void IRAM_ATTR handleButtonPress(void *arg)
 
 void app_main()
 {
+    uint16_t cnt = 300;
+    uint32_t event_num;
+    gpio_t *led = gpio_create(OUTPUT, 0, LED);
+    uint8_t ledState = 1;
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -140,104 +177,40 @@ void app_main()
     gpio_set_intr_type(I2C_INT, GPIO_INTR_NEGEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
+
+    // configure ADC for VBATT measurement
+    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11));
+    //ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_6));
+
+    // configure ADC for VIN measurement -> Loading cable attached?
+    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
+    //ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
+
     ESP_LOGI(TAG, "start");
 
-    xTaskCreate(&StartHousekeepingTask, "housekeeping", taskGenericStackSize, NULL, 10, &housekeepingTask_h);
-    //xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
-    //xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
+    xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
+    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
     xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 1, &sdTask_h);
     //xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
 
     uint32_t evt;
-    evt = TASK_EVENT_ENABLE_DISPLAY;
+ /*   evt = TASK_EVENT_ENABLE_DISPLAY;
     xQueueSend(eventQueueHandle, &evt, 0);
     evt = TASK_EVENT_ENABLE_GPS;
     xQueueSend(eventQueueHandle, &evt, 0);
-}
-
-/**
- * @brief Function to read battery voltage
- * @param none
- * @retval int: battery voltage in mV
- */
-int readBatteryPercent()
-{
-    int batteryVoltage;
-    int chargerVoltage;
-    adc_power_acquire();
-    batteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
-    ESP_LOGI(TAG, "ADC1/6: %d", batteryVoltage);
-    chargerVoltage = adc1_get_raw(ADC1_CHANNEL_7);
-    ESP_LOGI(TAG, "ADC1/7: %d", chargerVoltage);
-    adc_power_release();
-
-    if (chargerVoltage > batteryVoltage)
-        return -1;
-
-    const int min = 1750;
-    const int max = 2100;
-    if (batteryVoltage > max)
-        return 100;
-
-    if (batteryVoltage < min)
-        return 0;
-
-    /* ganz simpler dreisatz, den man in wenigen
-       sekunden im Kopf lösen kann */
-    int value = batteryVoltage - min;
-
-    return value * 100 / (max - min);
-}
-
-/**
- * @brief  Function implementing the housekeepingTask thread.
- * @param  argument: Not used
- * @retval None
- */
-void StartHousekeepingTask(void *argument)
-{
-    uint16_t cnt = 300;
-    uint32_t event_num;
-    gpio_t *led = gpio_create(OUTPUT, 0, LED);
-    uint8_t ledState = 1;
-    // configure ADC for VBATT measurement
-    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11));
-    ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_6));
-
-    // configure ADC for VIN measurement -> Loading cable attached?
-    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
-    ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
-
-    //ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
-    //ESP_ERROR_CHECK(lsm303_enable_taping(1));
-
-    /* Run Map Loader Task to fetch missing Tiles */
-    xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
-    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
-    xTaskCreate(&StartMapDownloaderTask, "maploader", taskDownloaderStackSize, NULL, tskIDLE_PRIORITY, &mapLoaderTask_h);
-
-    while (1)
-    {
-        eTaskState loader_task = eTaskStateGet(mapLoaderTask_h);
-        if (loader_task == eDeleted)
-        {
-            ESP_LOGI(TAG, "Task deleted");
-            //vTaskDelete(wifiTask_h);
-            break;
-        }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-
+   */     
+    ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
+    ESP_ERROR_CHECK(lsm303_enable_taping(1));
     for (;;)
     {
-        /*uint8_t tap_register;
+        uint8_t tap_register;
         ESP_ERROR_CHECK(lsm303_read_tap(&tap_register));
         if(tap_register & 0x09) // double tap
         {
             ESP_LOGI(TAG, "Double Tap recognized. rerender.");
             trigger_rendering();
         }
-        */
+        
         gpio_write(led, ledState);
         ledState = !ledState;
         if (++cnt >= 300)
@@ -281,14 +254,14 @@ void StartHousekeepingTask(void *argument)
             {
                 vTaskDelete(&gpsTask_h);
             }
-            /*if (event_num == TASK_EVENT_ENABLE_DISPLAY)
+            if (event_num == TASK_EVENT_ENABLE_DISPLAY)
             {
                 xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
             }
             if (event_num == TASK_EVENT_DISABLE_DISPLAY)
             {
                 vTaskDelete(&guiTask_h);
-            }*/
+            }
             if (event_num == TASK_EVENT_ENABLE_WIFI)
             {
                 xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
