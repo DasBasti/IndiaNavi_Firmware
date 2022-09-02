@@ -7,68 +7,9 @@ on:
   pull_request:
 
 jobs:
-  install_platformio:
-    uses: ./.github/workflows/install_platformio.yml
-  
-  run_tests:
-    needs: install_platformio
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
-    - name: Cache PlatformIO
-      uses: actions/cache@v2
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
-    - name: Run PlatformIO test on host platform
-      run: platformio test -e native
-  
+  platformio_run_native_tests:
+    uses: ./.github/workflows/platformio_test_native.yml
+ 
   build_and_upload:
-    needs: install_platformio
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    - name: Cache PlatformIO
-      uses: actions/cache@v2
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
-    - name: Run PlatformIO build on embedded platforms
-      run: platformio run -e esp32dev_debug -e esp32dev_release
-      
-    - name: Upload debug.bin file
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: firmware_latest_debug.bin
-        path: .pio/build/esp32dev_debug/firmware.bin
-        retention-days: 5   
-
-    - name: Upload .bin file
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: firmware_latest.bin
-        path: .pio/build/esp32dev_release/firmware.bin
-        retention-days: 5   
-        
-    - name: Upload .elf file
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: firmware_latest_debug.elf
-        path: .pio/build/esp32dev_debug/firmware.elf
-        retention-days: 5   
+    uses: ./.github/workflows/platformio_build.yml
+    
