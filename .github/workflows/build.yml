@@ -44,6 +44,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
     - name: Run PlatformIO test on host platform
       run: platformio test -e native
   
@@ -57,6 +63,12 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
     - name: Run PlatformIO build on embedded platforms
       run: platformio run -e esp32dev_debug -e esp32dev_release
       
