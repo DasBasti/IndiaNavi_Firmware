@@ -36,7 +36,7 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware_latest_debug.bin
+        name: firmware_${GITHUB_SHA}_debug.bin
         path: .pio/build/esp32dev_debug/firmware.bin
         retention-days: 5   
 
@@ -44,7 +44,7 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware_latest.bin
+        name: firmware_${GITHUB_SHA}.bin
         path: .pio/build/esp32dev_release/firmware.bin
         retention-days: 5   
         
@@ -52,6 +52,6 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware_latest_debug.elf
+        name: firmware_${GITHUB_SHA}_debug.elf
         path: .pio/build/esp32dev_debug/firmware.elf
         retention-days: 5   
