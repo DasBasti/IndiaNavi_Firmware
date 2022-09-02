@@ -9,6 +9,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Install gcov
+      run: sudo apt install gcov
+
     - name: Set up Python
       uses: actions/setup-python@v2.2.1
 
@@ -21,7 +24,9 @@ jobs:
     - name: Cache PlatformIO
       uses: actions/cache@v2
       with:
-        path: ~/.platformio
+        path: |
+          ~/.platformio
+          .pio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
     - name: Install pio and its dependencies
