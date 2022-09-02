@@ -31,6 +31,13 @@ jobs:
     needs: install_platformio
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Run PlatformIO test on host platform
       run: platformio test -e native
   
@@ -38,6 +45,12 @@ jobs:
     needs: install_platformio
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
     - name: Run PlatformIO build on embedded platforms
       run: platformio run -e esp32dev_debug -e esp32dev_release
       
