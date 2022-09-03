@@ -7,45 +7,13 @@ on:
       - 'v*.*.*'
   
 jobs:
+  build_and_upload:
+    uses: ./.github/workflows/platformio_build.yml
+
   install_platformio_and_build:
+    needs: build_and_upload
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python
-      uses: actions/setup-python@v2.2.1
-
-    - name: Install pio and its dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install platformio         
-    - name: Run PlatformIO build on selected platforms
-      run: platformio run 
-      
-    - name: Upload release.bin file
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: firmware_latest.bin
-        path: .pio/build/esp32dev_release/firmware.bin
-        retention-days: 5   
-        
-    - name: Upload debug.bin file
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: firmware_latest_debug.bin
-        path: .pio/build/esp32dev_debug/firmware.bin
-        retention-days: 5
-
-    - name: Upload .elf file
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: firmware_latest_debug.elf
-        path: .pio/build/esp32dev_debug/firmware.elf
-        retention-days: 5   
-    
     - name: make deploy folder
       if: success()
       run: |
