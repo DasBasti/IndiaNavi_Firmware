@@ -31,14 +31,20 @@ error_code_t image_render(const display_t *dsp, void *component)
 {
 	image_t *image = (image_t *)component;
 	if (image->onBeforeRender)
-		image->onBeforeRender(dsp, image);
+		if(image->onBeforeRender(dsp, image) != PM_OK)
+		{
+			return ABORT;
+		}
 
 	if (image->data != NULL)
 		display_draw_image(dsp, image->data, image->box.left,
 						   image->box.top, image->box.width, image->box.height);
 
 	if (image->onAfterRender)
-		image->onAfterRender(dsp, image);
+		if(image->onAfterRender(dsp, image) != PM_OK)
+		{
+			return ABORT;
+		}
 
 	return PM_OK;
 }
