@@ -1,31 +1,32 @@
 name: Deploy Firmware images 
 on:
-  push:
-    branches: 
-      - 'main'
-    tags:
-      - 'v*.*.*'
+  workflow_run:
+    workflows: ['Build']
+    types:
+      - completed
   
 jobs:
-  build_and_upload:
-    uses: ./.github/workflows/platformio_build.yml
-
-  install_platformio_and_build:
-    needs: build_and_upload
+  download_binareis_and_upload_to_s3:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: firmware_${GITHUB_SHA}_debug.bin
+    - uses: actions/download-artifact@v3
+      with:
+        name: firmware_${GITHUB_SHA}.bin
     - name: make deploy folder
       if: success()
       run: |
-        mkdir -p .pio/build/esp32dev/deploy
-        cp .pio/build/esp32dev_release/firmware.bin .pio/build/esp32dev/deploy/firmware_latest.bin
-        cp .pio/build/esp32dev_debug/firmware.bin .pio/build/esp32dev/deploy/firmware_latest_debug.bin
-        sha256sum .pio/build/esp32dev_release/firmware.bin | cut -d' ' -f1 > .pio/build/esp32dev/deploy/firmware_latest.sha
-        sha256sum .pio/build/esp32dev_debug/firmware.bin | cut -d' ' -f1 > .pio/build/esp32dev/deploy/firmware_latest_debug.sha
-        cp .pio/build/esp32dev_release/firmware.bin .pio/build/esp32dev/deploy/firmware_$(git describe --abbrev=7 --always).bin
-        cp .pio/build/esp32dev_debug/firmware.bin .pio/build/esp32dev/deploy/firmware_$(git describe --abbrev=7 --always)_debug.bin
-        sha256sum .pio/build/esp32dev_release/firmware.bin | cut -d' ' -f1 > .pio/build/esp32dev/deploy/firmware_$(git describe --abbrev=7 --always).sha
-        sha256sum .pio/build/esp32dev_debug/firmware.bin | cut -d' ' -f1 > .pio/build/esp32dev/deploy/firmware_$(git describe --abbrev=7 --always)_debug.sha
+        mkdir deploy
+        cp firmware_${GITHUB_SHA}.bin ./deploy/firmware_latest.bin
+        cp firmware_${GITHUB_SHA}_debug.bin ./deploy/firmware_latest_debug.bin
+        sha256sum firmware_${GITHUB_SHA}.bin | cut -d' ' -f1 > ./deploy/firmware_latest.sha
+        sha256sum firmware_${GITHUB_SHA}_debug.bin | cut -d' ' -f1 > ./deploy/firmware_latest_debug.sha
+        cp firmware_${GITHUB_SHA}.bin ./deploy/firmware_$(git describe --abbrev=7 --always).bin
+        cp firmware_${GITHUB_SHA}_debug.bin ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.bin
+        sha256sum firmware_${GITHUB_SHA}.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always).sha
+        sha256sum firmware_${GITHUB_SHA}_debug.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.sha
 
     - name: Deploy to S3
       uses: jakejarvis/s3-sync-action@master
@@ -36,4 +37,4 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
         AWS_REGION: ${{ secrets.AWS_REGION }}
-        SOURCE_DIR: ".pio/build/esp32dev/deploy"
+        SOURCE_DIR: "./deploy"
