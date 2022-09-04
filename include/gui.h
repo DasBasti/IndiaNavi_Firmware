@@ -19,16 +19,6 @@ typedef struct
 	uint8_t status;
 } image_request_t;
 
-typedef struct
-{
-	uint32_t x;
-	uint32_t y;
-	image_t *image;
-	label_t *label;
-	uint8_t z;
-	uint8_t loaded;
-} map_tile_t;
-
 typedef enum
 {
 	APP_MODE_NONE,
@@ -49,6 +39,7 @@ label_t *gps_indicator_label;
 label_t *sd_indicator_label;
 label_t *infoBox;
 label_t *scaleBox;
+map_t *map;
 
 typedef struct Render render_t;
 struct Render

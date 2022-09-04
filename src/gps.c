@@ -28,11 +28,13 @@
 
 static const char *TAG = "GPS";
 #ifdef DEBUG
-float _longitude = 8.68575379, _latitude = 49.7258546, _altitude, _hdop;
-gps_fix_t _fix = GPS_FIX_GPS;
+map_position_t current_position = {
+	.longitude = 8.68575379,
+	.latitude = 49.7258546,
+	.fix = GPS_FIX_GPS
+	};
 #else
-float _longitude, _latitude, _altitude, _hdop;
-gps_fix_t _fix = GPS_FIX_INVALID;
+map_position_t current_position = {};
 #endif
 static uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
@@ -41,9 +43,7 @@ uint8_t zoom_level[] = {16, 14};
 uint8_t zoom_level_scaleBox_width[] = {63, 77};
 char *zoom_level_scaleBox_text[] = {"100m", "500m"};
 static uint8_t tile_zoom = 16;
-static uint16_t x = 0, y = 0, x_old = 0, y_old = 0, pos_x = 0, pos_y = 0;
-static uint8_t right_side = 0;
-float xf, yf;
+
 nmea_parser_handle_t nmea_hdl;
 async_file_t AFILE;
 char timezone_file[100];
@@ -65,11 +65,11 @@ gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t 
 	{
 	case GPS_UPDATE:
 		_gps = (gps_t *)event_data;
-		_longitude = _gps->longitude;
-		_latitude = _gps->latitude;
-		_altitude = _gps->altitude;
-		_hdop = _gps->dop_h;
-		_fix = _gps->fix;
+		current_position.longitude = _gps->longitude;
+		current_position.latitude = _gps->latitude;
+		current_position.altitude = _gps->altitude;
+		current_position.hdop = _gps->dop_h;
+		current_position.fix= _gps->fix;
 		//ESP_LOGI(TAG, "%d:%d:%d", _gps->tim.hour, _gps->tim.minute, _gps->tim.second);
 		ESP_LOGI(TAG, "sats: %d/%d", _gps->sats_in_use, _gps->sats_in_view);
 		_sats_in_use = _gps->sats_in_use;
@@ -98,79 +98,11 @@ gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t 
 	}
 }
 
-float flon2tile(float lon, uint8_t zoom)
-{
-	return ((lon + 180) / 360) * pow(2, zoom);
-}
-
-uint32_t lon2tile(float lon, uint8_t zoom)
-{
-	return floor(flon2tile(lon, zoom));
-}
-
-float flat2tile(float lat, uint8_t zoom)
-{
-	return ((1 - log(tan((lat * M_PI) / 180) + 1 / cos((lat * M_PI) / 180)) / M_PI) / 2) * pow(2, zoom);
-}
-
-uint32_t lat2tile(float lat, uint8_t zoom)
-{
-	return floor(flat2tile(lat, zoom));
-}
-
 void update_tiles()
 {
 	if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE)
 	{
-		// get tile number of tile with position on it as float and integer
-		if (_longitude != 0.0)
-		{
-			xf = flon2tile(_longitude, tile_zoom);
-			x = floor(xf);
-		}
-		// also for y axis
-		if (_latitude != 0.0)
-		{
-			yf = flat2tile(_latitude, tile_zoom);
-			y = floor(yf);
-		}
-		// get offset to tile corner of tile with position
-		pos_x = floor((xf - x) * 256); // offset from tile 0
-		pos_y = floor((yf - y) * 256); // offset from tile 0
-		ESP_LOGI(TAG, "GPS: Position update");
-		/* grab necessary tiles */
-		// TODO: use threshold to trigger new render not leaving tile
-		if ((x != x_old) | (y != y_old))
-		{
-			ESP_LOGI(TAG, "GPS: Tiles need update, too.");
-			x_old = x;
-			y_old = y;
-			for (uint8_t i = 0; i < 2; i++)
-			{
-				for (uint8_t j = 0; j < 3; j++)
-				{
-					uint8_t idx = i * 3 + j;
-					if (pos_x < 128)
-					{
-						map_tiles[idx].x = x - 1 + i;
-						right_side = 1;
-					}
-					else
-					{
-						map_tiles[idx].x = x + i;
-						right_side = 0;
-					}
-					map_tiles[idx].y = y + (-1 + j);
-					map_tiles[idx].z = tile_zoom;
-					map_tiles[idx].image->loaded = 0;
-				}
-			}
-		}
-
-		pos_y += 256;
-		if (right_side)
-			pos_x += 256;
-
+		// TODO: -> event?
 		xSemaphoreGive(gui_semaphore);
 		trigger_rendering();
 	}
@@ -182,14 +114,15 @@ void update_tiles()
 
 void calculate_waypoints(waypoint_t *wp_t)
 {
-	float _xf, _yf;
+	//TODO: into map component
+	/*float _xf, _yf;
 	_xf = flon2tile(wp_t->lon, tile_zoom);
 	wp_t->tile_x = floor(_xf);
 	_yf = flat2tile(wp_t->lat, tile_zoom);
 	wp_t->tile_y = floor(_yf);
 	wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
 	wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
-													 //ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
+	*/												 //ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
 }
 
 /* Change Zoom level and trigger rendering. 
@@ -198,18 +131,14 @@ void calculate_waypoints(waypoint_t *wp_t)
 void toggleZoom()
 {
 	zoom_level_selected = !zoom_level_selected;
-	tile_zoom = zoom_level[zoom_level_selected];
+	map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+
 	ESP_LOGI(TAG, "Set zoom level to: %d", tile_zoom);
-	waypoint_t *wp_t = waypoints;
-	while (wp_t)
-	{
-		calculate_waypoints(wp_t);
-		wp_t = wp_t->next;
-	}
+	// TODO: Update Waypoints
 	scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
 	scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
 
-	update_tiles();
+	map_update_position(map, current_position);
 	trigger_rendering();
 }
 
@@ -221,11 +150,11 @@ error_code_t updateInfoText(display_t *dsp, void *comp)
 	/*sprintf(infoBox->text, "%d/%d/%d Sat:%d", tile_zoom, x, y,
 	 gga_frame.satellites_tracked);
 	 */
-	if (_fix != GPS_FIX_INVALID)
+	if (current_position.fix!= GPS_FIX_INVALID)
 	{
 		xSemaphoreTake(print_semaphore, portMAX_DELAY);
 		sprintf(infoBox->text, "GPS: %fN %fE %.02fm (HDOP:%f)",
-				_latitude, _longitude, _altitude, _hdop);
+				current_position.longitude, current_position.longitude, current_position.altitude, current_position.hdop);
 		xSemaphoreGive(print_semaphore);
 	}
 	else
@@ -248,10 +177,12 @@ error_code_t updateSatsInView(display_t *dsp, void *comp)
 
 error_code_t render_position_marker(display_t *dsp, void *comp)
 {
+	// TODO: move to map component
+	/*
 	label_t *label = (label_t *)comp;
 	uint8_t hdop = floor(_hdop / 2);
 	hdop += 8;
-	if (_fix != GPS_FIX_INVALID)
+	if (current_position.fix!= GPS_FIX_INVALID)
 	{
 		label->box.left = pos_x - label->box.width / 2;
 		label->box.top = pos_y - label->box.height / 2;
@@ -260,13 +191,16 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 		display_circle_draw(dsp, pos_x, pos_y, hdop, BLACK);
 		return PM_OK;
 	}
+	*/
 	return ABORT;
 }
 
 error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 {
+	// TODO: move to map component
+	/*
 	waypoint_t *wp = (waypoint_t *)comp;
-	if ((_fix != GPS_FIX_INVALID) && (wp->tile_x != 0) && (wp->tile_y != 0))
+	if ((current_position.fix!= GPS_FIX_INVALID) && (wp->tile_x != 0) && (wp->tile_y != 0))
 	{
 		for (uint8_t i = 0; i < 2; i++)
 			for (uint8_t j = 0; j < 3; j++)
@@ -302,15 +236,18 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 			}
 		return PM_OK;
 	}
+	*/
 	return ABORT;
 }
 
 void pre_render_cb()
 {
 	// Only render wb if we are fixed
-	if (_fix == GPS_FIX_INVALID)
+	if (current_position.fix== GPS_FIX_INVALID)
 		return;
-	char *waypoint_file = RTOS_Malloc(32768);
+
+		//TODO: move to map component
+	/*char *waypoint_file = RTOS_Malloc(32768);
 	char *wp_line = RTOS_Malloc(50);
 	async_file_t *wp_file = &AFILE;
 	wp_file->filename = "//TRACK";
@@ -407,6 +344,7 @@ void pre_render_cb()
 	RTOS_Free(wp_line);
 	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
 	ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
+	*/
 }
 
 /*
@@ -420,6 +358,8 @@ void pre_render_cb()
  */
 error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
 {
+	// TODO: move to map component
+	/*
 	uint8_t timeout = 0;
 	uint8_t *imageBuf = RTOS_Malloc(256 * 256 / 2);
 	ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
@@ -457,16 +397,18 @@ error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
 			goto freeImageMemory;
 		}
 	}
-
 	return PM_OK;
 
 freeImageMemory:
 	RTOS_Free(imageBuf);
+*/
 	return TIMEOUT;
 }
 
 error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
 {
+	// TODO: move to map component
+	/*
 	image_t *img = (image_t *)image;
 	label_t *lbl = img->child;
 	if (img->loaded != LOADED)
@@ -477,6 +419,7 @@ error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
 	{
 		RTOS_Free(img->data);
 	}
+	*/
 	return PM_OK;
 }
 
@@ -625,7 +568,7 @@ void StartGpsTask(void const *argument)
 		if (gps_indicator_label)
 		{
 			image_t *icon = gps_indicator_label->child;
-			if (_fix != GPS_FIX_INVALID)
+			if (current_position.fix!= GPS_FIX_INVALID)
 				icon->data = GPS_lock;
 			else
 				icon->data = GPS;
@@ -640,11 +583,10 @@ void StartGpsTask(void const *argument)
 			trigger_rendering();
 		}
 
-		//ESP_LOGI(TAG, "%fN %fE %fm: %d", _latitude, _longitude, _altitude, _fix);
 		/* check for lon and lat to be a number */
-		if ((_fix != GPS_FIX_INVALID))
+		if ((current_position.fix!= GPS_FIX_INVALID))
 		{
-			ESP_LOGI(TAG, "Fix: %d", _fix);
+			ESP_LOGI(TAG, "Fix: %d", current_position.fix);
 			update_tiles();
 		}
 
@@ -652,13 +594,13 @@ void StartGpsTask(void const *argument)
 #ifdef DEBUG
 		if (t)
 		{
-			_longitude = 8.055898;
-			_latitude = 49.427578;
+			current_position.longitude = 8.055898;
+			current_position.latitude = 49.427578;
 		}
 		else
 		{
-			_longitude = 8.043859;
-			_latitude = 49.394235;
+			current_position.longitude = 8.043859;
+			current_position.latitude = 49.394235;
 		}
 		t = !t;
 #endif

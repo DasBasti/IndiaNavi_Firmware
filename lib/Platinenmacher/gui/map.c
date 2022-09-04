@@ -65,20 +65,20 @@ map_tile_t *map_get_tile(map_t *map, uint8_t x, uint8_t y)
     return map->tiles[x * map->height + y];
 }
 
-error_code_t map_update_position(map_t *map, float _longitude, float _latitude)
+error_code_t map_update_position(map_t *map, map_position_t pos)
 {
     uint16_t x = 0, y = 0, x_old = 0, y_old = 0;
-    float xf, yf;
+    float xf = 0.0, yf = 0.0;
     // get tile number of tile with position on it as float and integer
-    if (_longitude != 0.0)
+    if (pos.longitude != 0.0)
     {
-        xf = flon2tile(_longitude, map->tile_zoom);
+        xf = flon2tile(pos.longitude, map->tile_zoom);
         x = floor(xf);
     }
     // also for y axis
-    if (_latitude != 0.0)
+    if (pos.latitude != 0.0)
     {
-        yf = flat2tile(_latitude, map->tile_zoom);
+        yf = flat2tile(pos.latitude, map->tile_zoom);
         y = floor(yf);
     }
     // get offset to tile corner of tile with position

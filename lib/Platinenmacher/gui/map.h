@@ -24,6 +24,15 @@ typedef struct
     uint8_t loaded;
 } map_tile_t;
 
+typedef struct {
+     float longitude;
+     float latitude;
+     float altitude;
+     float hdop;
+     uint8_t zoom_level;
+     uint8_t fix;
+} map_position_t;
+
 typedef struct
 {
     uint8_t width;
@@ -42,6 +51,7 @@ map_t *map_create(uint8_t width, uint8_t height, uint16_t tile_size);
 error_code_t map_update_zoom_level(map_t *map, uint8_t level);
 uint8_t map_get_zoom_level(map_t *map);
 map_tile_t *map_get_tile(map_t *map, uint8_t x, uint8_t y);
-error_code_t map_update_position(map_t *map, float _longitude, float _latitude);
+error_code_t map_update_position(map_t *map, map_position_t pos);
+error_code_t map_update_tiles(map_t *map);
 
 #endif /* PLATINENMACHER_GUI_MAP_H */
