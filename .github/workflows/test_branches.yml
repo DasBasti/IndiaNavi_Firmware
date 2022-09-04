@@ -1,0 +1,9 @@
+name: Run Native Tests with platformio 
+on:
+  push:
+    branches: 
+      - '!main'
+
+jobs:
+  platformio_run_native_tests:
+    uses: ./.github/workflows/platformio_test_native.yml
