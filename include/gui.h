@@ -27,7 +27,6 @@ typedef enum
 } app_mode_t;
 
 /* 6 map tiles */
-map_tile_t map_tiles[6];
 label_t *positon_marker;
 
 /* public GUI elements */

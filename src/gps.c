@@ -27,7 +27,7 @@
 #include "icons_32/icons_32.h"
 
 static const char *TAG = "GPS";
-#ifdef DEBUG
+#ifdef nDEBUG
 map_position_t current_position = {
 	.longitude = 8.68575379,
 	.latitude = 49.7258546,
@@ -427,7 +427,7 @@ void pre_render_cb()
 
 /**
  * Generate the GPS screen element for rendering the map tiles in the background
- */
+
 void gps_screen_element(const display_t *dsp)
 {
 	for (uint8_t i = 0; i < 2; i++)
@@ -453,7 +453,7 @@ void gps_screen_element(const display_t *dsp)
 			add_to_render_pipeline(image_render, map_tiles[idx].image, RL_MAP);
 		}
 }
-
+ */
 void gps_stop_parser()
 {
 	ESP_LOGI(TAG, "stop parser");
