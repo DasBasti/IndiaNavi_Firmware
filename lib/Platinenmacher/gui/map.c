@@ -20,15 +20,15 @@ static float flat2tile(float lat, uint8_t zoom)
     return ((1 - log(tan((lat * M_PI) / 180) + 1 / cos((lat * M_PI) / 180)) / M_PI) / 2) * pow(2, zoom);
 }
 
-static map_tile_t* tile_create(uint16_t tile_size)
+static map_tile_t* tile_create(uint16_t left, uint16_t top, uint16_t tile_size)
 {
     map_tile_t* tile = RTOS_Malloc(sizeof(map_tile_t));
-    tile->image = image_create(0, 0, 0, tile_size, tile_size);
-    tile->label = label_create("", 0, 0, 0, 0, 0);
+    tile->image = image_create(0, left, top, tile_size, tile_size);
+    tile->label = label_create("", 0, left, top, tile_size, tile_size);
     return tile;
 }
 
-map_t* map_create(uint16_t top, uint16_t left, uint8_t width, uint8_t height, uint16_t tile_size)
+map_t* map_create(uint16_t left, uint16_t top, uint8_t width, uint8_t height, uint16_t tile_size)
 {
     if (width == 0 || height == 0)
         return NULL;
@@ -36,13 +36,18 @@ map_t* map_create(uint16_t top, uint16_t left, uint8_t width, uint8_t height, ui
     map_t* map = RTOS_Malloc(sizeof(map_t));
     map->width = width;
     map->height = height;
+    map->box.left = left;
+    map->box.top = top;
     map->box.height = height * tile_size;
     map->box.width = width * tile_size;
     map->tile_count = width * height;
     map->tiles = RTOS_Malloc(sizeof(map_tile_t*) * map->tile_count);
-    for (uint32_t i = 0; i < map->tile_count; i++) {
-        map->tiles[i] = tile_create(tile_size);
-    }
+    for (uint32_t x = 0; x < width; x++)
+        for (uint32_t y = 0; y < height; y++) {
+            uint8_t idx = (x * height) + y;
+            map->tiles[idx] = tile_create((x * tile_size) + left, (y * tile_size) + top, tile_size);
+            map->tiles[idx]->image->parent = map->tiles[idx];
+        }
     return map;
 }
 
@@ -111,7 +116,39 @@ error_code_t map_update_position(map_t* map, map_position_t pos)
     return PM_OK;
 }
 
+void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component))
+{
+    for(uint8_t i=0; i<map->tile_count; i++){
+        map->tiles[i]->image->onBeforeRender = cb;
+        map->tiles[i]->label->onBeforeRender = cb;
+    }
+}
+
+void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component))
+{
+    for(uint8_t i=0; i<map->tile_count; i++){
+        map->tiles[i]->image->onAfterRender = cb;
+        map->tiles[i]->label->onAfterRender = cb;
+    }
+}
+
+error_code_t map_tile_render(display_t* dsp, void* component)
+{
+    map_tile_t* tile = (map_tile_t*)component;
+    if (tile->image) {
+        image_render(dsp, tile->image);
+    } else {
+        label_render(dsp, tile->label);
+    }
+    return PM_OK;
+}
+
 error_code_t map_render(display_t* dsp, void* component)
 {
     // Render map at position box
+    map_t* map = (map_t*)component;
+    for (uint8_t i = 0; i < map->tile_count; i++) {
+        map_tile_render(dsp, map->tiles[i]);
+    }
+    return PM_OK;
 }
