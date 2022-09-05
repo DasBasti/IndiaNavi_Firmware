@@ -47,6 +47,8 @@ map_t* map_create(uint16_t left, uint16_t top, uint8_t width, uint8_t height, ui
             uint8_t idx = (x * height) + y;
             map->tiles[idx] = tile_create((x * tile_size) + left, (y * tile_size) + top, tile_size);
             map->tiles[idx]->image->parent = map->tiles[idx];
+            map->tiles[idx]->x = x;
+            map->tiles[idx]->y = y;
         }
     return map;
 }
@@ -118,7 +120,7 @@ error_code_t map_update_position(map_t* map, map_position_t pos)
 
 void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component))
 {
-    for(uint8_t i=0; i<map->tile_count; i++){
+    for (uint8_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onBeforeRender = cb;
         map->tiles[i]->label->onBeforeRender = cb;
     }
@@ -126,7 +128,7 @@ void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(const displa
 
 void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component))
 {
-    for(uint8_t i=0; i<map->tile_count; i++){
+    for (uint8_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onAfterRender = cb;
         map->tiles[i]->label->onAfterRender = cb;
     }
