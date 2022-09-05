@@ -2,19 +2,21 @@
 
 #include "gui/map.h"
 
-map_t *map;
+map_t* map;
 
 void setUp()
 {
-    map = map_create(2, 3, 256);
+    map = map_create(0, 0, 2, 3, 256);
 }
 
 void test_create_map()
 {
     TEST_ASSERT_EQUAL_UINT8(2, map->width);
     TEST_ASSERT_EQUAL_UINT8(3, map->height);
+    TEST_ASSERT_EQUAL_UINT16(512, map->box.width);
+    TEST_ASSERT_EQUAL_UINT16(768, map->box.height);
     TEST_ASSERT_NOT_NULL(map->tiles);
-    map_t *empty_map = map_create(0, 0, 256);
+    map_t* empty_map = map_create(0, 0, 0, 0, 256);
     TEST_ASSERT_NULL(empty_map);
 }
 
@@ -33,27 +35,24 @@ void test_map_get_tile()
 void test_position_update()
 {
     uint8_t zoom = 13;
-    float _longitude = 8.68575379, _latitude = 49.7258546;
+    map_position_t pos = { .longitude = 8.68575379, .latitude = 49.7258546 };
     TEST_ASSERT_EQUAL(PM_OK, map_update_zoom_level(map, zoom));
-    TEST_ASSERT_EQUAL(PM_OK, map_update_position(map, _longitude, _latitude));
-    for (int i = 0; i < map->tile_count; i++)
-    {
+    TEST_ASSERT_EQUAL(PM_OK, map_update_position(map, pos));
+    for (int i = 0; i < map->tile_count; i++) {
         TEST_ASSERT_NOT_NULL(map->tiles[i]);
         TEST_ASSERT_NOT_EQUAL_UINT8(0, map->tiles[i]->x);
     }
     zoom = 16;
-    _longitude = 8.68585379, _latitude = 49.7258546;
+    pos.longitude = 8.68585379;
     TEST_ASSERT_EQUAL_MESSAGE(PM_OK, map_update_zoom_level(map, zoom), "update zoomlevel to 16");
-    TEST_ASSERT_EQUAL_MESSAGE(PM_OK, map_update_position(map, _longitude, _latitude), "update_position to second point");
-    for (int i = 0; i < map->tile_count; i++)
-    {
+    TEST_ASSERT_EQUAL_MESSAGE(PM_OK, map_update_position(map, pos), "update_position to second point");
+    for (int i = 0; i < map->tile_count; i++) {
         TEST_ASSERT_NOT_NULL(map->tiles[i]);
         TEST_ASSERT_NOT_EQUAL_UINT8(0, map->tiles[i]->x);
     }
-
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     UNITY_BEGIN();
     RUN_TEST(test_create_map);
