@@ -187,10 +187,8 @@ static void app_render()
 
 void wait_until_gui_ready()
 {
-    /* map tiles */
-    for (uint8_t i = 0; i < 6; i++) {
-        while (!map_tiles[i].image)
-            vTaskDelay(0);
+    while (!map) {
+        vTaskDelay(0);
     }
     while (!positon_marker) {
         vTaskDelay(0);
@@ -220,31 +218,29 @@ void app_screen(const display_t* dsp)
         break;
     case APP_MODE_GPS:
     default:
-        gps_screen_element(dsp);
+        map = map_create(0, 42, 2, 2, 256);
+        add_to_render_pipeline(map_render, map, RL_MAP);
+
+        /* position marker */
+        positon_marker = label_create("", &f8x16, 0, 0, 24, 24);
+        positon_marker->textColor = BLUE;
+        positon_marker->alignHorizontal = CENTER;
+        positon_marker->alignVertical = MIDDLE;
+        add_to_render_pipeline(label_render, positon_marker, RL_TOP);
+
+        /* scale 63px for 100m | 96px for 500ft @ zoom 16*/
+        /* scale 77px for 500m | 94px for 2000ft @zoom 14 */
+        scaleBox = label_create("100m", &f8x8, 10, dsp->size.height - 34, 63, 13);
+        scaleBox->borderWidth = 1;
+        scaleBox->borderLines = LEFT_SOLID | RIGHT_SOLID | BOTTOM_SOLID;
+        //scaleBox->backgroundColor = WHITE;
+        scaleBox->borderColor = BLACK;
+        scaleBox->textColor = BLACK;
+        scaleBox->alignVertical = BOTTOM;
+        scaleBox->alignHorizontal = CENTER;
+        add_to_render_pipeline(label_render, scaleBox, RL_TOP);
         break;
     }
-
-    map = map_create(0, 42, 2, 2, 256);
-	add_to_render_pipeline(map_render, map, RL_MAP);
-
-    /* position marker */
-    positon_marker = label_create("", &f8x16, 0, 0, 24, 24);
-    positon_marker->textColor = BLUE;
-    positon_marker->alignHorizontal = CENTER;
-    positon_marker->alignVertical = MIDDLE;
-    add_to_render_pipeline(label_render, positon_marker, RL_TOP);
-
-    /* scale 63px for 100m | 96px for 500ft @ zoom 16*/
-    /* scale 77px for 500m | 94px for 2000ft @zoom 14 */
-    scaleBox = label_create("100m", &f8x8, 10, dsp->size.height - 34, 63, 13);
-    scaleBox->borderWidth = 1;
-    scaleBox->borderLines = LEFT_SOLID | RIGHT_SOLID | BOTTOM_SOLID;
-    //scaleBox->backgroundColor = WHITE;
-    scaleBox->borderColor = BLACK;
-    scaleBox->textColor = BLACK;
-    scaleBox->alignVertical = BOTTOM;
-    scaleBox->alignHorizontal = CENTER;
-    add_to_render_pipeline(label_render, scaleBox, RL_TOP);
 
     create_top_bar(dsp);
 
