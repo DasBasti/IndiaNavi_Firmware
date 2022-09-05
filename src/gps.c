@@ -319,10 +319,7 @@ void pre_render_cb()
 		return;
 
 	map_update_zoom_level(map, 16);
-	map_update_position(map, current_position);
-
-	map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
-	map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);	
+	map_update_position(map, current_position);	
 
 		//TODO: move to map component
 	/*char *waypoint_file = RTOS_Malloc(32768);
@@ -500,6 +497,11 @@ void StartGpsTask(void const *argument)
 	ESP_LOGI(TAG, "wait for GUI init");
 	/* wait for map tiles to be created */
 	wait_until_gui_ready();
+
+	map_update_zoom_level(map, 0);
+	map_update_position(map, current_position);
+	map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
+	map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
 
 	/* delay to avoid race condition. this is bad! */
 	vTaskDelay(10000 / portTICK_PERIOD_MS);
