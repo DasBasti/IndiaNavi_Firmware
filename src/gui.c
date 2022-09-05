@@ -224,6 +224,9 @@ void app_screen(const display_t* dsp)
         break;
     }
 
+    map = map_create(0, 42, 2, 2, 256);
+	add_to_render_pipeline(map_render, map, RL_MAP);
+
     /* position marker */
     positon_marker = label_create("", &f8x16, 0, 0, 24, 24);
     positon_marker->textColor = BLUE;
@@ -294,7 +297,7 @@ void StartGuiTask(void const* argument)
 
     ESP_LOGI(TAG, "reset E-Ink Display");
     reg->disable(reg);
-    vTaskDelay(3000);
+    vTaskDelay(300);
     reg->enable(reg);
     vTaskDelay(10);
     ESP_LOGI(TAG, "init E-Ink Display");
