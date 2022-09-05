@@ -46,7 +46,7 @@ inline size_t sizeof_fb(rect_t size, uint8_t bpp)
 display_t *display_init(uint16_t width, uint16_t height, uint8_t bbp,
 						display_rotation_t rotation);
 error_code_t display_fill(display_t *dsp, color_t color);
-error_code_t display_pixel_draw(display_t *dsp, uint16_t x, uint16_t y,
+error_code_t display_pixel_draw(display_t *dsp, int16_t x, int16_t y,
 								color_t color);
 error_code_t display_rect_draw(display_t *dsp, uint16_t x, uint16_t y,
 							   uint16_t width, uint16_t height, uint8_t color);
