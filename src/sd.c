@@ -260,9 +260,9 @@ void StartSDTask(void const *argument)
 					else
 					{
 						tile->image->loaded = NOT_FOUND;
-						save_sprintf(tile->label->text,
+						/*save_sprintf(tile->label->text,
 									 "%d/%d not found.", tile->x,
-									 tile->y);
+									 tile->y);*/
 					}
 					xSemaphoreGive(sd_semaphore);
 					cnt++;
