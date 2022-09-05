@@ -240,11 +240,89 @@ error_code_t render_waypoint_marker(display_t *dsp, void *comp)
 	return ABORT;
 }
 
+/*
+ * Load tile data from SD Card on render command
+ *
+ * We share a global memory buffer since it is not enough memory available
+ * to hold all 6 tiles in memory at once.
+ * 
+ * returns PK_OK if loaded, UNAVAILABLE if buffer or sd semaphore is not available and
+ * TIMEOUT if loading timed out
+ */
+error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
+{
+	// TODO: move to GUI
+	uint8_t timeout = 0;
+	uint8_t *imageBuf = RTOS_Malloc(256 * 256 / 2);
+	ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
+	if (!imageBuf)
+		return UNAVAILABLE;
+
+	image_t *img = (image_t *)image;
+	if (!uxSemaphoreGetCount(sd_semaphore))
+	{ // binary semaphore returns 1 on not taken
+		RTOS_Free(imageBuf);
+		return UNAVAILABLE;
+	}
+
+	img->data = imageBuf;
+	loadTile(img->parent); // queue loading
+
+	while (img->loaded != LOADED)
+	{
+		label_t *l = (label_t *)img->child;
+		if (img->loaded == ERROR)
+		{
+			l->text = "Error";
+			goto freeImageMemory;
+		}
+		if (img->loaded == NOT_FOUND)
+		{
+			//l->text = "Not Found";
+			goto freeImageMemory;
+		}
+		vTaskDelay(10);
+		timeout++;
+		if (timeout == 100)
+		{
+			ESP_LOGI(TAG, "load timeout!");
+			goto freeImageMemory;
+		}
+	}
+	return PM_OK;
+
+freeImageMemory:
+	RTOS_Free(imageBuf);
+	return TIMEOUT;
+}
+
+error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
+{
+	// TODO: move to map component
+	image_t *img = (image_t *)image;
+	label_t *lbl = img->child;
+	if (img->loaded != LOADED)
+	{
+		label_render(dsp, lbl);
+	}
+	else
+	{
+		RTOS_Free(img->data);
+	}
+	return PM_OK;
+}
+
 void pre_render_cb()
 {
 	// Only render wb if we are fixed
 	if (current_position.fix== GPS_FIX_INVALID)
 		return;
+
+	map_update_zoom_level(map, 16);
+	map_update_position(map, current_position);
+
+	map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
+	map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);	
 
 		//TODO: move to map component
 	/*char *waypoint_file = RTOS_Malloc(32768);
@@ -345,82 +423,6 @@ void pre_render_cb()
 	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
 	ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
 	*/
-}
-
-/*
- * Load tile data from SD Card on render command
- *
- * We share a global memory buffer since it is not enough memory available
- * to hold all 6 tiles in memory at once.
- * 
- * returns PK_OK if loaded, UNAVAILABLE if buffer of sd semaphore is not available and
- * TIMEOUT if loading timed out
- */
-error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
-{
-	// TODO: move to map component
-	/*
-	uint8_t timeout = 0;
-	uint8_t *imageBuf = RTOS_Malloc(256 * 256 / 2);
-	ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
-	if (!imageBuf)
-		return UNAVAILABLE;
-
-	image_t *img = (image_t *)image;
-	if (!uxSemaphoreGetCount(sd_semaphore))
-	{ // binary semaphore returns 1 on not taken
-		RTOS_Free(imageBuf);
-		return UNAVAILABLE;
-	}
-
-	img->data = imageBuf;
-	loadTile(img->parent); // queue loading
-
-	while (img->loaded != LOADED)
-	{
-		label_t *l = (label_t *)img->child;
-		if (img->loaded == ERROR)
-		{
-			l->text = "Error";
-			goto freeImageMemory;
-		}
-		if (img->loaded == NOT_FOUND)
-		{
-			//l->text = "Not Found";
-			goto freeImageMemory;
-		}
-		vTaskDelay(10);
-		timeout++;
-		if (timeout == 100)
-		{
-			ESP_LOGI(TAG, "load timeout!");
-			goto freeImageMemory;
-		}
-	}
-	return PM_OK;
-
-freeImageMemory:
-	RTOS_Free(imageBuf);
-*/
-	return TIMEOUT;
-}
-
-error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
-{
-	// TODO: move to map component
-	/*
-	image_t *img = (image_t *)image;
-	label_t *lbl = img->child;
-	if (img->loaded != LOADED)
-	{
-		label_render(dsp, lbl);
-	}
-	else
-	{
-		RTOS_Free(img->data);
-	}
-	*/
-	return PM_OK;
 }
 
 /**
