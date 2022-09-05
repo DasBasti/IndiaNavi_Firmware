@@ -174,8 +174,9 @@ int abs(int value)
 error_code_t display_line_draw(display_t *dsp, uint16_t x1, uint16_t y1,
 							   uint16_t x2, uint16_t y2, uint8_t color)
 {
+	error_code_t ret = PM_OK;
 	if (x1 > dsp->size.width || x2 > dsp->size.width || y1 > dsp->size.height || y2 > dsp->size.height)
-		return OUT_OF_BOUNDS;
+		ret = OUT_OF_BOUNDS;
 
 	if (x1 - x2 == 0)
 	{ // staight line in y direction
@@ -187,7 +188,7 @@ error_code_t display_line_draw(display_t *dsp, uint16_t x1, uint16_t y1,
 		}
 		for (int y = y1; y <= y2; y++)
 			display_pixel_draw(dsp, x1, y, color);
-		return PM_OK;
+		return ret;
 	}
 	if (y1 - y2 == 0)
 	{ // staight line in x direction
@@ -199,7 +200,7 @@ error_code_t display_line_draw(display_t *dsp, uint16_t x1, uint16_t y1,
 		}
 		for (int x = x1; x <= x2; x++)
 			display_pixel_draw(dsp, x, y1, color);
-		return PM_OK;
+		return ret;
 	}
 
 	// case for line going down
@@ -220,7 +221,7 @@ error_code_t display_line_draw(display_t *dsp, uint16_t x1, uint16_t y1,
 
 	// case for line going up
 
-	return PM_OK;
+	return ret;
 }
 
 error_code_t display_circle_fill(display_t *dsp, uint16_t x0, uint16_t y0,
