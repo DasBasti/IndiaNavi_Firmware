@@ -33,7 +33,7 @@ typedef struct label {
 	error_code_t (*onAfterRender)(display_t *dsp, void *label);
 } label_t;
 
-label_t* label_create(char *text, font_t *font, uint16_t left, uint16_t top,
+label_t* label_create(char *text, font_t *font, int16_t left, int16_t top,
 		uint16_t width, uint16_t height);
 error_code_t label_render(display_t *dsp, void *label);
 error_code_t label_shrink_to_text(label_t *label);
