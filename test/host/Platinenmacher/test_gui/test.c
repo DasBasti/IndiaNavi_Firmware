@@ -155,6 +155,24 @@ void test_image_render()
     TEST_ASSERT_EQUAL(ABORT, image_render(dsp, img));
 }
 
+void test_image_render_at_negative_position()
+{
+    image_t *img = image_create(image_data, -10, -10, 2, 2);
+   
+    TEST_ASSERT_TRUE(PM_OK == image_render(dsp, img));
+    onBeforeRender_cnt = 0;
+    onAfterRender_cnt = 0;
+    img->onAfterRender = onAfterRenderCounter;
+    img->onBeforeRender = onBeforeRenderCounter;
+    TEST_ASSERT_TRUE(PM_OK == image_render(dsp, img));
+    TEST_ASSERT_EQUAL(ABORT, image_render(dsp, img));
+    img->onBeforeRender = 0;
+    TEST_ASSERT_EQUAL(ABORT, image_render(dsp, img));
+    TEST_ASSERT_EQUAL_INT16(-10, img->box.top);
+    TEST_ASSERT_EQUAL_INT16(-10, img->box.left);
+}
+
+
 int main(int argc, char **argv)
 {
     UNITY_BEGIN();
@@ -168,6 +186,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_label_background);
     RUN_TEST(test_label_textalign);
     RUN_TEST(test_image_render);
+    RUN_TEST(test_image_render_at_negative_position);
 
     UNITY_END();
 }
