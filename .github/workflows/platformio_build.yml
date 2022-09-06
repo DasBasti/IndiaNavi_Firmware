@@ -31,12 +31,15 @@ jobs:
 
     - name: Run PlatformIO build on embedded platforms
       run: platformio run -e esp32dev_debug -e esp32dev_release
+
+    - id: hash
+      uses: pr-mpt/actions-commit-hash@v1
       
     - name: Upload debug.bin file
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware_${GITHUB_SHA}_debug.bin
+        name: firmware_debug.bin
         path: .pio/build/esp32dev_debug/firmware.bin
         retention-days: 5   
 
@@ -44,7 +47,7 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware_${GITHUB_SHA}.bin
+        name: firmware.bin
         path: .pio/build/esp32dev_release/firmware.bin
         retention-days: 5   
         
@@ -52,6 +55,6 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v2
       with:
-        name: firmware_${GITHUB_SHA}_debug.elf
+        name: firmware_debug.elf
         path: .pio/build/esp32dev_debug/firmware.elf
         retention-days: 5   

@@ -11,22 +11,22 @@ jobs:
     steps:
     - uses: actions/download-artifact@v3
       with:
-        name: firmware_${GITHUB_SHA}_debug.bin
+        name: firmware_debug.bin
     - uses: actions/download-artifact@v3
       with:
-        name: firmware_${GITHUB_SHA}.bin
+        name: firmware_.bin
     - name: make deploy folder
       if: success()
       run: |
         mkdir deploy
-        cp firmware_${GITHUB_SHA}.bin ./deploy/firmware_latest.bin
-        cp firmware_${GITHUB_SHA}_debug.bin ./deploy/firmware_latest_debug.bin
-        sha256sum firmware_${GITHUB_SHA}.bin | cut -d' ' -f1 > ./deploy/firmware_latest.sha
-        sha256sum firmware_${GITHUB_SHA}_debug.bin | cut -d' ' -f1 > ./deploy/firmware_latest_debug.sha
-        cp firmware_${GITHUB_SHA}.bin ./deploy/firmware_$(git describe --abbrev=7 --always).bin
-        cp firmware_${GITHUB_SHA}_debug.bin ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.bin
-        sha256sum firmware_${GITHUB_SHA}.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always).sha
-        sha256sum firmware_${GITHUB_SHA}_debug.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.sha
+        cp firmware.bin ./deploy/firmware_latest.bin
+        cp firmware_debug.bin ./deploy/firmware_latest_debug.bin
+        sha256sum firmware.bin | cut -d' ' -f1 > ./deploy/firmware_latest.sha
+        sha256sum firmware_debug.bin | cut -d' ' -f1 > ./deploy/firmware_latest_debug.sha
+        cp firmware.bin ./deploy/firmware_$(git describe --abbrev=7 --always).bin
+        cp firmware_debug.bin ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.bin
+        sha256sum firmware.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always).sha
+        sha256sum firmware_debug.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.sha
 
     - name: Deploy to S3
       uses: jakejarvis/s3-sync-action@master
