@@ -70,4 +70,7 @@ void start_screen(const display_t *dsp);
 void app_screen(const display_t *dsp);
 void gui_set_app_mode(app_mode_t mode);
 
+error_code_t load_map_tile_on_demand(const display_t *dsp, void *image);
+error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image);
+
 #endif /* INC_GUI_H_ */
