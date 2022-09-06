@@ -48,7 +48,7 @@ typedef struct
     error_code_t (*onAfterRender)(display_t* dsp, void* map_t);
 } map_t;
 
-map_t* map_create(uint16_t top, uint16_t left, uint8_t width, uint8_t height, uint16_t tile_size);
+map_t* map_create(int16_t top, int16_t left, uint8_t width, uint8_t height, uint16_t tile_size);
 error_code_t map_update_zoom_level(map_t* map, uint8_t level);
 uint8_t map_get_zoom_level(map_t* map);
 map_tile_t* map_get_tile(map_t* map, uint8_t x, uint8_t y);
@@ -58,7 +58,7 @@ error_code_t map_update_tiles(map_t* map);
 error_code_t map_render(display_t* dsp, void* component);
 error_code_t map_tile_render(display_t* dsp, void* component);
 
-void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component));
-void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component));
+void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component));
+void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component));
 
 #endif /* PLATINENMACHER_GUI_MAP_H */
