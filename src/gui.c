@@ -218,7 +218,8 @@ void app_screen(const display_t* dsp)
         break;
     case APP_MODE_GPS:
     default:
-        map = map_create(0, 42, 2, 2, 256);
+        /* center map component vertically */
+        map = map_create((dsp->size.width-512)/2, 42, 2, 2, 256);
         add_to_render_pipeline(map_render, map, RL_MAP);
 
         /* position marker */
