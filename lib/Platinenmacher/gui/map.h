@@ -58,7 +58,7 @@ error_code_t map_update_tiles(map_t* map);
 error_code_t map_render(display_t* dsp, void* component);
 error_code_t map_tile_render(display_t* dsp, void* component);
 
-void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component));
-void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component));
+void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(display_t* dsp, void* component));
+void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(display_t* dsp, void* component));
 
 #endif /* PLATINENMACHER_GUI_MAP_H */
