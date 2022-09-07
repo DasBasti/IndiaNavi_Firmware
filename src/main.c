@@ -5,6 +5,7 @@
 #include <Platinenmacher.h>
 
 #include <esp_system.h>
+#include <esp_pm.h>
 #include <esp_event.h>
 #include <esp_log.h>
 #include <esp_ota_ops.h>
@@ -167,6 +168,7 @@ void app_main()
     gpio_config(&esp_btn);
     gpio_set_intr_type(BTN, GPIO_INTR_NEGEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
+    gpio_isr_handler_add(BTN, handleButtonPress, NULL);
 
     /* Set Accelerator IO to input, with PUI and falling edge IRQ */
     esp_acc.mode = GPIO_MODE_INPUT;
@@ -216,6 +218,9 @@ void app_main()
         if (++cnt >= 300)
         {
             ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
+            #ifdef DEBUG
+                esp_pm_dump_locks(stdout);
+            #endif
             cnt = 0;
 
             if (battery_label)
