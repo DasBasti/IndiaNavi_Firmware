@@ -61,9 +61,8 @@ error_code_t display_fill(display_t* dsp, color_t color)
 error_code_t display_pixel_draw(display_t* dsp, int16_t x, int16_t y,
     color_t color)
 {
-    error_code_t ret = PM_OK;
     if (x < 0 || y < 0 || x >= dsp->size.width || y >= dsp->size.height)
-        ret = OUT_OF_BOUNDS;
+        return OUT_OF_BOUNDS;
 
     if (color == TRANSPARENT)
         return PM_OK;
@@ -73,7 +72,7 @@ error_code_t display_pixel_draw(display_t* dsp, int16_t x, int16_t y,
     else
         return PM_FAIL;
 
-    return ret;
+    return PM_OK;
 }
 
 /**
@@ -289,8 +288,8 @@ error_code_t display_circle_draw_segment(display_t* dsp, int16_t x0,
 error_code_t display_rect_fill(display_t* dsp, int16_t x0, int16_t y0,
     uint16_t width, uint16_t height, uint8_t color)
 {
-    for (int16_t x = 0; x < width; x++)
-        for (int16_t y = 0; y < height; y++) {
+    for (uint16_t x = 0; x < width; x++)
+        for (uint16_t y = 0; y < height; y++) {
             display_pixel_draw(dsp, x0 + x, y0 + y, color);
         }
     return PM_OK;
