@@ -75,12 +75,12 @@ int readBatteryPercent()
     int chargerVoltage;
     adc_power_acquire();
     batteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
-    ESP_LOGI(TAG, "ADC1/6: %d", batteryVoltage);
+    ESP_LOGI(TAG, "Battery Voltage: %d", batteryVoltage);
     chargerVoltage = adc1_get_raw(ADC1_CHANNEL_7);
-    ESP_LOGI(TAG, "ADC1/7: %d", chargerVoltage);
+    ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
     adc_power_release();
 
-    if (chargerVoltage > batteryVoltage)
+    if (chargerVoltage - 5 > batteryVoltage)
         return -1;
 
     const int min = 1750;
@@ -226,6 +226,7 @@ void app_main()
             if (battery_label)
             {
                 int bat = readBatteryPercent();
+                ESP_LOGI(TAG, "bat %d", bat);
                 if (bat >= 0)
                 {
                     save_sprintf(battery_label->text, "%03d%%", bat);
