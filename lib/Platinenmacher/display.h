@@ -31,9 +31,9 @@ typedef struct display
 	uint32_t fb_size;
 	uint8_t bpp; // -> Bits per pixel
 	display_rotation_t rotation;
-	error_code_t (*write_pixel)(struct display *dsp, uint16_t x, uint16_t y,
+	error_code_t (*write_pixel)(struct display *dsp, int16_t x, int16_t y,
 								uint8_t color);
-	uint8_t (*decompress)(rect_t *size, uint16_t x, uint16_t y, uint8_t *data);
+	uint8_t (*decompress)(rect_t *size, int16_t x, int16_t y, uint8_t *data);
 
 	void (*update)();
 } display_t;
@@ -48,23 +48,23 @@ display_t *display_init(uint16_t width, uint16_t height, uint8_t bbp,
 error_code_t display_fill(display_t *dsp, color_t color);
 error_code_t display_pixel_draw(display_t *dsp, int16_t x, int16_t y,
 								color_t color);
-error_code_t display_rect_draw(display_t *dsp, uint16_t x, uint16_t y,
+error_code_t display_rect_draw(display_t *dsp, int16_t x, int16_t y,
 							   uint16_t width, uint16_t height, uint8_t color);
-error_code_t display_line_draw(display_t *dsp, uint16_t x1, uint16_t y1,
-							   uint16_t x2, uint16_t y2, uint8_t color);
-error_code_t display_circle_draw(display_t *dsp, uint16_t x, uint16_t y,
+error_code_t display_line_draw(display_t *dsp, int16_t x1, int16_t y1,
+							   int16_t x2, int16_t y2, uint8_t color);
+error_code_t display_circle_draw(display_t *dsp, int16_t x, int16_t y,
 								 uint16_t r, uint8_t color);
-error_code_t display_circle_draw_segment(display_t *dsp, uint16_t x0,
-										 uint16_t y0, uint16_t r, uint8_t color, uint8_t segment);
-error_code_t display_rect_fill(display_t *dsp, uint16_t x, uint16_t y,
+error_code_t display_circle_draw_segment(display_t *dsp, int16_t x0,
+										 int16_t y0, uint16_t r, uint8_t color, uint8_t segment);
+error_code_t display_rect_fill(display_t *dsp, int16_t x, int16_t y,
 							   uint16_t width, uint16_t height, uint8_t color);
-error_code_t display_circle_fill(display_t *dsp, uint16_t x, uint16_t y,
+error_code_t display_circle_fill(display_t *dsp, int16_t x, int16_t y,
 								 uint16_t r, uint8_t color);
 
-error_code_t display_text_draw(display_t *dsp, font_t *font, uint16_t x0,
-							   uint16_t y0, const char *text, uint8_t color);
-error_code_t display_text_draw_len(display_t *dsp, font_t *font, uint16_t x0,
-								   uint16_t y0, uint8_t *text, uint32_t len);
-error_code_t display_draw_image(display_t *dsp, uint8_t *data, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+error_code_t display_text_draw(display_t *dsp, font_t *font, int16_t x0,
+							   int16_t y0, const char *text, uint8_t color);
+error_code_t display_text_draw_len(display_t *dsp, font_t *font, int16_t x0,
+								   int16_t y0, uint8_t *text, uint32_t len);
+error_code_t display_draw_image(display_t *dsp, uint8_t *data, int16_t x, int16_t y, uint16_t w, uint16_t h);
 error_code_t display_commit_fb(display_t *dsp);
 #endif /* __DISPLAY_H_ */
