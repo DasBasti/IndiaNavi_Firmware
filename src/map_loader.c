@@ -94,8 +94,8 @@ static void downloadMapTilesForZoomLevel(tileset_t *t, async_file_t *wp_file)
     {
         for (uint32_t y = t->file_min; y <= t->file_max; y++)
         {
-            save_sprintf(url, "%s/%d/%d/%d.raw", t->baseurl, t->zoom, x, y);
-            save_sprintf(wp_file->filename, "//MAPS/%d/%d/%d.raw", t->zoom, x, y);
+            save_sprintf(url, "%s/%u/%u/%u.raw", t->baseurl, t->zoom, x, y);
+            save_sprintf(wp_file->filename, "//MAPS/%u/%u/%u.raw", t->zoom, x, y);
             if (fileExists(wp_file) != PM_OK)
             {
                 // Get File because we can not find it on the SD card

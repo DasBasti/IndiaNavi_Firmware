@@ -26,7 +26,6 @@
 #include "tasks.h"
 
 uint8_t sd_status = UNAVAILABLE;
-FRESULT res;
 char fn[30];
 sdmmc_card_t *card;
 
@@ -101,7 +100,7 @@ error_code_t openFileForWriting(async_file_t *file)
 {
 	// try to open file
 	FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
-	if (res == FR_NO_PATH)
+	if (FR_NO_PATH == res)
 	{
 		// 1. try to create path to file if a path is given
 		if (strlen(file->filename) < 2)
@@ -127,7 +126,7 @@ error_code_t openFileForWriting(async_file_t *file)
 			token = strtok_r(NULL, "/", &strtokCtx);
 
 			// Check if the path has a "File extention" so we skip creating a folder for it
-			if (strchr(token, '.'))
+			if (token && strchr(token, '.'))
 				break;
 		}
 		RTOS_Free(tmp_path);
@@ -186,6 +185,7 @@ void closePhysicalFile(async_file_t *file)
 
 void StartSDTask(void const *argument)
 {
+	FRESULT res = FR_NOT_READY;
 	xSemaphoreTake(sd_semaphore, portMAX_DELAY); // block SD mutex
 	ESP_LOGI(TAG, "init gpio %d", SD_VCC_nEN);
 
@@ -238,11 +238,11 @@ void StartSDTask(void const *argument)
 					FIL t_img;
 					uint32_t br;
 					// TODO: decompress lz4 tiles
-					save_sprintf(fn, "//MAPS/%d/%d/%d.RAW",
+					save_sprintf(fn, "//MAPS/%u/%u/%u.RAW",
 								 tile->z,
 								 tile->x,
 								 tile->y);
-					ESP_LOGI(TAG, "Load %s  to %d", fn, (uint)tile->image->data);
+					ESP_LOGI(TAG, "Load %s  to %u", fn, (uint)tile->image->data);
 
 					xSemaphoreTake(sd_semaphore, portMAX_DELAY);
 					res = f_open(&t_img, fn, FA_READ);
