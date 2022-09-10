@@ -36,14 +36,27 @@ void test_fonts() {
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(8, font_text_pixel_height(&f8x8, "Test"),"Fontsize calculation faild f8x8 height");
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(16, font_text_pixel_height(&f8x16, "Test"),"Fontsize calculation faild f8x16 height");
 }
+
 void test_label_create()
 {
     label_t *label = label_create("test", &f8x8, 0, 1, 2, 3);
     TEST_ASSERT_NOT_NULL(label);
     TEST_ASSERT_EQUAL_STRING("test", label->text);
     TEST_ASSERT_EQUAL(&f8x8, label->font);
-    TEST_ASSERT_EQUAL_UINT16(0, label->box.left);
-    TEST_ASSERT_EQUAL_UINT16(1, label->box.top);
+    TEST_ASSERT_EQUAL_INT16(0, label->box.left);
+    TEST_ASSERT_EQUAL_INT16(1, label->box.top);
+    TEST_ASSERT_EQUAL_UINT16(2, label->box.width);
+    TEST_ASSERT_EQUAL_UINT16(3, label->box.height);
+}
+
+void test_label_create_at_negative_position()
+{
+    label_t *label = label_create("test", &f8x8, -10, -10, 2, 3);
+    TEST_ASSERT_NOT_NULL(label);
+    TEST_ASSERT_EQUAL_STRING("test", label->text);
+    TEST_ASSERT_EQUAL(&f8x8, label->font);
+    TEST_ASSERT_EQUAL_INT16(-10, label->box.left);
+    TEST_ASSERT_EQUAL_INT16(-10, label->box.top);
     TEST_ASSERT_EQUAL_UINT16(2, label->box.width);
     TEST_ASSERT_EQUAL_UINT16(3, label->box.height);
 }
@@ -139,18 +152,38 @@ void test_image_render()
     TEST_ASSERT_EQUAL(ABORT, image_render(dsp, img));
 }
 
+void test_image_render_at_negative_position()
+{
+    image_t *img = image_create(image_data, -10, -10, 2, 2);
+   
+    TEST_ASSERT_TRUE(PM_OK == image_render(dsp, img));
+    onBeforeRender_cnt = 0;
+    onAfterRender_cnt = 0;
+    img->onAfterRender = onAfterRenderCounter;
+    img->onBeforeRender = onBeforeRenderCounter;
+    TEST_ASSERT_TRUE(PM_OK == image_render(dsp, img));
+    TEST_ASSERT_EQUAL(ABORT, image_render(dsp, img));
+    img->onBeforeRender = 0;
+    TEST_ASSERT_EQUAL(ABORT, image_render(dsp, img));
+    TEST_ASSERT_EQUAL_INT16(-10, img->box.top);
+    TEST_ASSERT_EQUAL_INT16(-10, img->box.left);
+}
+
+
 int main(int argc, char **argv)
 {
     UNITY_BEGIN();
     
     RUN_TEST(test_fonts);
     RUN_TEST(test_label_create);
+    RUN_TEST(test_label_create_at_negative_position);
     RUN_TEST(test_label_shrink_to_text);
     RUN_TEST(test_label_render);
     RUN_TEST(test_label_borders);
     RUN_TEST(test_label_background);
     RUN_TEST(test_label_textalign);
     RUN_TEST(test_image_render);
+    RUN_TEST(test_image_render_at_negative_position);
 
     UNITY_END();
 }

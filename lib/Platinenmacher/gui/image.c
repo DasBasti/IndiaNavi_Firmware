@@ -8,7 +8,7 @@
 #include "gui/image.h"
 #include "display.h"
 
-image_t *image_create(const uint8_t *data, uint16_t left, uint16_t top,
+image_t *image_create(const uint8_t *data, int16_t left, int16_t top,
 					  uint16_t width, uint16_t height)
 {
 	image_t *image = RTOS_Malloc(sizeof(image_t));

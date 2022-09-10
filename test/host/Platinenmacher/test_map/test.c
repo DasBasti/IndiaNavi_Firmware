@@ -23,6 +23,23 @@ void test_create_map()
     TEST_ASSERT_NULL(empty_map);
 }
 
+void test_create_map_at_negative_position()
+{
+    map_t* _map = map_create(-10, -10, 2, 2, 256);
+    TEST_ASSERT_EQUAL_INT16(-10, _map->box.top);
+    TEST_ASSERT_EQUAL_INT16(-10, _map->box.left);
+    TEST_ASSERT_EQUAL_INT16(512, _map->box.width);
+    TEST_ASSERT_EQUAL_INT16(512, _map->box.height);
+    TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[0]->image->box.left);
+    TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[1]->image->box.left);
+    TEST_ASSERT_EQUAL_INT16(246, _map->tiles[2]->image->box.left);
+    TEST_ASSERT_EQUAL_INT16(246, _map->tiles[3]->image->box.left);    
+    TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[0]->image->box.top);
+    TEST_ASSERT_EQUAL_INT16(246, _map->tiles[1]->image->box.top);
+    TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[2]->image->box.top);
+    TEST_ASSERT_EQUAL_INT16(246, _map->tiles[3]->image->box.top);
+}
+
 void test_zoom_level()
 {
     TEST_ASSERT_EQUAL(PM_OK, map_update_zoom_level(map, 13));
@@ -78,6 +95,7 @@ int main(int argc, char** argv)
 {
     UNITY_BEGIN();
     RUN_TEST(test_create_map);
+    RUN_TEST(test_create_map_at_negative_position);
     RUN_TEST(test_zoom_level);
     RUN_TEST(test_map_get_tile);
     RUN_TEST(test_position_update);
