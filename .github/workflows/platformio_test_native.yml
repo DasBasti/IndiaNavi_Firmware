@@ -39,6 +39,9 @@ jobs:
     - name: Run PlatformIO test on host platform
       run: platformio test -e native
 
+    - name: Run PlatformIO static checks
+      run: platformio check
+      
     - name: Report code coverage
       uses: zgosalvez/github-actions-report-lcov@v1
       with:
