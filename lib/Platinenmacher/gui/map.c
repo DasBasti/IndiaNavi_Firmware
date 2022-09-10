@@ -44,7 +44,7 @@ map_t* map_create(uint16_t left, uint16_t top, uint8_t width, uint8_t height, ui
     map->tiles = RTOS_Malloc(sizeof(map_tile_t*) * map->tile_count);
     for (uint32_t x = 0; x < width; x++)
         for (uint32_t y = 0; y < height; y++) {
-            uint8_t idx = (x * height) + y;
+            uint32_t idx = (x * height) + y;
             map->tiles[idx] = tile_create((x * tile_size) + left, (y * tile_size) + top, tile_size);
             map->tiles[idx]->image->parent = map->tiles[idx];
             map->tiles[idx]->x = x;
@@ -97,7 +97,7 @@ error_code_t map_update_position(map_t* map, map_position_t pos)
         y_old = y;
         for (uint8_t i = 0; i < map->width; i++) {
             for (uint8_t j = 0; j < map->height; j++) {
-                uint8_t idx = i * map->height + j;
+                uint32_t idx = i * map->height + j;
                 if (pos_x < 128) {
                     map->tiles[idx]->x = x - 1 + i;
                     right_side = 1;
@@ -120,7 +120,7 @@ error_code_t map_update_position(map_t* map, map_position_t pos)
 
 void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(display_t* dsp, void* component))
 {
-    for (uint8_t i = 0; i < map->tile_count; i++) {
+    for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onBeforeRender = cb;
         map->tiles[i]->label->onBeforeRender = cb;
     }
@@ -128,7 +128,7 @@ void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(display_t* d
 
 void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(display_t* dsp, void* component))
 {
-    for (uint8_t i = 0; i < map->tile_count; i++) {
+    for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onAfterRender = cb;
         map->tiles[i]->label->onAfterRender = cb;
     }
@@ -149,7 +149,7 @@ error_code_t map_render(display_t* dsp, void* component)
 {
     // Render map at position box
     map_t* map = (map_t*)component;
-    for (uint8_t i = 0; i < map->tile_count; i++) {
+    for (uint32_t i = 0; i < map->tile_count; i++) {
         map_tile_render(dsp, map->tiles[i]);
     }
     return PM_OK;
