@@ -19,23 +19,21 @@ volatile int onAfterRender_cnt = 0;
  * for the lable we render once and the second render will fail
  */
 
-error_code_t onBeforeRenderCounter(display_t *dsp, void *label)
+error_code_t onBeforeRenderCounter(display_t* dsp, void* label)
 {
-    if (onBeforeRender_cnt == 0)
-    {
-        onBeforeRender_cnt += 1;
+    onBeforeRender_cnt += 1;
+    if (onBeforeRender_cnt == 1)
         return PM_OK;
-    }
-    PM_FAIL;
+
+    return PM_FAIL;
 }
-error_code_t onAfterRenderCounter(display_t *dsp, void *label)
+error_code_t onAfterRenderCounter(display_t* dsp, void* label)
 {
-    if (onAfterRender_cnt == 0)
-    {
-        onAfterRender_cnt += 1;
+    onAfterRender_cnt += 1;
+    if (onAfterRender_cnt == 1)
         return PM_OK;
-    }
-    PM_FAIL;
+
+    return PM_FAIL;
 }
 
 #endif /* TEST_HOST_PLATINENMACHER_MOCK_RENDERHOOKS_H */
