@@ -58,15 +58,20 @@ void test_position_update()
 void test_map_render_callbacks()
 {
     TEST_ASSERT_NOT_NULL(map);
-    display_t *dsp = display_init(DISPLAY_WIDTH, DISPLAY_HEIGHT, 8, DISPLAY_ROTATE_0);
+    display_t* dsp = display_init(DISPLAY_WIDTH, DISPLAY_HEIGHT, 8, DISPLAY_ROTATE_0);
     dsp->fb_size = DISPLAY_HEIGHT * DISPLAY_WIDTH;
     dsp->fb = malloc(dsp->fb_size);
     dsp->write_pixel = write_pixel;
     dsp->decompress = decompress;
 
+    onBeforeRender_cnt = 0;
+    onAfterRender_cnt = 0;
     map_tile_attach_onAfterRender_callback(map, onAfterRenderCounter);
+    map_render(dsp, map);
+    TEST_ASSERT_EQUAL_INT(map->tile_count, onAfterRender_cnt);
     map_tile_attach_onBeforeRender_callback(map, onBeforeRenderCounter);
-    map_render(dsp,map);
+    map_render(dsp, map);
+    TEST_ASSERT_EQUAL_INT(map->tile_count, onBeforeRender_cnt);
 }
 
 int main(int argc, char** argv)
