@@ -118,7 +118,7 @@ error_code_t map_update_position(map_t* map, map_position_t pos)
     return PM_OK;
 }
 
-void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component))
+void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(display_t* dsp, void* component))
 {
     for (uint8_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onBeforeRender = cb;
@@ -126,7 +126,7 @@ void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(const displa
     }
 }
 
-void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(const display_t* dsp, void* component))
+void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(display_t* dsp, void* component))
 {
     for (uint8_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onAfterRender = cb;
