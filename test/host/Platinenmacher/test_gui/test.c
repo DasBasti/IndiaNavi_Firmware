@@ -6,9 +6,6 @@
 #include "gui/label.h"
 #include "gui/image.h"
 
-#define DISPLAY_WIDTH 20
-#define DISPLAY_HEIGHT 20
-
 #define printfb (printf_fb(dsp->fb, DISPLAY_HEIGHT,DISPLAY_WIDTH))
 
 #include <fonts/font8x8.h>

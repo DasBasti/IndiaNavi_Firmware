@@ -214,7 +214,7 @@ error_code_t display_circle_fill(display_t* dsp, uint16_t x0, uint16_t y0,
     uint16_t r, uint8_t color)
 {
     display_pixel_draw(dsp, x0, y0, color);
-    for (uint8_t r1 = 1; r1 <= r; r1++) {
+    for (uint16_t r1 = 1; r1 <= r; r1++) {
         display_circle_draw(dsp, x0, y0, r1, color);
     }
     return PM_OK;
