@@ -341,11 +341,9 @@ error_code_t display_text_draw(const display_t* dsp, font_t* font, uint16_t x,
     uint16_t y, const char* text, uint8_t color)
 {
     uint32_t i = 0;
-    uint32_t pos = 0;
-    uint8_t* c;
     while (text[i]) { // for every character in char array until \0 is encountered
-        pos = (text[i] - font->asciiOffset) * font->height * font->width / 8;
-        c = (uint8_t*)&font->data[pos];
+        uint32_t pos = (text[i] - font->asciiOffset) * font->height * font->width / 8;
+        uint8_t* c = (uint8_t*)&font->data[pos];
         display_draw_raw_rot(dsp, c, x + (i * 8), y, font->width, font->height,
             color, TRANSPARENT, font->rotation);
         i++; // next char
