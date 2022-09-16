@@ -277,7 +277,6 @@ spi_bus_initialize_failed:
  */
 static error_code_t ACEP_5IN65_Display(uint8_t *image)
 {
-	uint16_t i = 0, j = 0;
 	spi_device_acquire_bus(spi, portMAX_DELAY);
 	ACEP_5IN65_SendCommand(0x61); //Set Resolution setting
 	ACEP_5IN65_SendData(0x02);
@@ -285,9 +284,9 @@ static error_code_t ACEP_5IN65_Display(uint8_t *image)
 	ACEP_5IN65_SendData(0x01);
 	ACEP_5IN65_SendData(0xC0);
 	ACEP_5IN65_SendCommand(0x10);
-	for (i = 0; i < ACEP_5IN65_HEIGHT; i++)
+	for (uint16_t i = 0; i < ACEP_5IN65_HEIGHT; i++)
 	{
-		for (j = 0; j < ACEP_5IN65_WIDTH / 2; j++)
+		for (uint16_t j = 0; j < ACEP_5IN65_WIDTH / 2; j++)
 		{
 			ACEP_5IN65_SendData(image[j + ((ACEP_5IN65_WIDTH / 2) * i)]);
 		}
