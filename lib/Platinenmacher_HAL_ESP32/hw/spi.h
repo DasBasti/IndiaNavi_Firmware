@@ -17,7 +17,7 @@ typedef struct spi_transfer {
 	uint8_t *rx_buffer;
 	void (*onFinish)(struct spi_transfer* transfer);
 	void (*onError)(struct spi_transfer* transfer);
-} spi_transfer;
+} spi_transfer_t;
 
 typedef struct {
 	void *hw; // Hardware handler
@@ -25,8 +25,8 @@ typedef struct {
 } spi_t;
 
 spi_t* spi_init(void *hw);
-error_code_t spi_transmit(spi_t *spi, spi_transfer* transmission);
-spi_transfer* spi_create_transfer(uint16_t length);
+error_code_t spi_transmit(spi_t *spi, spi_transfer_t* transmission);
+spi_transfer_t* spi_create_transfer(uint16_t length);
 
 
 #endif /* PLATINENMACHER_HW_SPI_H_ */
