@@ -29,13 +29,13 @@ typedef struct label {
 	uint8_t roundedRadius;
 	void *child;			/// Pointer to child element.
 
-	error_code_t (*onBeforeRender)(display_t *dsp, void *label);
-	error_code_t (*onAfterRender)(display_t *dsp, void *label);
+	error_code_t (*onBeforeRender)(const display_t *dsp, void *label);
+	error_code_t (*onAfterRender)(const display_t *dsp, void *label);
 } label_t;
 
 label_t* label_create(char *text, font_t *font, int16_t left, int16_t top,
 		uint16_t width, uint16_t height);
-error_code_t label_render(display_t *dsp, void *label);
+error_code_t label_render(const display_t *dsp, void *label);
 error_code_t label_shrink_to_text(label_t *label);
 
 #endif /* PLATINENMACHER_DISPLAY_GUI_LABEL_H_ */

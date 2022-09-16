@@ -53,7 +53,7 @@ static const esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 	.max_files = 1,
 	.allocation_unit_size = 0};
 
-error_code_t statusRender(display_t *dsp, void *comp)
+error_code_t statusRender(const display_t *dsp, void *comp)
 {
 	image_t *icon = sd_indicator_label->child;
 	if (sd_status == OK)

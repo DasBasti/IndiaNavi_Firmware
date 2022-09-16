@@ -30,8 +30,8 @@ typedef struct
 	void *parent; /// Pointer to parent element.
 	enum LoadStatus loaded;
 
-	error_code_t (*onBeforeRender)(display_t *dsp, void *image);
-	error_code_t (*onAfterRender)(display_t *dsp, void *image);
+	error_code_t (*onBeforeRender)(const display_t *dsp, void *image);
+	error_code_t (*onAfterRender)(const display_t *dsp, void *image);
 } image_t;
 
 image_t *image_create(const uint8_t *data, int16_t left, int16_t top,

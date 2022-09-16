@@ -28,7 +28,7 @@ display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
 /*
  * Commit FB content to hardware display
  */
-error_code_t display_commit_fb(display_t* dsp)
+error_code_t display_commit_fb(const display_t* dsp)
 {
     dsp->update(dsp);
     return PM_OK;
@@ -40,7 +40,7 @@ error_code_t display_commit_fb(display_t* dsp)
  * @return PM_OK
  *
  */
-error_code_t display_fill(display_t* dsp, color_t color)
+error_code_t display_fill(const display_t* dsp, color_t color)
 {
     for (int x = 0; x < dsp->size.width; x++)
         for (int y = 0; y < dsp->size.height; y++) {
@@ -58,7 +58,7 @@ error_code_t display_fill(display_t* dsp, color_t color)
  * @return PM_FAIL if write_pixel is NULL
  *
  */
-error_code_t display_pixel_draw(display_t* dsp, int16_t x, int16_t y,
+error_code_t display_pixel_draw(const display_t* dsp, int16_t x, int16_t y,
     color_t color)
 {
     if (x < 0 || y < 0 || x >= dsp->size.width || y >= dsp->size.height)
@@ -84,7 +84,7 @@ error_code_t display_pixel_draw(display_t* dsp, int16_t x, int16_t y,
  * @return OUT_OF_BOUNDS if one or more pixels where out of bounds
  *
  */
-error_code_t display_rect_draw(display_t* dsp, uint16_t x, uint16_t y,
+error_code_t display_rect_draw(const display_t* dsp, uint16_t x, uint16_t y,
     uint16_t width, uint16_t height, uint8_t color)
 {
     height -= 1; //line at start coordinate counts as one
@@ -97,7 +97,7 @@ error_code_t display_rect_draw(display_t* dsp, uint16_t x, uint16_t y,
     return PM_OK;
 }
 
-static void display_line_draw_low(display_t* dsp, uint16_t x1, uint16_t y1,
+static void display_line_draw_low(const display_t* dsp, uint16_t x1, uint16_t y1,
     uint16_t x2, uint16_t y2, uint8_t color)
 {
     int32_t dX = x2 - x1;
@@ -120,7 +120,7 @@ static void display_line_draw_low(display_t* dsp, uint16_t x1, uint16_t y1,
         D = D + (2 * dY);
     }
 }
-static void display_line_draw_height(display_t* dsp, uint16_t x1, uint16_t y1,
+static void display_line_draw_height(const display_t* dsp, uint16_t x1, uint16_t y1,
     uint16_t x2, uint16_t y2, uint8_t color)
 {
     int32_t dX = x2 - x1;
@@ -164,7 +164,7 @@ int abs(int value)
  * @return OUT_OF_BOUNDS if one or more pixels where out of bounds
  *
  */
-error_code_t display_line_draw(display_t* dsp, uint16_t x1, uint16_t y1,
+error_code_t display_line_draw(const display_t* dsp, uint16_t x1, uint16_t y1,
     uint16_t x2, uint16_t y2, uint8_t color)
 {
     error_code_t ret = PM_OK;
@@ -210,7 +210,7 @@ error_code_t display_line_draw(display_t* dsp, uint16_t x1, uint16_t y1,
     return ret;
 }
 
-error_code_t display_circle_fill(display_t* dsp, uint16_t x0, uint16_t y0,
+error_code_t display_circle_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
     uint16_t r, uint8_t color)
 {
     display_pixel_draw(dsp, x0, y0, color);
@@ -229,12 +229,12 @@ error_code_t display_circle_fill(display_t* dsp, uint16_t x0, uint16_t y0,
  * @return PM_OK
  *
  */
-error_code_t display_circle_draw(display_t* dsp, uint16_t x0, uint16_t y0,
+error_code_t display_circle_draw(const display_t* dsp, uint16_t x0, uint16_t y0,
     uint16_t r, uint8_t color)
 {
     return display_circle_draw_segment(dsp, x0, y0, r, color, 0xff);
 }
-error_code_t display_circle_draw_segment(display_t* dsp, uint16_t x0,
+error_code_t display_circle_draw_segment(const display_t* dsp, uint16_t x0,
     uint16_t y0, uint16_t r, uint8_t color, uint8_t segment)
 {
     int32_t x = r - 1;
@@ -285,7 +285,7 @@ error_code_t display_circle_draw_segment(display_t* dsp, uint16_t x0,
  * @return PM_OK
  *
  */
-error_code_t display_rect_fill(display_t* dsp, uint16_t x0, uint16_t y0,
+error_code_t display_rect_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
     uint16_t width, uint16_t height, uint8_t color)
 {
     for (uint16_t x = 0; x < width; x++)
@@ -295,7 +295,7 @@ error_code_t display_rect_fill(display_t* dsp, uint16_t x0, uint16_t y0,
     return PM_OK;
 }
 
-error_code_t display_draw_raw_rot(display_t* dsp, uint8_t* img,
+error_code_t display_draw_raw_rot(const display_t* dsp, uint8_t* img,
     uint16_t x0, uint16_t y0, uint16_t width, uint16_t height,
     uint8_t color1, uint8_t color2, display_rotation_t rot)
 {
@@ -322,7 +322,7 @@ error_code_t display_draw_raw_rot(display_t* dsp, uint8_t* img,
     return PM_OK;
 }
 
-inline error_code_t display_draw_raw(display_t* dsp, uint8_t* img,
+inline error_code_t display_draw_raw(const display_t* dsp, uint8_t* img,
     uint16_t x0, uint16_t y0, uint16_t width, uint16_t height,
     uint8_t color1, uint8_t color2)
 {
@@ -337,7 +337,7 @@ inline error_code_t display_draw_raw(display_t* dsp, uint8_t* img,
  *
  * @return PM_OK
  */
-error_code_t display_text_draw(display_t* dsp, font_t* font, uint16_t x,
+error_code_t display_text_draw(const display_t* dsp, font_t* font, uint16_t x,
     uint16_t y, const char* text, uint8_t color)
 {
     uint32_t i = 0;
@@ -354,7 +354,7 @@ error_code_t display_text_draw(display_t* dsp, font_t* font, uint16_t x,
     return PM_OK;
 }
 
-error_code_t display_draw_image(display_t* dsp, uint8_t* data, uint16_t x,
+error_code_t display_draw_image(const display_t* dsp, const uint8_t* data, uint16_t x,
     uint16_t y, uint16_t w, uint16_t h)
 {
     if (x * y > dsp->size.width * dsp->size.height)

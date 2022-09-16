@@ -118,7 +118,7 @@ error_code_t map_update_position(map_t* map, map_position_t pos)
     return PM_OK;
 }
 
-void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(display_t* dsp, void* component))
+void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onBeforeRender = cb;
@@ -126,7 +126,7 @@ void map_tile_attach_onBeforeRender_callback(map_t* map, void (*cb)(display_t* d
     }
 }
 
-void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(display_t* dsp, void* component))
+void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onAfterRender = cb;
@@ -134,7 +134,7 @@ void map_tile_attach_onAfterRender_callback(map_t* map, void (*cb)(display_t* ds
     }
 }
 
-error_code_t map_tile_render(display_t* dsp, void* component)
+error_code_t map_tile_render(const display_t* dsp, void* component)
 {
     map_tile_t* tile = (map_tile_t*)component;
     if (tile->image) {
@@ -145,7 +145,7 @@ error_code_t map_tile_render(display_t* dsp, void* component)
     return PM_OK;
 }
 
-error_code_t map_render(display_t* dsp, void* component)
+error_code_t map_render(const display_t* dsp, void* component)
 {
     // Render map at position box
     map_t* map = (map_t*)component;

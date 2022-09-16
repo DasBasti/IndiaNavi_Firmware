@@ -145,7 +145,7 @@ void toggleZoom()
 /**
  * Callbacks from renderer
  */
-error_code_t updateInfoText(display_t *dsp, void *comp)
+error_code_t updateInfoText(const display_t *dsp, void *comp)
 {
 	/*sprintf(infoBox->text, "%d/%d/%d Sat:%d", tile_zoom, x, y,
 	 gga_frame.satellites_tracked);
@@ -166,7 +166,7 @@ error_code_t updateInfoText(display_t *dsp, void *comp)
 	return PM_OK;
 }
 
-error_code_t updateSatsInView(display_t *dsp, void *comp)
+error_code_t updateSatsInView(const display_t *dsp, void *comp)
 {
 	xSemaphoreTake(print_semaphore, portMAX_DELAY);
 	sprintf(gps_indicator_label->text, "%d", _sats_in_use);
@@ -175,7 +175,7 @@ error_code_t updateSatsInView(display_t *dsp, void *comp)
 	return PM_OK;
 }
 
-error_code_t render_position_marker(display_t *dsp, void *comp)
+error_code_t render_position_marker(const display_t *dsp, void *comp)
 {
 	// TODO: move to map component
 	/*
@@ -195,7 +195,7 @@ error_code_t render_position_marker(display_t *dsp, void *comp)
 	return ABORT;
 }
 
-error_code_t render_waypoint_marker(display_t *dsp, void *comp)
+error_code_t render_waypoint_marker(const display_t *dsp, void *comp)
 {
 	// TODO: move to map component
 	/*

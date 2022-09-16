@@ -43,7 +43,7 @@ map_t *map;
 typedef struct Render render_t;
 struct Render
 {
-	error_code_t (*render)(display_t *dsp, void *component);
+	error_code_t (*render)(const display_t *dsp, void *component);
 	void *comp;
 	render_t *next;
 };
@@ -63,7 +63,7 @@ void trigger_rendering();
 void pre_render_cb();
 void free_render_pipeline(enum RenderLayer layer);
 void wait_until_gui_ready();
-render_t *add_to_render_pipeline(error_code_t (*render)(display_t *dsp, void *component),
+render_t *add_to_render_pipeline(error_code_t (*render)(const display_t *dsp, void *component),
 								 void *comp,
 								 enum RenderLayer layer); /* screens */
 void start_screen(const display_t *dsp);

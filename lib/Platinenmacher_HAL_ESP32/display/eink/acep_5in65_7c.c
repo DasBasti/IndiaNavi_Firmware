@@ -22,7 +22,7 @@ static error_code_t ACEP_5IN65_Display(uint8_t *image);
 /*
  * write pixel in framebuffer
  */
-error_code_t ACEP_5IN65_Write(display_t *dsp, uint16_t x, uint16_t y,
+error_code_t ACEP_5IN65_Write(const display_t *dsp, uint16_t x, uint16_t y,
 							  uint8_t color)
 {
 	uint32_t position;
@@ -66,7 +66,7 @@ void ACEP_5IN65_Commit_Fb()
  * Return color for x/y pixel
  */
 uint8_t ACEP_5IN65_Decompress_Pixel(rect_t *size, uint16_t x, uint16_t y,
-									uint8_t *data)
+									const uint8_t *data)
 {
 	uint32_t pos = (y * size->width) + x;
 

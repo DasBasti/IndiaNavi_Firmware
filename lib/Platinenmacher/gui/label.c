@@ -37,7 +37,7 @@ label_t *label_create(char *text, font_t *font, int16_t left, int16_t top,
 	return label;
 }
 
-error_code_t label_render(display_t *dsp, void *component)
+error_code_t label_render(const display_t *dsp, void *component)
 {
 	label_t *label = (label_t *)component;
 	if (label->onBeforeRender)

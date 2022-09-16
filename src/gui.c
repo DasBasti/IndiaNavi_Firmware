@@ -47,7 +47,7 @@ app_mode_t _app_mode = APP_MODE_NONE;
  *
  * @return render slot
  */
-render_t* add_to_render_pipeline(error_code_t (*render)(display_t* dsp, void* component),
+render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, void* component),
     void* comp,
     enum RenderLayer layer)
 {
