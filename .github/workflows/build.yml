@@ -13,3 +13,5 @@ jobs:
   build_and_upload:
     uses: ./.github/workflows/platformio_build.yml
     
+  linting:
+    uses: ./.github/workflows/lint.yml
