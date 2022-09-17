@@ -73,19 +73,19 @@ map_tile_t* map_get_tile(map_t* map, uint8_t x, uint8_t y)
     return map->tiles[x * map->height + y];
 }
 
-error_code_t map_update_position(map_t* map, map_position_t pos)
+error_code_t map_update_position(map_t* map, map_position_t* pos)
 {
     uint16_t x = 0, y = 0, x_old = 0, y_old = 0;
     float xf = 0.0, yf = 0.0;
     // TODO: test for matching zoom_level
     // get tile number of tile with position on it as float and integer
-    if (pos.longitude != 0.0) {
-        xf = flon2tile(pos.longitude, map->tile_zoom);
+    if (pos->longitude != 0.0) {
+        xf = flon2tile(pos->longitude, map->tile_zoom);
         x = floor(xf);
     }
     // also for y axis
-    if (pos.latitude != 0.0) {
-        yf = flat2tile(pos.latitude, map->tile_zoom);
+    if (pos->latitude != 0.0) {
+        yf = flat2tile(pos->latitude, map->tile_zoom);
         y = floor(yf);
     }
     // get offset to tile corner of tile with position
@@ -114,6 +114,9 @@ error_code_t map_update_position(map_t* map, map_position_t pos)
     pos_y += 256;
     if (right_side)
         pos_x += 256;
+
+    map->pos_x = pos_x;
+    map->pos_y = pos_y;
 
     return PM_OK;
 }
