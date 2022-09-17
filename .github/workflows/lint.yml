@@ -30,9 +30,34 @@ jobs:
         python -m pip install --upgrade pip
         pip install platformio
     
-    - name: c-linter
-      uses: tonybaloney/cppcheck-action@master
-
     - name: run pio check
       run: |
-        pio check -v
+        pio check
+
+    - name: cppcheck
+      uses: deep5050/cppcheck-action@main
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN}}
+        check_library: disable
+        skip_preprocessor: disable
+        enable: all
+        inconclusive: enable
+        inline_suppression: enable
+        force_language: c
+        force: disable
+        max_ctu_depth: 4
+        platform: unspecified
+        std: c11
+        output_file: ./cppcheck_report
+        other_options: 
+
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
+
+    - name: publish report    
+      uses: mikeal/publish-to-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH_NAME: ${{ steps.extract_branch.outputs.branch }}
