@@ -26,19 +26,12 @@ typedef enum
 	APP_MODE_GPS,
 } app_mode_t;
 
-/* 6 map tiles */
-label_t *positon_marker;
-
-/* public GUI elements */
-label_t *clock_label;
-label_t *battery_label;
-label_t *north_indicator_label;
-label_t *wifi_indicator_label;
-label_t *gps_indicator_label;
-label_t *sd_indicator_label;
-label_t *infoBox;
-label_t *scaleBox;
-map_t *map;
+static label_t *clock_label;
+static label_t *battery_label;
+static label_t *north_indicator_label;
+static label_t *wifi_indicator_label;
+static label_t *gps_indicator_label;
+static label_t *sd_indicator_label;
 
 typedef struct Render render_t;
 struct Render
@@ -66,9 +59,11 @@ void wait_until_gui_ready();
 render_t *add_to_render_pipeline(error_code_t (*render)(const display_t *dsp, void *component),
 								 void *comp,
 								 enum RenderLayer layer); /* screens */
-void start_screen(const display_t *dsp);
 void app_screen(const display_t *dsp);
 void gui_set_app_mode(app_mode_t mode);
+
+void start_screen_create(const display_t *display);
+void map_screen_create(const display_t *display);
 
 error_code_t load_map_tile_on_demand(const display_t *dsp, void *image);
 error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image);

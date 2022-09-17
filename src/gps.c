@@ -27,28 +27,17 @@
 #include "icons_32/icons_32.h"
 
 static const char *TAG = "GPS";
-#ifdef nDEBUG
-map_position_t current_position = {
-	.longitude = 8.68575379,
-	.latitude = 49.7258546,
-	.fix = GPS_FIX_GPS
-	};
-#else
-map_position_t current_position = {};
-#endif
 static uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
-uint8_t zoom_level_selected = 0;
-uint8_t zoom_level[] = {16, 14};
-uint8_t zoom_level_scaleBox_width[] = {63, 77};
-char *zoom_level_scaleBox_text[] = {"100m", "500m"};
-static uint8_t tile_zoom = 16;
 
 nmea_parser_handle_t nmea_hdl;
 async_file_t AFILE;
 char timezone_file[100];
 uint8_t hour;
 waypoint_t *waypoints = NULL;
+
+static map_position_t current_position;
+
 /**
  * @brief GPS Event Handler
  *
@@ -128,43 +117,9 @@ void calculate_waypoints(waypoint_t *wp_t)
 /* Change Zoom level and trigger rendering. 
    Tiles must be available on SD card! 
 */
-void toggleZoom()
-{
-	zoom_level_selected = !zoom_level_selected;
-	map_update_zoom_level(map, zoom_level[zoom_level_selected]);
-
-	ESP_LOGI(TAG, "Set zoom level to: %d", tile_zoom);
-	// TODO: Update Waypoints
-	scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
-	scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
-
-	map_update_position(map, current_position);
-	trigger_rendering();
-}
-
 /**
  * Callbacks from renderer
  */
-error_code_t updateInfoText(const display_t *dsp, void *comp)
-{
-	/*sprintf(infoBox->text, "%d/%d/%d Sat:%d", tile_zoom, x, y,
-	 gga_frame.satellites_tracked);
-	 */
-	if (current_position.fix!= GPS_FIX_INVALID)
-	{
-		xSemaphoreTake(print_semaphore, portMAX_DELAY);
-		sprintf(infoBox->text, "GPS: %fN %fE %.02fm (HDOP:%f)",
-				current_position.longitude, current_position.longitude, current_position.altitude, current_position.hdop);
-		xSemaphoreGive(print_semaphore);
-	}
-	else
-	{
-		xSemaphoreTake(print_semaphore, portMAX_DELAY);
-		sprintf(infoBox->text, "No GPS Signal found!");
-		xSemaphoreGive(print_semaphore);
-	}
-	return PM_OK;
-}
 
 error_code_t updateSatsInView(const display_t *dsp, void *comp)
 {
@@ -175,25 +130,6 @@ error_code_t updateSatsInView(const display_t *dsp, void *comp)
 	return PM_OK;
 }
 
-error_code_t render_position_marker(const display_t *dsp, void *comp)
-{
-	// TODO: move to map component
-	/*
-	label_t *label = (label_t *)comp;
-	uint8_t hdop = floor(_hdop / 2);
-	hdop += 8;
-	if (current_position.fix!= GPS_FIX_INVALID)
-	{
-		label->box.left = pos_x - label->box.width / 2;
-		label->box.top = pos_y - label->box.height / 2;
-		display_circle_fill(dsp, pos_x, pos_y, 6, BLUE);
-		display_circle_fill(dsp, pos_x, pos_y, 2, WHITE);
-		display_circle_draw(dsp, pos_x, pos_y, hdop, BLACK);
-		return PM_OK;
-	}
-	*/
-	return ABORT;
-}
 
 error_code_t render_waypoint_marker(const display_t *dsp, void *comp)
 {
@@ -242,115 +178,7 @@ error_code_t render_waypoint_marker(const display_t *dsp, void *comp)
 
 
 
-void pre_render_cb()
-{
-	// Only render wb if we are fixed
-	if (current_position.fix== GPS_FIX_INVALID)
-		return;
 
-	map_update_zoom_level(map, 16);
-	map_update_position(map, current_position);	
-
-		//TODO: move to map component
-	/*char *waypoint_file = RTOS_Malloc(32768);
-	char *wp_line = RTOS_Malloc(50);
-	async_file_t *wp_file = &AFILE;
-	wp_file->filename = "//TRACK";
-	wp_file->dest = waypoint_file;
-	wp_file->loaded = false;
-	loadFile(wp_file);
-	uint8_t delay = 0;
-	ESP_LOGI(TAG, "Load waypoint information queued");
-	while (!wp_file->loaded)
-	{
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		if (delay++ == 20)
-			break;
-	}
-	ESP_LOGI(TAG, "Loaded waypoint information. Calculating...");
-	uint64_t start = esp_timer_get_time();
-
-	free_render_pipeline(RL_PATH);
-
-	waypoint_t *wp_ = waypoints;
-	while (wp_)
-	{
-		waypoint_t *nwp;
-		nwp = wp_;
-		wp_ = wp_->next;
-		free(nwp);
-	}
-
-	waypoint_t *prev_wp = NULL;
-	waypoint_t cur_wp = {};
-	cur_wp.color = BLUE;
-	if (wp_file->loaded)
-	{
-		ESP_LOGI(TAG, "Load waypoint information ");
-		char *f = waypoint_file;
-		bool header = true;
-		while (1)
-		{
-			f = readline(f, wp_line);
-			if (!f)
-				break;
-			if (wp_line[0] == '-' && wp_line[1] == '-')
-			{
-				header = false;
-				continue;
-			};
-			if (header)
-			{
-				continue;
-			}
-
-			float flon = atoff(strtok(wp_line, " "));
-			float flat = atoff(strtok(NULL, " "));
-			//ESP_LOGI(TAG, "Read waypoint: %f - %f", flon, flat);
-			// only load wp that are on currently shown tiles
-
-			cur_wp.lon = flon;
-			cur_wp.lat = flat;
-			calculate_waypoints(&cur_wp);
-			//ESP_LOGI(TAG, "Waypoint %d: %d/%d", cur_wp.num, cur_wp.tile_x, cur_wp.tile_y);
-			for (uint8_t i = 0; i < 6; i++)
-			{
-				if (cur_wp.tile_x == map_tiles[i].x && cur_wp.tile_y == map_tiles[i].y)
-				{
-					waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
-					memcpy(wp_t, &cur_wp, sizeof(waypoint_t));
-					if (prev_wp)
-					{
-						prev_wp->next = wp_t;
-					}
-					else
-					{
-						waypoints = wp_t;
-					}
-					prev_wp = wp_t;
-					add_to_render_pipeline(render_waypoint_marker, wp_t, RL_PATH);
-					// increase for next tile
-					cur_wp.num++;
-					break;
-				}
-			}
-			if (cur_wp.num % 10 == 0)
-			{
-				vTaskDelay(1);
-			}
-		}
-		ESP_LOGI(TAG, "Number of waypoints: %d", cur_wp.num);
-	}
-	else
-	{
-		ESP_LOGI(TAG, "Load waypoint information failed");
-	}
-	RTOS_Free(waypoint_file);
-	RTOS_Free(wp_line);
-	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
-	ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
-	*/
-}
 
 /**
  * Generate the GPS screen element for rendering the map tiles in the background
@@ -414,12 +242,6 @@ void StartGpsTask(void const *argument)
 	/* initialize GPS module */
 	reg->enable(reg);
 
-	ESP_LOGI(TAG, "wait for infoBox init");
-	/* wait for infoBox to be created, assign modifier callback */
-	while (!infoBox)
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-	infoBox->onBeforeRender = updateInfoText;
-
 	while (!gps_indicator_label)
 		vTaskDelay(100 / portTICK_PERIOD_MS);
 	gps_indicator_label->onBeforeRender = updateSatsInView;
@@ -428,10 +250,7 @@ void StartGpsTask(void const *argument)
 	/* wait for map tiles to be created */
 	wait_until_gui_ready();
 
-	map_update_zoom_level(map, 0);
-	map_update_position(map, current_position);
-	map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
-	map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
+
 
 	/* delay to avoid race condition. this is bad! */
 	vTaskDelay(10000 / portTICK_PERIOD_MS);
@@ -466,7 +285,6 @@ void StartGpsTask(void const *argument)
 	while (1)
 		vTaskDelay(100);
 
-	positon_marker->onBeforeRender = render_position_marker;
 
 	ESP_LOGI(TAG, "UART config");
 	/* NMEA parser configuration */

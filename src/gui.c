@@ -185,16 +185,6 @@ static void app_render()
     ESP_LOGI(TAG, "render time %i ms", (uint32_t)(end - start) / 1000);
 }
 
-void wait_until_gui_ready()
-{
-    while (!map) {
-        vTaskDelay(0);
-    }
-    while (!positon_marker) {
-        vTaskDelay(0);
-    }
-}
-
 /**
  * Set App mode
  */
@@ -212,56 +202,18 @@ void gui_set_app_mode(app_mode_t mode)
  */
 void app_screen(const display_t* dsp)
 {
+    create_top_bar(dsp);
+    
     switch (_app_mode) {
     case APP_MODE_DOWNLOAD:
         maploader_screen_element(dsp);
         break;
     case APP_MODE_GPS:
     default:
-        map = map_create(0, 42, 2, 2, 256);
-        add_to_render_pipeline(map_render, map, RL_MAP);
-
-        /* position marker */
-        positon_marker = label_create("", &f8x16, 0, 0, 24, 24);
-        positon_marker->textColor = BLUE;
-        positon_marker->alignHorizontal = CENTER;
-        positon_marker->alignVertical = MIDDLE;
-        add_to_render_pipeline(label_render, positon_marker, RL_TOP);
-
-        /* scale 63px for 100m | 96px for 500ft @ zoom 16*/
-        /* scale 77px for 500m | 94px for 2000ft @zoom 14 */
-        scaleBox = label_create("100m", &f8x8, 10, dsp->size.height - 34, 63, 13);
-        scaleBox->borderWidth = 1;
-        scaleBox->borderLines = LEFT_SOLID | RIGHT_SOLID | BOTTOM_SOLID;
-        //scaleBox->backgroundColor = WHITE;
-        scaleBox->borderColor = BLACK;
-        scaleBox->textColor = BLACK;
-        scaleBox->alignVertical = BOTTOM;
-        scaleBox->alignHorizontal = CENTER;
-        add_to_render_pipeline(label_render, scaleBox, RL_TOP);
+        map_screen_create(dsp);
         break;
     }
 
-    create_top_bar(dsp);
-
-    char* infoText = RTOS_Malloc(dsp->size.width / f8x8.width);
-    xSemaphoreTake(print_semaphore, portMAX_DELAY);
-
-    sprintf(infoText, GIT_HASH);
-    xSemaphoreGive(print_semaphore);
-    infoBox = label_create(infoText, &f8x8, 0, dsp->size.height - 14,
-        dsp->size.width - 1, 13);
-    infoBox->borderWidth = 1;
-    infoBox->borderLines = ALL_SOLID;
-    infoBox->alignVertical = MIDDLE;
-    infoBox->backgroundColor = WHITE;
-
-    add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
-
-    label_t* map_copyright = label_create("(c) OpenStreetMap contributors", &f8x8, 0, infoBox->box.top - 8, 0, 0);
-    label_shrink_to_text(map_copyright);
-    map_copyright->box.left = dsp->size.width - map_copyright->box.width;
-    add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 }
 
 void trigger_rendering()
