@@ -32,4 +32,7 @@ jobs:
     
     - name: c-linter
       uses: tonybaloney/cppcheck-action@master
-      level: warning
+
+    - name: run pio check
+      run: |
+        pio check -v
