@@ -6,27 +6,27 @@
  */
 
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 #include <freertos/semphr.h>
+#include <freertos/task.h>
 
 #include "gui.h"
-#include "tasks.h"
 #include "pins.h"
-#include <esp_log.h>
+#include "tasks.h"
 #include "time.h"
+#include <esp_log.h>
 #include <sys/time.h>
 
-#include "nmea_parser.h"
 #include "l96.h"
+#include "nmea_parser.h"
 
-#include <string.h>
 #include <math.h>
+#include <string.h>
 
-#include <esp_log.h>
-#include <driver/uart.h>
 #include "icons_32/icons_32.h"
+#include <driver/uart.h>
+#include <esp_log.h>
 
-static const char *TAG = "GPS";
+static const char* TAG = "GPS";
 static uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
 
@@ -34,7 +34,7 @@ nmea_parser_handle_t nmea_hdl;
 async_file_t AFILE;
 char timezone_file[100];
 uint8_t hour;
-waypoint_t *waypoints = NULL;
+waypoint_t* waypoints = NULL;
 
 static map_position_t current_position;
 
@@ -47,71 +47,67 @@ static map_position_t current_position;
  * @param event_data event specific arguments
  */
 static void
-gps_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
-	const gps_t *_gps;
-	switch (event_id)
-	{
-	case GPS_UPDATE:
-		_gps = (gps_t *)event_data;
-		current_position.longitude = _gps->longitude;
-		current_position.latitude = _gps->latitude;
-		current_position.altitude = _gps->altitude;
-		current_position.hdop = _gps->dop_h;
-		current_position.fix= _gps->fix;
-		//ESP_LOGI(TAG, "%d:%d:%d", _gps->tim.hour, _gps->tim.minute, _gps->tim.second);
-		ESP_LOGI(TAG, "sats: %d/%d", _gps->sats_in_use, _gps->sats_in_view);
-		_sats_in_use = _gps->sats_in_use;
-		_sats_in_view = _gps->sats_in_view;
-		if (hour != _gps->tim.hour)
-		{
-			hour = _gps->tim.hour;
-			struct tm t = {0};				   // Initalize to all 0's
-			t.tm_year = _gps->date.year + 100; // This is year+100, so 121 = 2021
-			t.tm_mon = _gps->date.month - 1;
-			t.tm_mday = _gps->date.day;
-			t.tm_hour = _gps->tim.hour;
-			t.tm_min = _gps->tim.minute;
-			t.tm_sec = _gps->tim.second;
+    const gps_t* _gps;
+    switch (event_id) {
+    case GPS_UPDATE:
+        _gps = (gps_t*)event_data;
+        current_position.longitude = _gps->longitude;
+        current_position.latitude = _gps->latitude;
+        current_position.altitude = _gps->altitude;
+        current_position.hdop = _gps->dop_h;
+        current_position.fix = _gps->fix;
+        //ESP_LOGI(TAG, "%d:%d:%d", _gps->tim.hour, _gps->tim.minute, _gps->tim.second);
+        ESP_LOGI(TAG, "sats: %d/%d", _gps->sats_in_use, _gps->sats_in_view);
+        _sats_in_use = _gps->sats_in_use;
+        _sats_in_view = _gps->sats_in_view;
+        if (hour != _gps->tim.hour) {
+            hour = _gps->tim.hour;
+            struct tm t = { 0 };               // Initalize to all 0's
+            t.tm_year = _gps->date.year + 100; // This is year+100, so 121 = 2021
+            t.tm_mon = _gps->date.month - 1;
+            t.tm_mday = _gps->date.day;
+            t.tm_hour = _gps->tim.hour;
+            t.tm_min = _gps->tim.minute;
+            t.tm_sec = _gps->tim.second;
 
-			struct timeval tv = {mktime(&t), 0}; // epoch time (seconds)
-			settimeofday(&tv, NULL);
-		}
-		break;
-	case GPS_UNKNOWN:
-		/* print unknown statements */
-		ESP_LOGW(TAG, "Unknown statement:%s", (char *)event_data);
-		break;
-	default:
-		break;
-	}
+            struct timeval tv = { mktime(&t), 0 }; // epoch time (seconds)
+            settimeofday(&tv, NULL);
+        }
+        break;
+    case GPS_UNKNOWN:
+        /* print unknown statements */
+        ESP_LOGW(TAG, "Unknown statement:%s", (char*)event_data);
+        break;
+    default:
+        break;
+    }
 }
 
 void update_tiles()
 {
-	if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE)
-	{
-		// TODO: -> event?
-		xSemaphoreGive(gui_semaphore);
-		trigger_rendering();
-	}
-	else
-	{
-		ESP_LOGI(TAG, "gui semaphore taken");
-	}
+    if (xSemaphoreTake(gui_semaphore, portMAX_DELAY) == pdTRUE) {
+        // TODO: -> event?
+        xSemaphoreGive(gui_semaphore);
+        trigger_rendering();
+    } else {
+        ESP_LOGI(TAG, "gui semaphore taken");
+    }
 }
 
-void calculate_waypoints(waypoint_t *wp_t)
+void calculate_waypoints(waypoint_t* wp_t)
 {
-	//TODO: into map component
-	/*float _xf, _yf;
+    //TODO: into map component
+    /*float _xf, _yf;
 	_xf = flon2tile(wp_t->lon, tile_zoom);
 	wp_t->tile_x = floor(_xf);
 	_yf = flat2tile(wp_t->lat, tile_zoom);
 	wp_t->tile_y = floor(_yf);
 	wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
 	wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
-	*/												 //ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
+	*/
+    //ESP_LOGI(TAG, "Calculate waypoint %d @ %d / %d", wp_t->tile_x, wp_t->tile_y, wp_t->num);
 }
 
 /* Change Zoom level and trigger rendering. 
@@ -121,20 +117,19 @@ void calculate_waypoints(waypoint_t *wp_t)
  * Callbacks from renderer
  */
 
-error_code_t updateSatsInView(const display_t *dsp, void *comp)
+error_code_t updateSatsInView(const display_t* dsp, void* comp)
 {
-	xSemaphoreTake(print_semaphore, portMAX_DELAY);
-	sprintf(gps_indicator_label->text, "%d", _sats_in_use);
-	xSemaphoreGive(print_semaphore);
+    xSemaphoreTake(print_semaphore, portMAX_DELAY);
+    sprintf(gps_indicator_label->text, "%d", _sats_in_use);
+    xSemaphoreGive(print_semaphore);
 
-	return PM_OK;
+    return PM_OK;
 }
 
-
-error_code_t render_waypoint_marker(const display_t *dsp, void *comp)
+error_code_t render_waypoint_marker(const display_t* dsp, void* comp)
 {
-	// TODO: move to map component
-	/*
+    // TODO: move to map component
+    /*
 	waypoint_t *wp = (waypoint_t *)comp;
 	if ((current_position.fix!= GPS_FIX_INVALID) && (wp->tile_x != 0) && (wp->tile_y != 0))
 	{
@@ -173,12 +168,8 @@ error_code_t render_waypoint_marker(const display_t *dsp, void *comp)
 		return PM_OK;
 	}
 	*/
-	return ABORT;
+    return ABORT;
 }
-
-
-
-
 
 /**
  * Generate the GPS screen element for rendering the map tiles in the background
@@ -211,150 +202,121 @@ void gps_screen_element(const display_t *dsp)
  */
 void gps_stop_parser()
 {
-	ESP_LOGI(TAG, "stop parser");
-	if (nmea_hdl)
-	{
-		nmea_parser_remove_handler(nmea_hdl, gps_event_handler);
-		nmea_parser_deinit(nmea_hdl);
-	}
+    ESP_LOGI(TAG, "stop parser");
+    if (nmea_hdl) {
+        nmea_parser_remove_handler(nmea_hdl, gps_event_handler);
+        nmea_parser_deinit(nmea_hdl);
+    }
 }
 
-void StartGpsTask(void const *argument)
+void StartGpsTask(void const* argument)
 {
-	uint8_t minute = 0;
+    uint8_t minute = 0;
 
-	ESP_LOGI(TAG, "init gpio %d\n\r", GPS_VCC_nEN);
-	/* create power regulator */
-	regulator_t *reg;
-	gpio_t *reg_gpio = gpio_create(OUTPUT, 0, GPS_VCC_nEN);
-	reg_gpio->onValue = GPIO_RESET;
+    ESP_LOGI(TAG, "init gpio %d\n\r", GPS_VCC_nEN);
+    /* create power regulator */
+    regulator_t* reg;
+    gpio_t* reg_gpio = gpio_create(OUTPUT, 0, GPS_VCC_nEN);
+    reg_gpio->onValue = GPIO_RESET;
 
-	ESP_LOGI(TAG, "init regulator\n\r");
-	reg = regulator_gpio_create(reg_gpio);
+    ESP_LOGI(TAG, "init regulator\n\r");
+    reg = regulator_gpio_create(reg_gpio);
 
-	/* register echo command 
+    /* register echo command 
 
 	echo_cmd.command = "gps";
 	echo_cmd.function_cb = echo_cmd_cb;
 	ESP_LOGI(TAG, "GPS: init command %s\n\r", echo_cmd.command);
 	command_register(&echo_cmd);
 */
-	/* initialize GPS module */
-	reg->enable(reg);
+    /* initialize GPS module */
+    reg->enable(reg);
 
-	while (!gps_indicator_label)
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-	gps_indicator_label->onBeforeRender = updateSatsInView;
+    while (!gps_indicator_label)
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    gps_indicator_label->onBeforeRender = updateSatsInView;
 
-	ESP_LOGI(TAG, "wait for GUI init");
-	/* wait for map tiles to be created */
-	wait_until_gui_ready();
+    ESP_LOGI(TAG, "wait for GUI init");
+    /* wait for map tiles to be created */
+    wait_until_gui_ready();
 
+    /* delay to avoid race condition. this is bad! */
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Load timezone information");
+    async_file_t* tz_file = &AFILE;
+    tz_file->filename = "//TIMEZONE";
+    tz_file->dest = timezone_file;
+    tz_file->loaded = false;
+    loadFile(tz_file);
+    uint8_t delay = 0;
+    ESP_LOGI(TAG, "Load timezone information queued");
+    while (!tz_file->loaded) {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        if (delay++ == 20)
+            break;
+    }
+    ESP_LOGI(TAG, "Load timezone information loaded");
+    if (tz_file->loaded) {
+        char tz[50] = { 0 };
+        readline(timezone_file, tz);
+        setenv("TZ", tz, 1);
+        ESP_LOGI(TAG, "Set timezone to: %s", tz);
+    } else {
+        setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1);
+        ESP_LOGI(TAG, "Use default timezone");
+    }
+    tzset();
+    while (1)
+        vTaskDelay(100);
 
+    ESP_LOGI(TAG, "UART config");
+    /* NMEA parser configuration */
+    nmea_parser_config_t config = {
+        .uart = {
+            .uart_port = UART_NUM_2,
+            .rx_pin = GPS_UART2_RX,
+            .tx_pin = GPS_UART2_TX,
+            .baud_rate = 9600,
+            .data_bits = UART_DATA_8_BITS,
+            .parity = UART_PARITY_DISABLE,
+            .stop_bits = UART_STOP_BITS_1,
+            .event_queue_size = 16 }
+    };
+    /* init NMEA parser library */
+    nmea_hdl = nmea_parser_init(&config);
+    /* register event handler for NMEA parser library */
+    nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
+    // send initial commands to GPS module
+    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO, sizeof(L96_SEARCH_GPS_GLONASS_GALILEO)));
+    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_FULL_ON, sizeof(L96_ENTER_FULL_ON)));
 
-	/* delay to avoid race condition. this is bad! */
-	vTaskDelay(10000 / portTICK_PERIOD_MS);
-	ESP_LOGI(TAG, "Load timezone information");
-	async_file_t *tz_file = &AFILE;
-	tz_file->filename = "//TIMEZONE";
-	tz_file->dest = timezone_file;
-	tz_file->loaded = false;
-	loadFile(tz_file);
-	uint8_t delay = 0;
-	ESP_LOGI(TAG, "Load timezone information queued");
-	while (!tz_file->loaded)
-	{
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		if (delay++ == 20)
-			break;
-	}
-	ESP_LOGI(TAG, "Load timezone information loaded");
-	if (tz_file->loaded)
-	{
-		char tz[50] = {0};
-		readline(timezone_file, tz);
-		setenv("TZ", tz, 1);
-		ESP_LOGI(TAG, "Set timezone to: %s", tz);
-	}
-	else
-	{
-		setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1);
-		ESP_LOGI(TAG, "Use default timezone");
-	}
-	tzset();
-	while (1)
-		vTaskDelay(100);
+    for (;;) {
 
-
-	ESP_LOGI(TAG, "UART config");
-	/* NMEA parser configuration */
-	nmea_parser_config_t config = {
-		.uart = {
-			.uart_port = UART_NUM_2,
-			.rx_pin = GPS_UART2_RX,
-			.tx_pin = GPS_UART2_TX,
-			.baud_rate = 9600,
-			.data_bits = UART_DATA_8_BITS,
-			.parity = UART_PARITY_DISABLE,
-			.stop_bits = UART_STOP_BITS_1,
-			.event_queue_size = 16}};
-	/* init NMEA parser library */
-	nmea_hdl = nmea_parser_init(&config);
-	/* register event handler for NMEA parser library */
-#ifndef DEBUG
-	// start the parser on release builds
-	nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
-#else
-	uint8_t t = 0; // toggle
-#endif
-	// send initial commands to GPS module
-	ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO, sizeof(L96_SEARCH_GPS_GLONASS_GALILEO)));
-	ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_FULL_ON, sizeof(L96_ENTER_FULL_ON)));
-
-	for (;;)
-	{
-
-		/* get Time from GPS
+        /* get Time from GPS
 		 check if gps indicator from gui.h is available (already allocated)
 		 */
-		if (gps_indicator_label)
-		{
-			image_t *icon = gps_indicator_label->child;
-			if (current_position.fix!= GPS_FIX_INVALID)
-				icon->data = GPS_lock;
-			else
-				icon->data = GPS;
-		}
-		// Update every minute
-		//struct tm timeinfo;
-		struct timeval tv;
-		gettimeofday(&tv, NULL);
-		struct tm *timeinfo = localtime(&tv.tv_sec);
-		if (clock_label && minute != timeinfo->tm_min)
-		{
-			trigger_rendering();
-		}
+        if (gps_indicator_label) {
+            image_t* icon = gps_indicator_label->child;
+            if (current_position.fix != GPS_FIX_INVALID)
+                icon->data = GPS_lock;
+            else
+                icon->data = GPS;
+        }
+        // Update every minute
+        //struct tm timeinfo;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        struct tm* timeinfo = localtime(&tv.tv_sec);
+        if (clock_label && minute != timeinfo->tm_min) {
+            trigger_rendering();
+        }
 
-		/* check for lon and lat to be a number */
-		if ((current_position.fix!= GPS_FIX_INVALID))
-		{
-			ESP_LOGI(TAG, "Fix: %d", current_position.fix);
-			update_tiles();
-		}
+        /* check for lon and lat to be a number */
+        if ((current_position.fix != GPS_FIX_INVALID)) {
+            ESP_LOGI(TAG, "Fix: %d", current_position.fix);
+            update_tiles();
+        }
 
-		vTaskDelay(60000 / portTICK_PERIOD_MS);
-#ifdef DEBUG
-		if (t)
-		{
-			current_position.longitude = 8.055898;
-			current_position.latitude = 49.427578;
-		}
-		else
-		{
-			current_position.longitude = 8.043859;
-			current_position.latitude = 49.394235;
-		}
-		t = !t;
-#endif
-	}
+        vTaskDelay(60000 / portTICK_PERIOD_MS);
+    }
 }
