@@ -207,13 +207,17 @@ void app_screen(const display_t* dsp)
     switch (_app_mode) {
     case APP_START_SCREEN:
         start_screen_create(dsp);
+        trigger_rendering();
+        gui_set_app_mode(APP_START_SCREEN_TRANSITION);
         break;
-    case APP_MODE_DOWNLOAD:
-        maploader_screen_element(dsp);
-        break;
+    case APP_START_SCREEN_TRANSITION:
+        start_screen_free();
+        gui_set_app_mode(APP_MODE_GPS);
+        __attribute__ ((fallthrough));
     case APP_MODE_GPS:
-    default:
         map_screen_create(dsp);
+        break;
+    default:
         break;
     }
 
@@ -288,9 +292,9 @@ void StartGuiTask(void const* argument)
         /* render trigger TODO: have a way to not do it if other tasks want us to wait*/
         if (render_needed) {
             if (xSemaphoreTake(gui_semaphore, 0) == pdTRUE) {
+                render_needed = 0;
                 pre_render_cb();
                 app_render();
-                render_needed = 0;
                 ESP_LOGI(TAG, "Refresh.");
                 //vTaskPrioritySet(NULL, 1);
                 display_commit_fb(eink);

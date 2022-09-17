@@ -23,8 +23,9 @@ typedef enum
 {
 	APP_MODE_NONE,
 	APP_START_SCREEN,
-	APP_MODE_DOWNLOAD,
+	APP_START_SCREEN_TRANSITION,
 	APP_MODE_GPS,
+	APP_MODE_DOWNLOAD,
 } app_mode_t;
 
 static label_t *clock_label;
@@ -64,6 +65,7 @@ void app_screen(const display_t *dsp);
 void gui_set_app_mode(app_mode_t mode);
 
 void start_screen_create(const display_t *display);
+void start_screen_free();
 void map_screen_create(const display_t *display);
 
 error_code_t load_map_tile_on_demand(const display_t *dsp, void *image);
