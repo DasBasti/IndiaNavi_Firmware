@@ -22,6 +22,7 @@ typedef struct
 typedef enum
 {
 	APP_MODE_NONE,
+	APP_START_SCREEN,
 	APP_MODE_DOWNLOAD,
 	APP_MODE_GPS,
 } app_mode_t;

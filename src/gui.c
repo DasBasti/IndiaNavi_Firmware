@@ -205,6 +205,9 @@ void app_screen(const display_t* dsp)
     create_top_bar(dsp);
     
     switch (_app_mode) {
+    case APP_START_SCREEN:
+        start_screen_create(dsp);
+        break;
     case APP_MODE_DOWNLOAD:
         maploader_screen_element(dsp);
         break;
