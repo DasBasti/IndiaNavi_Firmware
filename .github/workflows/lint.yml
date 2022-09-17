@@ -1,0 +1,35 @@
+name: Build device binaries using platform.io
+
+on:
+  workflow_call:
+
+jobs:
+  checking_run:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v2.2.1
+
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-platformio
+    
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+    - name: Install pio and its dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+    
+    - name: c-linter
+      uses: tonybaloney/cppcheck-action@master
+      level: warning
