@@ -24,7 +24,7 @@ static map_tile_t* tile_create(int16_t left, int16_t top, uint16_t tile_size)
 {
     map_tile_t* tile = RTOS_Malloc(sizeof(map_tile_t));
     tile->image = image_create(0, left, top, tile_size, tile_size);
-    tile->label = label_create("", 0, left, top, tile_size, tile_size);
+    tile->label = label_create("no tile loaded", 0, left, top, tile_size, tile_size);
     return tile;
 }
 
@@ -140,12 +140,11 @@ void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const
 error_code_t map_tile_render(const display_t* dsp, void* component)
 {
     map_tile_t* tile = (map_tile_t*)component;
-    if (tile->image) {
-        image_render(dsp, tile->image);
-    } else {
-        label_render(dsp, tile->label);
+    if (tile->image && image_render(dsp, tile->image)) {
+        return PM_OK;
     }
-    return PM_OK;
+
+    return label_render(dsp, tile->label);
 }
 
 error_code_t map_render(const display_t* dsp, void* component)
