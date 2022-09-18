@@ -125,7 +125,7 @@ void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(cons
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onBeforeRender = cb;
-        map->tiles[i]->label->onBeforeRender = cb;
+        //map->tiles[i]->label->onBeforeRender = cb;
     }
 }
 
@@ -133,7 +133,7 @@ void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onAfterRender = cb;
-        map->tiles[i]->label->onAfterRender = cb;
+        //map->tiles[i]->label->onAfterRender = cb;
     }
 }
 
