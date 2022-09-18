@@ -28,17 +28,16 @@ uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
 static uint8_t tile_zoom = 16;
 
-static map_position_t map_position = {};
-
-error_code_t updateInfoText(const display_t* dsp, void* comp)
+/**
+ * render cb for InfoText label
+ */
+static error_code_t updateInfoText(const display_t* dsp, void* comp)
 {
-    /*sprintf(infoBox->text, "%d/%d/%d Sat:%d", tile_zoom, x, y,
-	 gga_frame.satellites_tracked);
-	 */
-    if (map_position.fix != GPS_FIX_INVALID) {
+	return PM_OK;
+    if (map_position->fix != GPS_FIX_INVALID) {
         xSemaphoreTake(print_semaphore, portMAX_DELAY);
         sprintf(infoBox->text, "GPS: %fN %fE %.02fm (HDOP:%f)",
-            map_position.longitude, map_position.longitude, map_position.altitude, map_position.hdop);
+            map_position->longitude, map_position->longitude, map_position->altitude, map_position->hdop);
         xSemaphoreGive(print_semaphore);
     } else {
         xSemaphoreTake(print_semaphore, portMAX_DELAY);
@@ -48,14 +47,14 @@ error_code_t updateInfoText(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
-void pre_render_cb()
+static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 {
-    // Only render wb if we are fixed
-    if (map_position.fix == GPS_FIX_INVALID)
-        return;
+    // Only modify map if we are GPS fixed
+    if (!map_position || map_position->fix == GPS_FIX_INVALID)
+        return NOT_NEEDED;
 
-    //map_update_zoom_level(map, 16);
-    //map_update_position(map, map_position);
+    map_update_zoom_level(map, 16);
+    map_update_position(map, map_position);
 
     //TODO: move to map component
     /*char *waypoint_file = RTOS_Malloc(32768);
@@ -156,14 +155,15 @@ void pre_render_cb()
 	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
 	ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
 	*/
+    return PM_OK;
 }
 
 error_code_t render_position_marker(const display_t* dsp, void* comp)
 {
     label_t* label = (label_t*)comp;
-    uint8_t hdop = floor(map_position.hdop / 2);
+    uint8_t hdop = floor(map_position->hdop / 2);
     hdop += 8;
-    if (map_position.fix != GPS_FIX_INVALID) {
+    if (map_position->fix != GPS_FIX_INVALID) {
         label->box.left = map->pos_x - label->box.width / 2;
         label->box.top = map->pos_y - label->box.height / 2;
         display_circle_fill(dsp, map->pos_x, map->pos_y, 6, BLUE);
@@ -174,14 +174,12 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
     return ABORT;
 }
 
-map_position_t* map_get_position()
-{
-    return &map_position;
-}
-
 void map_screen_create(const display_t* display)
 {
     dsp = display;
+    /* register pre_render callback */
+    add_pre_render_callback(map_pre_render_cb);
+
     map = map_create(0, 42, 2, 2, 256);
     add_to_render_pipeline(map_render, map, RL_MAP);
 

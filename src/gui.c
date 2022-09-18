@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_NONE;
+app_mode_t _app_mode = APP_MODE_GPS;
 
 /**
  * Add render function to pipeline
@@ -70,15 +70,16 @@ render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, vo
     return rd;
 }
 
-void free_render_pipeline(enum RenderLayer layer)
+/** 
+ * Add a prerender callback to pipeline
+ * 
+ * This is called before all other renderers are called.
+ * 
+ * @return render slot
+ */
+render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void* component))
 {
-    render_t* r = render_pipeline[layer];
-    while (r) {
-        render_t* rn;
-        rn = r;
-        r = r->next;
-        RTOS_Free(rn);
-    }
+    return add_to_render_pipeline(cb, NULL, RL_PRE_RENDER);
 }
 
 static label_t* create_icon_with_text(const display_t* dsp, const uint8_t* icon_data,
@@ -194,7 +195,7 @@ void gui_set_app_mode(app_mode_t mode)
     if (mode == _app_mode)
         return;
     _app_mode = mode;
-    render_needed = true;
+    render_needed = 1;
 }
 
 /**
@@ -202,25 +203,21 @@ void gui_set_app_mode(app_mode_t mode)
  */
 void app_screen(const display_t* dsp)
 {
-    create_top_bar(dsp);
-    
     switch (_app_mode) {
     case APP_START_SCREEN:
         start_screen_create(dsp);
-        trigger_rendering();
         gui_set_app_mode(APP_START_SCREEN_TRANSITION);
         break;
     case APP_START_SCREEN_TRANSITION:
+        /* free start screen and fall throught to map screen */
         start_screen_free();
         gui_set_app_mode(APP_MODE_GPS);
         __attribute__ ((fallthrough));
     case APP_MODE_GPS:
         map_screen_create(dsp);
-        break;
     default:
         break;
     }
-
 }
 
 void trigger_rendering()
@@ -276,25 +273,23 @@ void StartGuiTask(void const* argument)
     ESP_LOGI(TAG, "Screen clear done");
 #endif
 
-    app_screen(eink);
+    //TODO: check if we want that here
+    create_top_bar(eink);
     ESP_LOGI(TAG, "App screen init done");
 
-    /*	command_t cmd;
-	cmd.command = "redraw";
-	cmd.function_cb = render_cmd_cb;
-	command_register(&cmd);
-	ESP_LOGI(TAG, "command %s registered", cmd.command);
-*/
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS); // ???
     ESP_LOGI(TAG, "Loop ready.");
+    trigger_rendering();
 
     for (;;) {
-        /* render trigger TODO: have a way to not do it if other tasks want us to wait*/
         if (render_needed) {
             if (xSemaphoreTake(gui_semaphore, 0) == pdTRUE) {
-                render_needed = 0;
-                pre_render_cb();
-                app_render();
+                while (render_needed) {
+                    // reset render count. if a renderer triggers a rerender we will directly rerender
+                    render_needed = 0;
+                    app_screen(eink);
+                    app_render();
+                }
                 ESP_LOGI(TAG, "Refresh.");
                 //vTaskPrioritySet(NULL, 1);
                 display_commit_fb(eink);
