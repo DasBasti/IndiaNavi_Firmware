@@ -252,7 +252,7 @@ void StartGuiTask(void const* argument)
 
     ESP_LOGI(TAG, "reset E-Ink Display");
     reg->disable(reg);
-    vTaskDelay(300);
+    vTaskDelay(100);
     reg->enable(reg);
     vTaskDelay(10);
     ESP_LOGI(TAG, "init E-Ink Display");
@@ -261,7 +261,7 @@ void StartGuiTask(void const* argument)
         if (!eink) {
             ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
             reg->disable(reg);
-            vTaskDelay(100);
+            vTaskDelay(300);
             reg->enable(reg);
             vTaskDelay(10);
         }
