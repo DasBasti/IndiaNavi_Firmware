@@ -212,6 +212,8 @@ void gps_stop_parser()
 void StartGpsTask(void const* argument)
 {
     uint8_t minute = 0;
+    /* make current gps position known globally */
+    map_position = &current_position;
 
     ESP_LOGI(TAG, "init gpio %d\n\r", GPS_VCC_nEN);
     /* create power regulator */
