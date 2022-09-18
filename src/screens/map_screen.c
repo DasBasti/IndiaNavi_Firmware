@@ -33,7 +33,7 @@ static uint8_t tile_zoom = 16;
  */
 static error_code_t updateInfoText(const display_t* dsp, void* comp)
 {
-	return PM_OK;
+    return PM_OK;
     if (map_position->fix != GPS_FIX_INVALID) {
         xSemaphoreTake(print_semaphore, portMAX_DELAY);
         sprintf(infoBox->text, "GPS: %fN %fE %.02fm (HDOP:%f)",
@@ -172,6 +172,23 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
         return PM_OK;
     }
     return ABORT;
+}
+
+error_code_t updateSatsInView(const display_t* dsp, void* comp)
+{
+    xSemaphoreTake(print_semaphore, portMAX_DELAY);
+    sprintf(gps_indicator_label->text, "%d", map_position->satellites_in_view);
+    xSemaphoreGive(print_semaphore);
+    /* FIXME: this here
+    if (gps_indicator_label) {
+        image_t* icon = gps_indicator_label->child;
+        if (current_position.fix != GPS_FIX_INVALID)
+            icon->data = GPS_lock;
+        else
+            icon->data = GPS;
+    }
+	*/
+    return PM_OK;
 }
 
 void map_screen_create(const display_t* display)

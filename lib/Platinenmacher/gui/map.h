@@ -31,6 +31,8 @@ typedef struct {
     float hdop;
     uint8_t zoom_level;
     uint8_t fix;
+    uint8_t satellites_in_view;
+    uint8_t satellites_in_use;
 } map_position_t;
 
 typedef struct
