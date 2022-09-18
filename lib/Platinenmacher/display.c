@@ -340,6 +340,9 @@ inline error_code_t display_draw_raw(const display_t* dsp, uint8_t* img,
 error_code_t display_text_draw(const display_t* dsp, font_t* font, uint16_t x,
     uint16_t y, const char* text, uint8_t color)
 {
+    if (NULL == font)
+        return PM_FAIL;
+        
     uint32_t i = 0;
     while (text[i]) { // for every character in char array until \0 is encountered
         uint32_t pos = (text[i] - font->asciiOffset) * font->height * font->width / 8;
