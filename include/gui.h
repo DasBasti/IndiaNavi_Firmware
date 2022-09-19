@@ -23,8 +23,9 @@ typedef enum {
     APP_MODE_NONE,
     APP_START_SCREEN,
     APP_START_SCREEN_TRANSITION,
-    APP_MODE_GPS,
+    APP_MODE_GPS_CREATE,
     APP_MODE_DOWNLOAD,
+    APP_MODE_RUNNING,
 } app_mode_t;
 
 static label_t* clock_label;
@@ -62,6 +63,7 @@ enum RenderLayer {
 
 void trigger_rendering();
 void free_render_pipeline(enum RenderLayer layer);
+void free_all_render_pipelines();
 void wait_until_gui_ready();
 render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, void* component),
     void* comp,

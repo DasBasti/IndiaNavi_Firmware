@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_GPS;
+app_mode_t _app_mode = APP_MODE_GPS_CREATE;
 
 /**
  * Add render function to pipeline
@@ -226,12 +226,15 @@ void app_screen(const display_t* dsp)
         gui_set_app_mode(APP_START_SCREEN_TRANSITION);
         break;
     case APP_START_SCREEN_TRANSITION:
-        /* free start screen and fall throught to map screen */
+        /* free start screen and fall throught to map screen generation*/
         start_screen_free();
+        gui_set_app_mode(APP_MODE_GPS_CREATE);
+        __attribute__ ((fallthrough));
+    case APP_MODE_GPS_CREATE:
         map_screen_create(dsp);
-        gui_set_app_mode(APP_MODE_GPS);
+        gui_set_app_mode(APP_MODE_RUNNING);
         break;
-    case APP_MODE_GPS:
+    case APP_MODE_RUNNING:
     default:
         break;
     }
