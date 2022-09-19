@@ -34,6 +34,7 @@ void start_screen_create(const display_t *display)
 
 void start_screen_free()
 {
+    free_all_render_pipelines();
     RTOS_Free(infoText);
     RTOS_Free(infoBox);
 }

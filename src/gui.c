@@ -70,6 +70,23 @@ render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, vo
     return rd;
 }
 
+void free_render_pipeline(enum RenderLayer layer)
+{
+    render_t* r = render_pipeline[layer];
+    while (r) {
+        render_t* rn;
+        rn = r;
+        r = r->next;
+        RTOS_Free(rn);
+    }
+}
+
+void free_all_render_pipelines()
+{
+    for (uint8_t i = 0; i < RL_MAX; i++)
+        free_render_pipeline(i);
+}
+
 /** 
  * Add a prerender callback to pipeline
  * 
