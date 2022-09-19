@@ -211,10 +211,10 @@ void app_screen(const display_t* dsp)
     case APP_START_SCREEN_TRANSITION:
         /* free start screen and fall throught to map screen */
         start_screen_free();
-        gui_set_app_mode(APP_MODE_GPS);
-        __attribute__ ((fallthrough));
-    case APP_MODE_GPS:
         map_screen_create(dsp);
+        gui_set_app_mode(APP_MODE_GPS);
+        break;
+    case APP_MODE_GPS:
     default:
         break;
     }
