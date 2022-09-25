@@ -52,6 +52,60 @@
 .pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
   '.', COMPILER_VERSION_MINOR,
 ^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
+
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
+
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  '.', COMPILER_VERSION_MINOR,
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+   '.', COMPILER_VERSION_PATCH,
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  '.', COMPILER_VERSION_MINOR,
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
+
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
+
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  '.', COMPILER_VERSION_MINOR,
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+   '.', COMPILER_VERSION_PATCH,
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  COMPILER_VERSION_MAJOR,
+^
+.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
+  '.', COMPILER_VERSION_MINOR,
+^
 .pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
 
 ^
