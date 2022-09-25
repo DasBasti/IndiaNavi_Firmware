@@ -633,7 +633,7 @@ static void nmea_parser_task_entry(void* arg)
             }
         }
         /* Drive the event loop */
-        esp_event_loop_run(esp_gps->event_loop_hdl, pdMS_TO_TICKS(50));
+        esp_event_loop_run(esp_gps->event_loop_hdl, pdMS_TO_TICKS(5));
     }
     vTaskDelete(NULL);
 }
