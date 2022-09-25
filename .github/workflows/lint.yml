@@ -32,7 +32,7 @@ jobs:
     
     - name: run pio check
       run: |
-        pio check
+        pio check -e esp32dev_debug -e esp32dev_release
 
     - name: cppcheck
       uses: deep5050/cppcheck-action@main
