@@ -169,78 +169,78 @@ display_t *display_init(uint16_t width, uint16_t height, uint8_t bbp,
 lib/Platinenmacher/display.c:16:66: note: Function 'display_init' argument 3 names different: declaration 'bbp' definition 'bpp'.
 display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
                                                                  ^
-lib/Platinenmacher/display.c:213:65: style:inconclusive: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
-error_code_t display_circle_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                ^
-lib/Platinenmacher/display.h:62:65: note: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_fill(const display_t *dsp, uint16_t x, uint16_t y,
-                                                                ^
-lib/Platinenmacher/display.c:213:65: note: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                ^
-lib/Platinenmacher/display.c:213:78: style:inconclusive: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
-error_code_t display_circle_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                             ^
-lib/Platinenmacher/display.h:62:77: note: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_fill(const display_t *dsp, uint16_t x, uint16_t y,
-                                                                            ^
-lib/Platinenmacher/display.c:213:78: note: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                             ^
-lib/Platinenmacher/display.c:232:65: style:inconclusive: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
-error_code_t display_circle_draw(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                ^
-lib/Platinenmacher/display.h:56:65: note: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_draw(const display_t *dsp, uint16_t x, uint16_t y,
-                                                                ^
-lib/Platinenmacher/display.c:232:65: note: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_draw(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                ^
-lib/Platinenmacher/display.c:232:78: style:inconclusive: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
-error_code_t display_circle_draw(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                             ^
-lib/Platinenmacher/display.h:56:77: note: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_draw(const display_t *dsp, uint16_t x, uint16_t y,
-                                                                            ^
-lib/Platinenmacher/display.c:232:78: note: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_draw(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                                             ^
-lib/Platinenmacher/display.c:288:63: style:inconclusive: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
-error_code_t display_rect_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                              ^
-lib/Platinenmacher/display.h:60:63: note: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_rect_fill(const display_t *dsp, uint16_t x, uint16_t y,
-                                                              ^
-lib/Platinenmacher/display.c:288:63: note: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_rect_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
-                                                              ^
-lib/Platinenmacher/display.c:288:76: style:inconclusive: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
-error_code_t display_rect_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
+lib/Platinenmacher/display.c:213:64: style:inconclusive: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
+error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
+                                                               ^
+lib/Platinenmacher/display.h:62:64: note: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'.
+error_code_t display_circle_fill(const display_t *dsp, int16_t x, int16_t y,
+                                                               ^
+lib/Platinenmacher/display.c:213:64: note: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'.
+error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
+                                                               ^
+lib/Platinenmacher/display.c:213:76: style:inconclusive: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
+error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
                                                                            ^
-lib/Platinenmacher/display.h:60:75: note: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_rect_fill(const display_t *dsp, uint16_t x, uint16_t y,
+lib/Platinenmacher/display.h:62:75: note: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'.
+error_code_t display_circle_fill(const display_t *dsp, int16_t x, int16_t y,
                                                                           ^
-lib/Platinenmacher/display.c:288:76: note: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_rect_fill(const display_t* dsp, uint16_t x0, uint16_t y0,
+lib/Platinenmacher/display.c:213:76: note: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'.
+error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
                                                                            ^
-lib/Platinenmacher/display.c:340:77: style:inconclusive: Function 'display_text_draw' argument 3 names different: declaration 'x0' definition 'x'. [funcArgNamesDifferent]
-error_code_t display_text_draw(const display_t* dsp, font_t* font, uint16_t x,
-                                                                            ^
-lib/Platinenmacher/display.h:65:77: note: Function 'display_text_draw' argument 3 names different: declaration 'x0' definition 'x'.
-error_code_t display_text_draw(const display_t *dsp, font_t *font, uint16_t x0,
-                                                                            ^
-lib/Platinenmacher/display.c:340:77: note: Function 'display_text_draw' argument 3 names different: declaration 'x0' definition 'x'.
-error_code_t display_text_draw(const display_t* dsp, font_t* font, uint16_t x,
-                                                                            ^
-lib/Platinenmacher/display.c:341:14: style:inconclusive: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'. [funcArgNamesDifferent]
-    uint16_t y, const char* text, uint8_t color)
-             ^
-lib/Platinenmacher/display.h:66:20: note: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'.
-          uint16_t y0, const char *text, uint8_t color);
-                   ^
-lib/Platinenmacher/display.c:341:14: note: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'.
-    uint16_t y, const char* text, uint8_t color)
-             ^
+lib/Platinenmacher/display.c:232:64: style:inconclusive: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
+error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
+                                                               ^
+lib/Platinenmacher/display.h:56:64: note: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'.
+error_code_t display_circle_draw(const display_t *dsp, int16_t x, int16_t y,
+                                                               ^
+lib/Platinenmacher/display.c:232:64: note: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'.
+error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
+                                                               ^
+lib/Platinenmacher/display.c:232:76: style:inconclusive: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
+error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
+                                                                           ^
+lib/Platinenmacher/display.h:56:75: note: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'.
+error_code_t display_circle_draw(const display_t *dsp, int16_t x, int16_t y,
+                                                                          ^
+lib/Platinenmacher/display.c:232:76: note: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'.
+error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
+                                                                           ^
+lib/Platinenmacher/display.c:288:62: style:inconclusive: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
+error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
+                                                             ^
+lib/Platinenmacher/display.h:60:62: note: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'.
+error_code_t display_rect_fill(const display_t *dsp, int16_t x, int16_t y,
+                                                             ^
+lib/Platinenmacher/display.c:288:62: note: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'.
+error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
+                                                             ^
+lib/Platinenmacher/display.c:288:74: style:inconclusive: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
+error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
+                                                                         ^
+lib/Platinenmacher/display.h:60:73: note: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'.
+error_code_t display_rect_fill(const display_t *dsp, int16_t x, int16_t y,
+                                                                        ^
+lib/Platinenmacher/display.c:288:74: note: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'.
+error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
+                                                                         ^
+lib/Platinenmacher/display.c:340:76: style:inconclusive: Function 'display_text_draw' argument 3 names different: declaration 'x0' definition 'x'. [funcArgNamesDifferent]
+error_code_t display_text_draw(const display_t* dsp, font_t* font, int16_t x,
+                                                                           ^
+lib/Platinenmacher/display.h:65:76: note: Function 'display_text_draw' argument 3 names different: declaration 'x0' definition 'x'.
+error_code_t display_text_draw(const display_t *dsp, font_t *font, int16_t x0,
+                                                                           ^
+lib/Platinenmacher/display.c:340:76: note: Function 'display_text_draw' argument 3 names different: declaration 'x0' definition 'x'.
+error_code_t display_text_draw(const display_t* dsp, font_t* font, int16_t x,
+                                                                           ^
+lib/Platinenmacher/display.c:341:13: style:inconclusive: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'. [funcArgNamesDifferent]
+    int16_t y, const char* text, uint8_t color)
+            ^
+lib/Platinenmacher/display.h:66:19: note: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'.
+          int16_t y0, const char *text, uint8_t color);
+                  ^
+lib/Platinenmacher/display.c:341:13: note: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'.
+    int16_t y, const char* text, uint8_t color)
+            ^
 lib/Platinenmacher/gui/label.c:40:55: style:inconclusive: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'. [funcArgNamesDifferent]
 error_code_t label_render(const display_t *dsp, void *component)
                                                       ^
@@ -394,7 +394,7 @@ lib/lsm303/lsm303.c:128:0: style: The function 'lsm303_acc_register_write_byte' 
 lib/helper/printfb.c:4:0: style: The function 'printf_fb' is never used. [unusedFunction]
 
 ^
-src/gui.c:272:0: style: The function 'render_cmd_cb' is never used. [unusedFunction]
+src/gui.c:273:0: style: The function 'render_cmd_cb' is never used. [unusedFunction]
 
 ^
 src/gps.c:198:0: style: The function 'render_waypoint_marker' is never used. [unusedFunction]
