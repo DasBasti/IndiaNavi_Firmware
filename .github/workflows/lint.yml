@@ -49,6 +49,7 @@ jobs:
         platform: unspecified
         std: c11
         output_file: ./cppcheck_report
+        exclude_check: build
         other_options: 
 
     - name: Extract branch name
