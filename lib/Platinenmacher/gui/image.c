@@ -27,7 +27,7 @@ image_t *image_create(const uint8_t *data, int16_t left, int16_t top,
 /**
  * Draws the image to the display if data is not NULL
  */
-error_code_t image_render(const display_t *dsp, void *component)
+error_code_t image_render(display_t *dsp, void *component)
 {
 	image_t *image = (image_t *)component;
 	if (image->onBeforeRender)

@@ -14,14 +14,14 @@ font_t f8x8, f8x16;
 uint8_t image_data[] = {0,0,1,1};
 display_t *dsp;
 
-error_code_t write_pixel(struct display *dsp, uint16_t x, uint16_t y,
+error_code_t write_pixel(struct display *dsp, int16_t x, int16_t y,
                          uint8_t color)
 {
     dsp->fb[((y * DISPLAY_WIDTH) + x)] = color;
     return PM_OK;
 }
 
-uint8_t decompress(rect_t *size, uint16_t x, uint16_t y, uint8_t *data)
+uint8_t decompress(rect_t *size, int16_t x, int16_t y, uint8_t *data)
 {
 
     return data[x*size->width+y];

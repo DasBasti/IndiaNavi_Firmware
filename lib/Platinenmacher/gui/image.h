@@ -23,7 +23,7 @@ enum LoadStatus
 
 typedef struct
 {
-	const uint8_t *data;
+	uint8_t *data;
 	rect_t box;
 
 	void *child;  /// Pointer to child element.
@@ -36,6 +36,6 @@ typedef struct
 
 image_t *image_create(const uint8_t *data, int16_t left, int16_t top,
 					  uint16_t width, uint16_t height);
-error_code_t image_render(const display_t *dsp, void *image);
+error_code_t image_render(display_t *dsp, void *image);
 
 #endif /* PLATINENMACHER_DISPLAY_GUI_IMAGE_H_ */
