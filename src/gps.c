@@ -37,12 +37,12 @@ uint8_t hour;
 waypoint_t* waypoints = NULL;
 
 static map_position_t current_position = {
-	.longitude = 8.68575379,
-	.latitude = 49.7258546,
-	.fix = GPS_FIX_GPS,
+    .longitude = 8.68575379,
+    .latitude = 49.7258546,
+    .fix = GPS_FIX_GPS,
     .satellites_in_use = 3,
     .satellites_in_view = 10,
-	};
+};
 
 /**
  * @brief GPS Event Handler
@@ -111,7 +111,6 @@ void calculate_waypoints(waypoint_t* wp_t)
 /**
  * Callbacks from renderer
  */
-
 
 error_code_t render_waypoint_marker(const display_t* dsp, void* comp)
 {
@@ -223,7 +222,7 @@ void StartGpsTask(void const* argument)
             .data_bits = UART_DATA_8_BITS,
             .parity = UART_PARITY_DISABLE,
             .stop_bits = UART_STOP_BITS_1,
-            .event_queue_size = 16,
+            .event_queue_size = 64,
         }
     };
     /* init NMEA parser library */
