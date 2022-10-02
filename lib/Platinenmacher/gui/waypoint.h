@@ -23,4 +23,6 @@ struct Waypoint {
     waypoint_t *next;
 };
 
+error_code_t waypoint_render_marker(const display_t* dsp, void* comp);
+
 #endif

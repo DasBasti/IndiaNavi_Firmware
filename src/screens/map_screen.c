@@ -83,6 +83,12 @@ error_code_t updateSatsInView(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
+void add_waypoints_to_renderer(waypoint_t *wp)
+{
+	if(wp->active)
+		add_to_render_pipeline(waypoint_render_marker, wp, RL_PATH);
+}
+
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 {
     // Only modify map if we are GPS fixed
@@ -93,55 +99,13 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 	if(gps_indicator_label){
 		gps_indicator_label->onBeforeRender = updateSatsInView;
 	}
-    map_update_zoom_level(map, 16);
     map_update_position(map, map_position);
+	map_update_waypoint_path(map);
+	
+	free_render_pipeline(RL_PATH);
+	map_run_on_waypoints(add_waypoints_to_renderer);
 
     return PM_OK;
-}
-
-error_code_t render_waypoint_marker(const display_t* dsp, void* comp)
-{
-    // TODO: move to map component
-    /*
-	waypoint_t *wp = (waypoint_t *)comp;
-	if ((current_position.fix!= GPS_FIX_INVALID) && (wp->tile_x != 0) && (wp->tile_y != 0))
-	{
-		for (uint8_t i = 0; i < 2; i++)
-			for (uint8_t j = 0; j < 3; j++)
-			{
-				uint8_t idx = i * 3 + j;
-				// check if we have the tile on the screen
-				if (map_tiles[idx].x == wp->tile_x && map_tiles[idx].y == wp->tile_y)
-				{
-					uint16_t x = wp->pos_x + (i * 256);
-					uint16_t y = wp->pos_y + (j * 256);
-					if (!zoom_level_selected) // close up
-						display_circle_fill(dsp, x, y, 3, wp->color);
-					else // far
-						display_circle_fill(dsp, x, y, 2, wp->color);
-					//ESP_LOGI(TAG, "WP @ x/y %d/%d tile %d/%d", x, y, wp->tile_x, wp->tile_y);
-					if (wp->next)
-					{
-						// line to next waypoint
-						uint32_t x2 = wp->next->pos_x + (wp->next->tile_x - wp->tile_x + i) * 256;
-						uint32_t y2 = wp->next->pos_y + (wp->next->tile_y - wp->tile_y + j) * 256;
-						//ESP_LOGI(TAG, "WP Line to %d/%d tile %d/%d", x2,y2, wp->next->tile_x, wp->next->tile_y);
-						display_line_draw(dsp, x, y, x2, y2, wp->color);
-						if (!zoom_level_selected)
-						{
-							display_line_draw(dsp, x + 1, y, x2 + 1, y2, wp->color);
-							display_line_draw(dsp, x - 1, y, x2 - 1, y2, wp->color);
-						}
-						uint16_t vec_len = length(x, y, x2, y2);
-						display_line_draw(dsp, x, y, x + (x / vec_len * 5), y + (y / vec_len * 5), BLACK);
-					}
-					display_pixel_draw(dsp, x, y, WHITE);
-				}
-			}
-		return PM_OK;
-	}
-	*/
-    return ABORT;
 }
 
 void load_waypoint_file()
