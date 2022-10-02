@@ -60,6 +60,8 @@ error_code_t map_update_position(map_t* map, map_position_t* pos);
 error_code_t map_update_tiles(map_t* map);
 error_code_t map_calculate_waypoint(map_t *map, waypoint_t* wp_t);
 error_code_t map_add_waypoint(waypoint_t* wp);
+error_code_t map_free_waypoints();
+error_code_t map_update_waypoint_path(map_t *map);
 
 error_code_t map_render(const display_t* dsp, void* component);
 error_code_t map_tile_render(const display_t* dsp, void* component);

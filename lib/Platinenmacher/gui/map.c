@@ -208,3 +208,18 @@ error_code_t map_free_waypoints()
 	}
     return PM_OK;
 }
+
+error_code_t map_update_waypoint_path(map_t *map)
+{
+    waypoint_t *wp_ = waypoints;
+	while (wp_)
+	{
+        wp_->active = 0;
+        for(uint32_t i = 0; i < map->tile_count; i++)
+        {
+            if(wp_->pos_x == map->tiles[i]->x && wp_->pos_y == map->tiles[i]->y)
+              wp_->active = 1;
+        }
+	}
+    return PM_OK;
+}

@@ -16,6 +16,7 @@ struct Waypoint {
     uint16_t pos_x;
     uint16_t pos_y;
     uint16_t num;
+    uint8_t active;
     error_code_t (*onBeforeRender)(const display_t *dsp, void *label);
 	error_code_t (*onAfterRender)(const display_t *dsp, void *label);
 
