@@ -6,11 +6,15 @@
  * SPDX-License-Identifier: MIT
  */
 #include "map.h"
+#include "waypoint.h"
 #include <math.h>
 
 static uint8_t right_side = 0;
-static font_t *map_font;
+static font_t* map_font;
 static const char* not_loaded_string = "no tile loaded";
+
+static waypoint_t* waypoints = NULL;
+static waypoint_t* prev_wp = NULL;
 
 static float flon2tile(float lon, uint8_t zoom)
 {
@@ -160,5 +164,47 @@ error_code_t map_render(const display_t* dsp, void* component)
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map_tile_render(dsp, map->tiles[i]);
     }
+    return PM_OK;
+}
+
+error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
+{
+    float _xf, _yf;
+    _xf = flon2tile(wp_t->lon, map->tile_zoom);
+    wp_t->tile_x = floor(_xf);
+    _yf = flat2tile(wp_t->lat, map->tile_zoom);
+    wp_t->tile_y = floor(_yf);
+    wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
+    wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
+    return PM_OK;
+}
+
+/**
+ * Add a waypoint to the list of waypoints
+ * 
+ * return number of waypoints
+ */
+uint32_t map_add_waypoint(waypoint_t* wp)
+{
+    if (prev_wp) {
+        wp->num = prev_wp->num + 1;
+        prev_wp->next = wp;
+    } else {
+        waypoints = wp;
+    }
+    prev_wp = wp;
+    return prev_wp->num;
+}
+
+error_code_t map_free_waypoints()
+{
+    waypoint_t *wp_ = waypoints;
+	while (wp_)
+	{
+		waypoint_t *nwp;
+		nwp = wp_;
+		wp_ = wp_->next;
+		free(nwp);
+	}
     return PM_OK;
 }
