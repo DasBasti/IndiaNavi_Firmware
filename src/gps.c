@@ -35,8 +35,6 @@ char timezone_file[100];
 uint8_t hour;
 waypoint_t* waypoints = NULL;
 
-#define NO_GPS
-
 static map_position_t current_position = {
 #ifdef NO_GPS
     .longitude = 8.68575379,
