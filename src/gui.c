@@ -163,6 +163,7 @@ static void create_top_bar(const display_t* dsp)
     char* GPSView = RTOS_Malloc(5);
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
         dsp->size.width - ICON_SIZE - (2 * margin_right) - 8, margin_top, GPSView, &f8x8);
+    
     sd_indicator_label = create_icon_with_text(dsp, noSD,
         gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
         &f8x8);
