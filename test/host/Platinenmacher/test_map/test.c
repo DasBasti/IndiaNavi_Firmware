@@ -9,7 +9,7 @@ map_t* map;
 
 void setUp()
 {
-    map = map_create(0, 0, 2, 3, 256);
+    map = map_create(0, 0, 2, 3, 256, 0);
 }
 
 void test_create_map()
@@ -19,13 +19,13 @@ void test_create_map()
     TEST_ASSERT_EQUAL_UINT16(512, map->box.width);
     TEST_ASSERT_EQUAL_UINT16(768, map->box.height);
     TEST_ASSERT_NOT_NULL(map->tiles);
-    map_t* empty_map = map_create(0, 0, 0, 0, 256);
+    map_t* empty_map = map_create(0, 0, 0, 0, 256, 0);
     TEST_ASSERT_NULL(empty_map);
 }
 
 void test_create_map_at_negative_position()
 {
-    map_t* _map = map_create(-10, -10, 2, 2, 256);
+    map_t* _map = map_create(-10, -10, 2, 2, 256, 0);
     TEST_ASSERT_EQUAL_INT16(-10, _map->box.top);
     TEST_ASSERT_EQUAL_INT16(-10, _map->box.left);
     TEST_ASSERT_EQUAL_INT16(512, _map->box.width);
