@@ -61,7 +61,7 @@ error_code_t statusRender(const display_t *dsp, void *comp)
 	else
 		icon->data = noSD; // show SD card symbol
 
-	return OK;
+	return PM_OK;
 }
 
 /* 
@@ -294,10 +294,13 @@ void StartSDTask(void const *argument)
 					xSemaphoreGive(sd_semaphore);
 				}
 
+				/* 
+				FIXME: This causes a refresh loop.
 				if (cnt)
 				{ // we loaded at least one tile. so rerender the GUI
-					trigger_rendering();
+				  	trigger_rendering();
 				}
+				*/
 			}
 		}
 		else
