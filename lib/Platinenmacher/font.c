@@ -49,7 +49,10 @@ uint32_t font_strlen(const char *c) {
  * @return number of pixels
  */
 uint32_t font_text_pixel_width(font_t *font, const char *text) {
-	return font->width * font_strlen(text);
+	if(font)
+		return font->width * font_strlen(text);
+	
+	return 0;
 }
 
 /**
@@ -60,5 +63,8 @@ uint32_t font_text_pixel_width(font_t *font, const char *text) {
  * @return number of pixels
  */
 uint32_t font_text_pixel_height(font_t *font, const char *text) {
-	return font->height;
+	if(font)
+		return font->height;
+
+	return 0;
 }
