@@ -9,6 +9,8 @@
 #include <math.h>
 
 static uint8_t right_side = 0;
+static font_t *map_font;
+static const char* not_loaded_string = "no tile loaded";
 
 static float flon2tile(float lon, uint8_t zoom)
 {
@@ -24,11 +26,16 @@ static map_tile_t* tile_create(int16_t left, int16_t top, uint16_t tile_size)
 {
     map_tile_t* tile = RTOS_Malloc(sizeof(map_tile_t));
     tile->image = image_create(0, left, top, tile_size, tile_size);
-    tile->label = label_create("no tile loaded", 0, left, top, tile_size, tile_size);
+    tile->label = label_create(not_loaded_string, map_font, left, top, tile_size, tile_size);
+    tile->image->parent = tile;
+    tile->image->child = tile->label;
+    tile->label->child = tile->image;
+    tile->label->alignHorizontal = CENTER;
+    tile->label->alignVertical = MIDDLE;
     return tile;
 }
 
-map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint16_t tile_size)
+map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint16_t tile_size, font_t* font)
 {
     if (width == 0 || height == 0)
         return NULL;
@@ -42,6 +49,7 @@ map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint
     map->box.width = width * tile_size;
     map->tile_count = width * height;
     map->tiles = RTOS_Malloc(sizeof(map_tile_t*) * map->tile_count);
+    map_font = font;
     for (uint32_t x = 0; x < width; x++)
         for (uint32_t y = 0; y < height; y++) {
             uint32_t idx = (x * height) + y;
@@ -125,7 +133,6 @@ void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(cons
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onBeforeRender = cb;
-        //map->tiles[i]->label->onBeforeRender = cb;
     }
 }
 
@@ -133,14 +140,13 @@ void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onAfterRender = cb;
-        //map->tiles[i]->label->onAfterRender = cb;
     }
 }
 
 error_code_t map_tile_render(const display_t* dsp, void* component)
 {
     map_tile_t* tile = (map_tile_t*)component;
-    if (tile->image && tile->image->loaded == LOADED && image_render(dsp, tile->image)) {
+    if (tile->image && image_render(dsp, tile->image) == PM_OK && tile->image->loaded == LOADED) {
         return PM_OK;
     }
 
