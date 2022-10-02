@@ -32,7 +32,7 @@ jobs:
     
     - name: run pio check
       run: |
-        pio check
+        pio check -e esp32dev_debug -e esp32dev_release
 
     - name: cppcheck
       uses: deep5050/cppcheck-action@main
@@ -49,6 +49,7 @@ jobs:
         platform: unspecified
         std: c11
         output_file: ./cppcheck_report
+        exclude_check: build
         other_options: 
 
     - name: Extract branch name

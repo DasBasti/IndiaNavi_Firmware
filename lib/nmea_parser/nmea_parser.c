@@ -13,10 +13,10 @@
 // limitations under the License.
 
 #include "nmea_parser.h"
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include <ctype.h>
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -657,7 +657,8 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t* config)
         goto err_buffer;
     }
 #if CONFIG_NMEA_STATEMENT_GSA
-    esp_gps->all_statements |= (1 << STATEMENT_GSA);
+        esp_gps->all_statements
+        |= (1 << STATEMENT_GSA);
 #endif
 #if CONFIG_NMEA_STATEMENT_GSV
     esp_gps->all_statements |= (1 << STATEMENT_GSV);
@@ -684,7 +685,7 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t* config)
         .parity = config->uart.parity,
         .stop_bits = config->uart.stop_bits,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_APB,
+        .source_clk = UART_SCLK_REF_TICK,
     };
     if (uart_driver_install(esp_gps->uart_port, CONFIG_NMEA_PARSER_RING_BUFFER_SIZE, 0,
             config->uart.event_queue_size, &esp_gps->event_queue, 0)

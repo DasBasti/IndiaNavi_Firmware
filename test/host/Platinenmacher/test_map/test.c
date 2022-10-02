@@ -57,7 +57,7 @@ void test_position_update()
     uint8_t zoom = 13;
     map_position_t pos = { .longitude = 8.68575379, .latitude = 49.7258546 };
     TEST_ASSERT_EQUAL(PM_OK, map_update_zoom_level(map, zoom));
-    TEST_ASSERT_EQUAL(PM_OK, map_update_position(map, pos));
+    TEST_ASSERT_EQUAL(PM_OK, map_update_position(map, &pos));
     for (int i = 0; i < map->tile_count; i++) {
         TEST_ASSERT_NOT_NULL(map->tiles[i]);
         TEST_ASSERT_NOT_EQUAL_UINT8(0, map->tiles[i]->x);
@@ -65,7 +65,7 @@ void test_position_update()
     zoom = 16;
     pos.longitude = 8.68585379;
     TEST_ASSERT_EQUAL_MESSAGE(PM_OK, map_update_zoom_level(map, zoom), "update zoomlevel to 16");
-    TEST_ASSERT_EQUAL_MESSAGE(PM_OK, map_update_position(map, pos), "update_position to second point");
+    TEST_ASSERT_EQUAL_MESSAGE(PM_OK, map_update_position(map, &pos), "update_position to second point");
     for (int i = 0; i < map->tile_count; i++) {
         TEST_ASSERT_NOT_NULL(map->tiles[i]);
         TEST_ASSERT_NOT_EQUAL_UINT8(0, map->tiles[i]->x);

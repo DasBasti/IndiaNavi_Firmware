@@ -50,7 +50,7 @@ error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
 		}
 		if (img->loaded == NOT_FOUND)
 		{
-			//l->text = "Not Found";
+			l->text = "Not Found";
 			goto freeImageMemory;
 		}
 		vTaskDelay(10);
@@ -70,14 +70,8 @@ freeImageMemory:
 
 error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
 {
-	// TODO: move to map component
 	image_t *img = (image_t *)image;
-	label_t *lbl = img->child;
-	if (img->loaded != LOADED)
-	{
-		label_render(dsp, lbl);
-	}
-	else
+	if (img->loaded == LOADED)
 	{
 		RTOS_Free(img->data);
 	}

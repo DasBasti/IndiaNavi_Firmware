@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_NONE;
+app_mode_t _app_mode = APP_MODE_GPS_CREATE;
 
 /**
  * Add render function to pipeline
@@ -79,6 +79,24 @@ void free_render_pipeline(enum RenderLayer layer)
         r = r->next;
         RTOS_Free(rn);
     }
+}
+
+void free_all_render_pipelines()
+{
+    for (uint8_t i = 0; i < RL_MAX; i++)
+        free_render_pipeline(i);
+}
+
+/** 
+ * Add a prerender callback to pipeline
+ * 
+ * This is called before all other renderers are called.
+ * 
+ * @return render slot
+ */
+render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void* component))
+{
+    return add_to_render_pipeline(cb, NULL, RL_PRE_RENDER);
 }
 
 static label_t* create_icon_with_text(const display_t* dsp, const uint8_t* icon_data,
@@ -145,6 +163,7 @@ static void create_top_bar(const display_t* dsp)
     char* GPSView = RTOS_Malloc(5);
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
         dsp->size.width - ICON_SIZE - (2 * margin_right) - 8, margin_top, GPSView, &f8x8);
+    
     sd_indicator_label = create_icon_with_text(dsp, noSD,
         gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
         &f8x8);
@@ -185,16 +204,6 @@ static void app_render()
     ESP_LOGI(TAG, "render time %i ms", (uint32_t)(end - start) / 1000);
 }
 
-void wait_until_gui_ready()
-{
-    while (!map) {
-        vTaskDelay(0);
-    }
-    while (!positon_marker) {
-        vTaskDelay(0);
-    }
-}
-
 /**
  * Set App mode
  */
@@ -204,7 +213,7 @@ void gui_set_app_mode(app_mode_t mode)
     if (mode == _app_mode)
         return;
     _app_mode = mode;
-    render_needed = true;
+    render_needed = 1;
 }
 
 /**
@@ -213,56 +222,23 @@ void gui_set_app_mode(app_mode_t mode)
 void app_screen(const display_t* dsp)
 {
     switch (_app_mode) {
-    case APP_MODE_DOWNLOAD:
-        maploader_screen_element(dsp);
+    case APP_START_SCREEN:
+        start_screen_create(dsp);
+        gui_set_app_mode(APP_START_SCREEN_TRANSITION);
         break;
-    case APP_MODE_GPS:
+    case APP_START_SCREEN_TRANSITION:
+        /* free start screen and fall throught to map screen generation*/
+        start_screen_free();
+        gui_set_app_mode(APP_MODE_GPS_CREATE);
+        __attribute__ ((fallthrough));
+    case APP_MODE_GPS_CREATE:
+        map_screen_create(dsp);
+        gui_set_app_mode(APP_MODE_RUNNING);
+        break;
+    case APP_MODE_RUNNING:
     default:
-        /* center map component vertically */
-        map = map_create((dsp->size.width-512)/2, 42, 2, 2, 256);
-        add_to_render_pipeline(map_render, map, RL_MAP);
-
-        /* position marker */
-        positon_marker = label_create("", &f8x16, 0, 0, 24, 24);
-        positon_marker->textColor = BLUE;
-        positon_marker->alignHorizontal = CENTER;
-        positon_marker->alignVertical = MIDDLE;
-        add_to_render_pipeline(label_render, positon_marker, RL_TOP);
-
-        /* scale 63px for 100m | 96px for 500ft @ zoom 16*/
-        /* scale 77px for 500m | 94px for 2000ft @zoom 14 */
-        scaleBox = label_create("100m", &f8x8, 10, dsp->size.height - 34, 63, 13);
-        scaleBox->borderWidth = 1;
-        scaleBox->borderLines = LEFT_SOLID | RIGHT_SOLID | BOTTOM_SOLID;
-        //scaleBox->backgroundColor = WHITE;
-        scaleBox->borderColor = BLACK;
-        scaleBox->textColor = BLACK;
-        scaleBox->alignVertical = BOTTOM;
-        scaleBox->alignHorizontal = CENTER;
-        add_to_render_pipeline(label_render, scaleBox, RL_TOP);
         break;
     }
-
-    create_top_bar(dsp);
-
-    char* infoText = RTOS_Malloc(dsp->size.width / f8x8.width);
-    xSemaphoreTake(print_semaphore, portMAX_DELAY);
-
-    sprintf(infoText, GIT_HASH);
-    xSemaphoreGive(print_semaphore);
-    infoBox = label_create(infoText, &f8x8, 0, dsp->size.height - 14,
-        dsp->size.width - 1, 13);
-    infoBox->borderWidth = 1;
-    infoBox->borderLines = ALL_SOLID;
-    infoBox->alignVertical = MIDDLE;
-    infoBox->backgroundColor = WHITE;
-
-    add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
-
-    label_t* map_copyright = label_create("(c) OpenStreetMap contributors", &f8x8, 0, infoBox->box.top - 8, 0, 0);
-    label_shrink_to_text(map_copyright);
-    map_copyright->box.left = dsp->size.width - map_copyright->box.width;
-    add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 }
 
 void trigger_rendering()
@@ -294,7 +270,7 @@ void StartGuiTask(void const* argument)
 
     ESP_LOGI(TAG, "reset E-Ink Display");
     reg->disable(reg);
-    vTaskDelay(300);
+    vTaskDelay(100);
     reg->enable(reg);
     vTaskDelay(10);
     ESP_LOGI(TAG, "init E-Ink Display");
@@ -303,7 +279,7 @@ void StartGuiTask(void const* argument)
         if (!eink) {
             ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
             reg->disable(reg);
-            vTaskDelay(100);
+            vTaskDelay(300);
             reg->enable(reg);
             vTaskDelay(10);
         }
@@ -318,25 +294,23 @@ void StartGuiTask(void const* argument)
     ESP_LOGI(TAG, "Screen clear done");
 #endif
 
-    app_screen(eink);
+    //TODO: check if we want that here
+    create_top_bar(eink);
     ESP_LOGI(TAG, "App screen init done");
 
-    /*	command_t cmd;
-	cmd.command = "redraw";
-	cmd.function_cb = render_cmd_cb;
-	command_register(&cmd);
-	ESP_LOGI(TAG, "command %s registered", cmd.command);
-*/
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS); // ???
     ESP_LOGI(TAG, "Loop ready.");
+    trigger_rendering();
 
     for (;;) {
-        /* render trigger TODO: have a way to not do it if other tasks want us to wait*/
         if (render_needed) {
             if (xSemaphoreTake(gui_semaphore, 0) == pdTRUE) {
-                pre_render_cb();
-                app_render();
-                render_needed = 0;
+                while (render_needed) {
+                    // reset render count. if a renderer triggers a rerender we will directly rerender
+                    render_needed = 0;
+                    app_screen(eink);
+                    app_render();
+                }
                 ESP_LOGI(TAG, "Refresh.");
                 //vTaskPrioritySet(NULL, 1);
                 display_commit_fb(eink);
