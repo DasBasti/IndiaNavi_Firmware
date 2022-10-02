@@ -27,7 +27,6 @@
 #include <esp_log.h>
 
 static const char* TAG = "GPS";
-static uint8_t _sats_in_use = 0, _sats_in_view = 0;
 char timeString[20];
 
 nmea_parser_handle_t nmea_hdl;
@@ -36,12 +35,18 @@ char timezone_file[100];
 uint8_t hour;
 waypoint_t* waypoints = NULL;
 
+#define NO_GPS
+
 static map_position_t current_position = {
+#ifdef NO_GPS
     .longitude = 8.68575379,
     .latitude = 49.7258546,
-    .fix = GPS_FIX_GPS,
     .satellites_in_use = 3,
     .satellites_in_view = 10,
+    .fix = GPS_FIX_GPS,
+#else
+    .fix = GPS_FIX_INVALID,
+#endif
 };
 
 /**
@@ -55,6 +60,9 @@ static map_position_t current_position = {
 static void
 gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
+#ifdef NO_GPS
+    return;
+#endif
     const gps_t* _gps;
     switch (event_id) {
     case GPS_UPDATE:
