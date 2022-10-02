@@ -209,17 +209,30 @@ error_code_t map_free_waypoints()
     return PM_OK;
 }
 
+error_code_t map_run_on_waypoints(void (*function)(waypoint_t *wp))
+{
+    waypoint_t *wp_ = waypoints;
+	while (wp_)
+	{
+		function(wp_);
+		wp_ = wp_->next;
+	}
+    return PM_OK;
+}
+
 error_code_t map_update_waypoint_path(map_t *map)
 {
     waypoint_t *wp_ = waypoints;
 	while (wp_)
 	{
         wp_->active = 0;
+        map_calculate_waypoint(map, wp_);
         for(uint32_t i = 0; i < map->tile_count; i++)
         {
-            if(wp_->pos_x == map->tiles[i]->x && wp_->pos_y == map->tiles[i]->y)
+            if(wp_->tile_x == map->tiles[i]->x && wp_->tile_y == map->tiles[i]->y)
               wp_->active = 1;
         }
+        wp_ = wp_->next;
 	}
     return PM_OK;
 }
