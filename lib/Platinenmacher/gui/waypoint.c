@@ -15,14 +15,11 @@ static const char* TAG = "waypoint";
 error_code_t waypoint_render_marker(const display_t* dsp, void* comp)
 {
 	waypoint_t *wp = (waypoint_t *)comp;
-	ESP_LOGI(TAG, "WP @ tile %d/%d", wp->tile_x, wp->tile_y);
-
 	if ((wp->active == 1) && (wp->tile_x != 0) && (wp->tile_y != 0))
 	{
 		
 					uint16_t x = wp->pos_x + (1 * 256);
 					uint16_t y = wp->pos_y + (1 * 256);
-	ESP_LOGI(TAG, "WP @ x/y %d/%d tile %d/%d", x, y, wp->tile_x, wp->tile_y);
 						display_circle_fill(dsp, x, y, 2, wp->color);
 					if (wp->next)
 					{
