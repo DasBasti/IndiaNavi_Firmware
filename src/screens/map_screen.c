@@ -14,6 +14,8 @@
 #include "gui.h"
 #include "tasks.h"
 
+#include "icons_32/icons_32.h"
+
 static const display_t* dsp;
 
 static map_t* map;
@@ -26,7 +28,6 @@ static uint8_t zoom_level_selected = 0;
 uint8_t zoom_level[] = { 16, 14 };
 uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
-static uint8_t tile_zoom = 16;
 
 /**
  * render cb for InfoText label
@@ -47,12 +48,47 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
+error_code_t render_position_marker(const display_t* dsp, void* comp)
+{
+    label_t* label = (label_t*)comp;
+    uint8_t hdop = floor(map_position->hdop / 2);
+    hdop += 8;
+    if (map_position->fix != GPS_FIX_INVALID) {
+        label->box.left = map->pos_x - label->box.width / 2;
+        label->box.top = map->pos_y - label->box.height / 2;
+        display_circle_fill(dsp, map->pos_x, map->pos_y, 6, BLUE);
+        display_circle_fill(dsp, map->pos_x, map->pos_y, 2, WHITE);
+        display_circle_draw(dsp, map->pos_x, map->pos_y, hdop, BLACK);
+        return PM_OK;
+    }
+    return ABORT;
+}
+
+error_code_t updateSatsInView(const display_t* dsp, void* comp)
+{
+    xSemaphoreTake(print_semaphore, portMAX_DELAY);
+    sprintf(gps_indicator_label->text, "%d", map_position->satellites_in_view);
+    xSemaphoreGive(print_semaphore);
+    if (gps_indicator_label) {
+        image_t* icon = gps_indicator_label->child;
+        if (map_position->fix != GPS_FIX_INVALID)
+            icon->data = GPS_lock;
+        else
+            icon->data = GPS;
+    }
+    return PM_OK;
+}
+
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 {
     // Only modify map if we are GPS fixed
-    if (!map_position || map_position->fix == GPS_FIX_INVALID)
+    if (!map_position || map_position->fix == GPS_FIX_INVALID){
         return NOT_NEEDED;
+	}
 
+	if(gps_indicator_label){
+		gps_indicator_label->onBeforeRender = updateSatsInView;
+	}
     map_update_zoom_level(map, 16);
     map_update_position(map, map_position);
 
@@ -158,46 +194,13 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     return PM_OK;
 }
 
-error_code_t render_position_marker(const display_t* dsp, void* comp)
-{
-    label_t* label = (label_t*)comp;
-    uint8_t hdop = floor(map_position->hdop / 2);
-    hdop += 8;
-    if (map_position->fix != GPS_FIX_INVALID) {
-        label->box.left = map->pos_x - label->box.width / 2;
-        label->box.top = map->pos_y - label->box.height / 2;
-        display_circle_fill(dsp, map->pos_x, map->pos_y, 6, BLUE);
-        display_circle_fill(dsp, map->pos_x, map->pos_y, 2, WHITE);
-        display_circle_draw(dsp, map->pos_x, map->pos_y, hdop, BLACK);
-        return PM_OK;
-    }
-    return ABORT;
-}
-
-error_code_t updateSatsInView(const display_t* dsp, void* comp)
-{
-    xSemaphoreTake(print_semaphore, portMAX_DELAY);
-    sprintf(gps_indicator_label->text, "%d", map_position->satellites_in_view);
-    xSemaphoreGive(print_semaphore);
-    /* FIXME: this here
-    if (gps_indicator_label) {
-        image_t* icon = gps_indicator_label->child;
-        if (current_position.fix != GPS_FIX_INVALID)
-            icon->data = GPS_lock;
-        else
-            icon->data = GPS;
-    }
-	*/
-    return PM_OK;
-}
-
 void map_screen_create(const display_t* display)
 {
     dsp = display;
     /* register pre_render callback */
     add_pre_render_callback(map_pre_render_cb);
 
-    map = map_create(0, 42, 2, 2, 256);
+    map = map_create(-32, 42, 2, 2, 256, &f8x8);
     add_to_render_pipeline(map_render, map, RL_MAP);
 
     /* position marker */
