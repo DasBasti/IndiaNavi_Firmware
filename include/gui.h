@@ -28,15 +28,15 @@ typedef enum {
     APP_MODE_RUNNING,
 } app_mode_t;
 
-static label_t* clock_label;
-static label_t* battery_label;
-static label_t* north_indicator_label;
-static label_t* wifi_indicator_label;
-static label_t* gps_indicator_label;
-static label_t* sd_indicator_label;
+label_t* clock_label;
+label_t* battery_label;
+label_t* north_indicator_label;
+label_t* wifi_indicator_label;
+label_t* gps_indicator_label;
+label_t* sd_indicator_label;
 
 /* the global position object */
-volatile map_position_t* map_position;
+map_position_t* map_position;
 
 typedef struct Render render_t;
 struct Render {
