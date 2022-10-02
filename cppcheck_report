@@ -1,165 +1,3 @@
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-   '.', COMPILER_VERSION_PATCH,
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-   '.', COMPILER_VERSION_PATCH,
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_debug/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-   '.', COMPILER_VERSION_PATCH,
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-   '.', COMPILER_VERSION_PATCH,
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_jtag/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-   '.', COMPILER_VERSION_PATCH,
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 112 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdC/CMakeCCompilerId.c:570:0: information: Skipping configuration 'SDCC;__SDCC_VERSION_MAJOR;__SDCC_VERSION_MAJOR' since the value of '__SDCC_VERSION_MAJOR' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:0:0: information: Too many #ifdef configurations - cppcheck only checks 12 of 110 configurations. Use --force to check all configurations. [toomanyconfigs]
-
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_BUILD;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:559:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_FULL_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-   '.', COMPILER_VERSION_PATCH,
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:555:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  COMPILER_VERSION_MAJOR,
-^
-.pio/build/esp32dev_release/bootloader/CMakeFiles/3.16.4/CompilerIdCXX/CMakeCXXCompilerId.cpp:557:0: information: Skipping configuration '_MSC_FULL_VER;_MSC_VER' since the value of '_MSC_VER' is unknown. Use -D if you want to check it. You can use -U to skip it explicitly. [ConfigurationNotChecked]
-  '.', COMPILER_VERSION_MINOR,
-^
 lib/Platinenmacher/display.c:16:66: style:inconclusive: Function 'display_init' argument 3 names different: declaration 'bbp' definition 'bpp'. [funcArgNamesDifferent]
 display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
                                                                  ^
@@ -250,23 +88,14 @@ error_code_t label_render(const display_t *dsp, void *label);
 lib/Platinenmacher/gui/label.c:40:55: note: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'.
 error_code_t label_render(const display_t *dsp, void *component)
                                                       ^
-lib/Platinenmacher/gui/map.c:95:22: style:inconclusive: Boolean expression 'x!=x_old' is used in bitwise operation. Did you mean '||'? [bitwiseOnBoolean]
+lib/Platinenmacher/gui/map.c:103:22: style:inconclusive: Boolean expression 'x!=x_old' is used in bitwise operation. Did you mean '||'? [bitwiseOnBoolean]
     if ((x != x_old) | (y != y_old)) {
                      ^
-lib/Platinenmacher/gui/map.c:93:20: style: Variable 'pos_y' is assigned a value that is never used. [unreadVariable]
-    uint32_t pos_y = floor((yf - y) * 256); // offset from tile 0
-                   ^
-lib/Platinenmacher/gui/map.c:96:15: style: Variable 'x_old' is assigned a value that is never used. [unreadVariable]
+lib/Platinenmacher/gui/map.c:104:15: style: Variable 'x_old' is assigned a value that is never used. [unreadVariable]
         x_old = x;
               ^
-lib/Platinenmacher/gui/map.c:97:15: style: Variable 'y_old' is assigned a value that is never used. [unreadVariable]
+lib/Platinenmacher/gui/map.c:105:15: style: Variable 'y_old' is assigned a value that is never used. [unreadVariable]
         y_old = y;
-              ^
-lib/Platinenmacher/gui/map.c:114:11: style: Variable 'pos_y' is assigned a value that is never used. [unreadVariable]
-    pos_y += 256;
-          ^
-lib/Platinenmacher/gui/map.c:116:15: style: Variable 'pos_x' is assigned a value that is never used. [unreadVariable]
-        pos_x += 256;
               ^
 lib/lsm303/lsm303.c:131:26: style: Variable 'write_buf' is assigned a value that is never used. [unreadVariable]
     uint8_t write_buf[2] = {reg_addr, data};
@@ -274,9 +103,15 @@ lib/lsm303/lsm303.c:131:26: style: Variable 'write_buf' is assigned a value that
 lib/lsm303/lsm303.c:207:13: style: Unused variable: data [unusedVariable]
     uint8_t data;
             ^
-src/main.c:198:14: style: Unused variable: evt [unusedVariable]
+src/gps.c:66:5: style:inconclusive: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
+    const gps_t* _gps;
+    ^
+src/main.c:200:14: style: Unused variable: evt [unusedVariable]
     uint32_t evt;
              ^
+src/screens/map_screen.c:38:5: style: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
+    if (map_position->fix != GPS_FIX_INVALID) {
+    ^
 src/sd.c:134:7: style: Variable 'res' is reassigned a value before the old one has been used. [redundantAssignment]
   res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
       ^
@@ -358,19 +193,19 @@ lib/Platinenmacher_HAL_ESP32/display/eink/acep_5in65_7c.c:311:0: style: The func
 lib/Platinenmacher_HAL_ESP32/display/eink/acep_5in65_7c.c:350:0: style: The function 'ACEP_5IN65_Sleep' is never used. [unusedFunction]
 
 ^
-src/main.c:353:0: style: The function 'StartMapDownloaderTask' is never used. [unusedFunction]
+src/main.c:355:0: style: The function 'StartMapDownloaderTask' is never used. [unusedFunction]
 
 ^
 src/ota.c:59:0: style: The function 'StartOTATask' is never used. [unusedFunction]
 
 ^
-src/main.c:314:0: style: The function 'StartPowerTask' is never used. [unusedFunction]
+src/main.c:316:0: style: The function 'StartPowerTask' is never used. [unusedFunction]
 
 ^
 src/main.c:136:0: style: The function 'app_main' is never used. [unusedFunction]
 
 ^
-src/gps.c:115:0: style: The function 'calculate_waypoints' is never used. [unusedFunction]
+src/gps.c:102:0: style: The function 'calculate_waypoints' is never used. [unusedFunction]
 
 ^
 lib/Platinenmacher/parser/command.c:105:0: style: The function 'command_init' is never used. [unusedFunction]
@@ -382,22 +217,22 @@ lib/Platinenmacher/parser/command.c:80:0: style: The function 'command_parser' i
 lib/Platinenmacher/display.c:325:0: style: The function 'display_draw_raw' is never used. [unusedFunction]
 
 ^
-src/gui.c:73:0: style: The function 'free_render_pipeline' is never used. [unusedFunction]
-
-^
-src/gps.c:384:0: style: The function 'gps_stop_parser' is never used. [unusedFunction]
+src/gps.c:168:0: style: The function 'gps_stop_parser' is never used. [unusedFunction]
 
 ^
 lib/lsm303/lsm303.c:128:0: style: The function 'lsm303_acc_register_write_byte' is never used. [unusedFunction]
 
 ^
+src/map_loader.c:136:0: style: The function 'maploader_screen_element' is never used. [unusedFunction]
+
+^
 lib/helper/printfb.c:4:0: style: The function 'printf_fb' is never used. [unusedFunction]
 
 ^
-src/gui.c:273:0: style: The function 'render_cmd_cb' is never used. [unusedFunction]
+src/gui.c:249:0: style: The function 'render_cmd_cb' is never used. [unusedFunction]
 
 ^
-src/gps.c:198:0: style: The function 'render_waypoint_marker' is never used. [unusedFunction]
+src/gps.c:123:0: style: The function 'render_waypoint_marker' is never used. [unusedFunction]
 
 ^
 test/embedded/test_gui/test_display.c:6:0: style: The function 'setUp' is never used. [unusedFunction]
