@@ -174,14 +174,24 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
     wp_t->tile_x = floor(_xf);
     _yf = flat2tile(wp_t->lat, map->tile_zoom);
     wp_t->tile_y = floor(_yf);
-    wp_t->pos_x = floor((_xf - wp_t->tile_x) * 256); // offset from tile 0
-    wp_t->pos_y = floor((_yf - wp_t->tile_y) * 256); // offset from tile 0
+
+    for (uint32_t i = 0; i < map->tile_count; i++) {
+        if (map->tiles[i]->x == wp_t->tile_x && map->tiles[i]->y == wp_t->tile_y) {
+
+            uint16_t ty = i % map->width;
+            uint16_t tx = (i - ty) / map->height;
+
+            wp_t->pos_x = floor((_xf - wp_t->tile_x + tx) * 256); // offset from tile 0
+            wp_t->pos_y = floor((_yf - wp_t->tile_y + ty) * 256); // offset from tile 0
+        }
+    }
+
     return PM_OK;
 }
 
 /**
  * Add a waypoint to the list of waypoints
- * 
+ *
  * return number of waypoints
  */
 uint32_t map_add_waypoint(waypoint_t* wp)
@@ -198,41 +208,37 @@ uint32_t map_add_waypoint(waypoint_t* wp)
 
 error_code_t map_free_waypoints()
 {
-    waypoint_t *wp_ = waypoints;
-	while (wp_)
-	{
-		waypoint_t *nwp;
-		nwp = wp_;
-		wp_ = wp_->next;
-		free(nwp);
-	}
+    waypoint_t* wp_ = waypoints;
+    while (wp_) {
+        waypoint_t* nwp;
+        nwp = wp_;
+        wp_ = wp_->next;
+        free(nwp);
+    }
     return PM_OK;
 }
 
-error_code_t map_run_on_waypoints(void (*function)(waypoint_t *wp))
+error_code_t map_run_on_waypoints(void (*function)(waypoint_t* wp))
 {
-    waypoint_t *wp_ = waypoints;
-	while (wp_)
-	{
-		function(wp_);
-		wp_ = wp_->next;
-	}
+    waypoint_t* wp_ = waypoints;
+    while (wp_) {
+        function(wp_);
+        wp_ = wp_->next;
+    }
     return PM_OK;
 }
 
-error_code_t map_update_waypoint_path(map_t *map)
+error_code_t map_update_waypoint_path(map_t* map)
 {
-    waypoint_t *wp_ = waypoints;
-	while (wp_)
-	{
+    waypoint_t* wp_ = waypoints;
+    while (wp_) {
         wp_->active = 0;
         map_calculate_waypoint(map, wp_);
-        for(uint32_t i = 0; i < map->tile_count; i++)
-        {
-            if(wp_->tile_x == map->tiles[i]->x && wp_->tile_y == map->tiles[i]->y)
-              wp_->active = 1;
+        for (uint32_t i = 0; i < map->tile_count; i++) {
+            if (wp_->tile_x == map->tiles[i]->x && wp_->tile_y == map->tiles[i]->y)
+                wp_->active = 1;
         }
         wp_ = wp_->next;
-	}
+    }
     return PM_OK;
 }
