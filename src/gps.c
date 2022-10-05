@@ -34,12 +34,10 @@ static async_file_t AFILE;
 char timezone_file[100];
 uint8_t hour;
 
-#define NO_GPS
-
 static map_position_t current_position = {
 #ifdef NO_GPS
-    .longitude = 8.68575379,
-    .latitude = 49.7258546,
+    .longitude = 8.581875,  
+    .latitude = 49.626846,
     .satellites_in_use = 3,
     .satellites_in_view = 10,
     .fix = GPS_FIX_GPS,
