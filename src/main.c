@@ -26,7 +26,7 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
 #define taskGenericStackSize 1024 * 2
 #define taskGPSStackSize 1024 * 3
-#define taskGUIStackSize 1024 * 3
+#define taskGUIStackSize 1024 * 10
 #define taskSDStackSize 1024 * 8
 #define taskWifiStackSize 1024 * 5
 #define taskDownloaderStackSize 1024 * 8

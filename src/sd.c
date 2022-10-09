@@ -235,37 +235,7 @@ void StartSDTask(void const *argument)
 				map_tile_t *tile;
 				while (pdTRUE == xQueueReceive(mapLoadQueueHandle, &tile, 0))
 				{
-					FIL t_img;
-					uint32_t br;
-					// TODO: decompress lz4 tiles
-					save_sprintf(fn, "//MAPS/%u/%u/%u.RAW",
-								 tile->z,
-								 tile->x,
-								 tile->y);
-					ESP_LOGI(TAG, "Load %s  to %u", fn, (uint)tile->image->data);
-
-					xSemaphoreTake(sd_semaphore, portMAX_DELAY);
-					res = f_open(&t_img, fn, FA_READ);
-					if (FR_OK == res && tile->image->data != 0)
-					{
-						res = f_read(&t_img,
-									 tile->image->data, 32768,
-									 &br); // Tilesize 256*256/2 bytes
-						if (FR_OK == res)
-						{
-							tile->image->loaded = LOADED;
-						}
-						f_close(&t_img);
-					}
-					else
-					{
-						tile->image->loaded = NOT_FOUND;
-						/*save_sprintf(tile->label->text,
-									 "%d/%d not found.", tile->x,
-									 tile->y);*/
-					}
-					xSemaphoreGive(sd_semaphore);
-					cnt++;
+// Fill
 				}
 				async_file_t *file;
 				while (pdTRUE == xQueueReceive(fileLoadQueueHandle, &file, 0))

@@ -21,6 +21,7 @@ typedef struct
 
 typedef enum {
     APP_MODE_NONE,
+    APP_TEST_SCREEN,
     APP_START_SCREEN,
     APP_START_SCREEN_TRANSITION,
     APP_MODE_GPS_CREATE,
@@ -73,6 +74,7 @@ render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void*
 void gui_set_app_mode(app_mode_t mode);
 
 void start_screen_create(const display_t* display);
+void test_screen_create(const display_t* display);
 void start_screen_free();
 void map_screen_create(const display_t* display);
 

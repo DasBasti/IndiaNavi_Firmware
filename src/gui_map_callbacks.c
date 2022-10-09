@@ -6,9 +6,9 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "esp_log.h"
 #include "gui/map.h"
 #include "tasks.h"
-#include "esp_log.h"
 
 static const char* TAG = "GUI_MAP";
 
@@ -17,63 +17,81 @@ static const char* TAG = "GUI_MAP";
  *
  * We need a memory buffer since it is not enough memory available
  * to hold all 6 tiles in memory at once.
- * 
+ *
  * returns PK_OK if loaded, UNAVAILABLE if buffer or sd semaphore is not available and
  * TIMEOUT if loading timed out
  */
-error_code_t load_map_tile_on_demand(const display_t *dsp, void *image)
+error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
 {
-	// TODO: move to GUI
-	uint8_t timeout = 0;
-	uint8_t *imageBuf = RTOS_Malloc(256 * 256 / 2);
-	ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
-	if (!imageBuf)
-		return UNAVAILABLE;
+    char fn[30]; // Filename size for zoom level 16.
+    FRESULT res = FR_NOT_READY;
+    uint8_t* imageBuf = RTOS_Malloc(256 * 256 / 2);
 
-	image_t *img = (image_t *)image;
-	if (!uxSemaphoreGetCount(sd_semaphore))
-	{ // binary semaphore returns 1 on not taken
-		RTOS_Free(imageBuf);
-		return UNAVAILABLE;
-	}
+    ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
+    if (!imageBuf)
+        return UNAVAILABLE;
 
-	img->data = imageBuf;
-	loadTile(img->parent); // queue loading
+    image_t* img = (image_t*)image;
+    if (!uxSemaphoreGetCount(sd_semaphore)) { // binary semaphore returns 1 on not taken
+        RTOS_Free(imageBuf);
+        return UNAVAILABLE;
+    }
 
-	while (img->loaded != LOADED)
-	{
-		label_t *l = (label_t *)img->child;
-		if (img->loaded == ERROR)
-		{
-			l->text = "Error";
-			goto freeImageMemory;
-		}
-		if (img->loaded == NOT_FOUND)
-		{
-			l->text = "Not Found";
-			goto freeImageMemory;
-		}
-		vTaskDelay(10);
-		timeout++;
-		if (timeout == 100)
-		{
-			ESP_LOGI(TAG, "load timeout!");
-			goto freeImageMemory;
-		}
-	}
-	return PM_OK;
+    img->data = imageBuf;
+    map_tile_t* tile = img->parent; // the parent component of the image is the tile
+    FIL t_img;
+    uint32_t br;
+    // TODO: decompress lz4 tiles
+    save_sprintf(fn, "//MAPS/%u/%u/%u.RAW",
+        tile->z,
+        tile->x,
+        tile->y);
+    ESP_LOGI(TAG, "Load %s  to %u", fn, (uint)tile->image->data);
+
+    if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
+
+        res = f_open(&t_img, fn, FA_READ);
+        if (FR_OK == res && tile->image->data != 0) {
+            res = f_read(&t_img,
+                tile->image->data, 32768,
+                &br); // Tilesize 256*256/2 bytes
+            if (FR_OK == res) {
+                tile->image->loaded = LOADED;
+            }
+            f_close(&t_img);
+        } else {
+            tile->image->loaded = NOT_FOUND;
+        }
+        xSemaphoreGive(sd_semaphore);
+    } else {
+        ESP_LOGI(TAG, "load timeout!");
+        goto freeImageMemory;
+    }
+
+    if (img->loaded == LOADED)
+        return PM_OK;
+
+    label_t* l = (label_t*)img->child;
+    if (img->loaded == ERROR) {
+        l->text = "Error";
+        goto freeImageMemory;
+    }
+    if (img->loaded == NOT_FOUND) {
+        l->text = "Not Found";
+        goto freeImageMemory;
+    }
 
 freeImageMemory:
-	RTOS_Free(imageBuf);
-	return TIMEOUT;
+    RTOS_Free(imageBuf);
+    return TIMEOUT;
 }
 
-error_code_t check_if_map_tile_is_loaded(const display_t *dsp, void *image)
+error_code_t check_if_map_tile_is_loaded(const display_t* dsp, void* image)
 {
-	image_t *img = (image_t *)image;
-	if (img->loaded == LOADED)
-	{
-		RTOS_Free(img->data);
-	}
-	return PM_OK;
+    image_t* img = (image_t*)image;
+    if (img->loaded == LOADED) {
+		img->loaded = NOT_LOADED;
+        RTOS_Free(img->data);
+    }
+    return PM_OK;
 }
