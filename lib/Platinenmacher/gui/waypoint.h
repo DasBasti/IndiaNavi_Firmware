@@ -11,6 +11,7 @@ struct Waypoint {
     color_t color;
     float lat;
     float lon;
+    float ele;
     uint32_t tile_x;
     uint32_t tile_y;
     uint16_t pos_x;
