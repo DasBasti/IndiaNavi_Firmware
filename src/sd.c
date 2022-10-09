@@ -112,6 +112,19 @@ error_code_t fileExists(async_file_t* file)
     return PM_FAIL;
 }
 
+error_code_t createFileBuffer(async_file_t * file)
+{
+    xSemaphoreTake(sd_semaphore, portMAX_DELAY);
+    FILINFO fno;
+    FRESULT fres = f_stat(file->filename, &fno);
+    xSemaphoreGive(sd_semaphore);
+    if (FR_OK == fres){
+        file->dest = RTOS_Malloc(fno.fsize);
+        return PM_OK;
+    }
+    return PM_FAIL;
+}
+
 error_code_t openFileForWriting(async_file_t* file)
 {
     // try to open file
