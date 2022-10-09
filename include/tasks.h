@@ -18,8 +18,6 @@ extern SemaphoreHandle_t print_semaphore;
 extern SemaphoreHandle_t gui_semaphore;
 extern SemaphoreHandle_t sd_semaphore;
 
-extern QueueHandle_t mapLoadQueueHandle;
-extern QueueHandle_t fileLoadQueueHandle;
 extern QueueHandle_t eventQueueHandle;
 
 TaskHandle_t housekeepingTask_h;

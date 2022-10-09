@@ -25,7 +25,7 @@ static const char *TAG = "MAIN";
 extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
 #define taskGenericStackSize 1024 * 2
-#define taskGPSStackSize 1024 * 3
+#define taskGPSStackSize 1024 * 6
 #define taskGUIStackSize 1024 * 10
 #define taskSDStackSize 1024 * 8
 #define taskWifiStackSize 1024 * 5
@@ -44,8 +44,6 @@ SemaphoreHandle_t gui_semaphore = NULL;
 SemaphoreHandle_t sd_semaphore = NULL;
 
 // File loading queue
-QueueHandle_t mapLoadQueueHandle = NULL;
-QueueHandle_t fileLoadQueueHandle = NULL;
 QueueHandle_t eventQueueHandle = NULL;
 
 uint32_t ledDelay = 100;
@@ -156,8 +154,6 @@ void app_main()
     print_semaphore = xSemaphoreCreateMutex();
     gui_semaphore = xSemaphoreCreateMutex();
     sd_semaphore = xSemaphoreCreateMutex();
-    mapLoadQueueHandle = xQueueCreate(6, sizeof(map_tile_t *));
-    fileLoadQueueHandle = xQueueCreate(6, sizeof(async_file_t *));
     eventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
 
     /* Set Button IO to input, with PUI and falling edge IRQ */
