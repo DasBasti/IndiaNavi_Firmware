@@ -9,6 +9,8 @@
 #include "gui/label.h"
 #include "gui/map.h"
 
+#include "parser/gpx.h"
+
 #include "nmea_parser.h"
 
 #include "gui.h"
@@ -108,78 +110,22 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     return PM_OK;
 }
 
-void load_waypoint_file()
+void load_waypoint_file(const char* filename)
 {
-	// Load TRACK file
-	char *waypoint_file = RTOS_Malloc(32768);
-	char *wp_line = RTOS_Malloc(50);
-	async_file_t *wp_file = &AFILE;
-	wp_file->filename = "//TRACK";
-	wp_file->dest = waypoint_file;
-	wp_file->loaded = false;
-	loadFile(wp_file);
-	uint8_t delay = 0;
-	uint32_t num = 0;
-	ESP_LOGI(TAG, "Load waypoint information queued");
-	while (!wp_file->loaded)
-	{
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		if (delay++ == 20)
-			break;
-	}
-	ESP_LOGI(TAG, "Loaded waypoint information. Calculating...");
 	uint64_t start = esp_timer_get_time();
 
-	
+    async_file_t wp_file;
+    wp_file.filename = filename;
+    wp_file.loaded = 0;
+    createFileBuffer(&wp_file);
+    loadFile(&wp_file);
 
-	waypoint_t *prev_wp = NULL;
-	waypoint_t cur_wp = {};
-	cur_wp.color = BLUE;
-	if (wp_file->loaded)
-	{
-		ESP_LOGI(TAG, "Load waypoint information ");
-		char *f = waypoint_file;
-		bool header = true;
-		while (1)
-		{
-			f = readline(f, wp_line);
-			if (!f)
-				break;
-			if (wp_line[0] == '-' && wp_line[1] == '-')
-			{
-				header = false;
-				continue;
-			};
-			if (header)
-			{
-				continue;
-			}
+    waypoint_t *first_wp = gpx_parser(wp_file.dest, map_add_waypoint);
+    map_set_first_waypoint(first_wp);
+    RTOS_Free(wp_file.dest);
 
-			float flon = atoff(strtok(wp_line, " "));
-			float flat = atoff(strtok(NULL, " "));
-			// only load wp that are on currently shown tiles
-
-			waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
-			wp_t->lon = flon;
-			wp_t->lat = flat;
-			num = map_add_waypoint(wp_t);
-			
-			if(num % 10 == 0)
-			{
-				vTaskDelay(1);
-			}
-		}
-		ESP_LOGI(TAG, "Number of waypoints: %d", num);
-	}
-	else
-	{
-		ESP_LOGI(TAG, "Load waypoint information failed");
-	}
-
-	RTOS_Free(waypoint_file);
-	RTOS_Free(wp_line);
 	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
-	ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
+    ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
 }
 
 void map_screen_create(const display_t* display)
@@ -230,7 +176,7 @@ void map_screen_create(const display_t* display)
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
     map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
 
-	load_waypoint_file();
+	load_waypoint_file("//track.gpx");
 }
 
 void toggleZoom()
