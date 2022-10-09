@@ -175,6 +175,7 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
     _yf = flat2tile(wp_t->lat, map->tile_zoom);
     wp_t->tile_y = floor(_yf);
 
+    //TODO: merge this calculation with the active calculation
     for (uint32_t i = 0; i < map->tile_count; i++) {
         if (map->tiles[i]->x == wp_t->tile_x && map->tiles[i]->y == wp_t->tile_y) {
 
@@ -185,8 +186,14 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
             wp_t->pos_y = floor((_yf - wp_t->tile_y + ty) * 256); // offset from tile 0
         }
     }
+    ESP_LOGI("MAP", "waypoints %d %d", wp_t->num, wp_t->tile_x);
 
     return PM_OK;
+}
+
+void map_set_first_waypoint(waypoint_t* wp)
+{
+    waypoints = wp;
 }
 
 /**
