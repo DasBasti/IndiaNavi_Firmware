@@ -59,6 +59,7 @@ typedef struct
 error_code_t loadTile(map_tile_t *tile);
 error_code_t loadFile(async_file_t *file);
 error_code_t fileExists(async_file_t *file);
+error_code_t createFileBuffer(async_file_t * file);
 error_code_t openFileForWriting(async_file_t *file);
 async_file_t *createPhysicalFile();
 error_code_t writeToFile(async_file_t *file, void *in_data, uint32_t count, uint32_t *written);
