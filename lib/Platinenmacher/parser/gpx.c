@@ -10,6 +10,14 @@
 
 #include "sxml.h"
 
+#ifdef TESTING
+#    include <assert.h>
+#    include <stdlib.h>
+#    ifndef atoff
+#        define atoff(s) (float)atof(s)
+#    endif
+#endif
+
 #define BUFFER_MAXLEN 1024
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -37,7 +45,7 @@ static gpx_state_e state = SKIP;
 static gpx_cdata_e cdata = NONE;
 static uint32_t waypoint_num = 0;
 static waypoint_t* wp = NULL;
-waypoint_t *first_wp = NULL;
+waypoint_t* first_wp = NULL;
 uint32_t (*add_waypoint)(waypoint_t* wp);
 
 void ff_xml(sxml_t* parser, const char* gpx)
@@ -81,9 +89,12 @@ void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
             else if (state == TRKSEG && strcmp("trkpt", buf) == 0) {
                 state = TRKPT;
                 wp = RTOS_Malloc(sizeof(waypoint_t));
-                if(wp && first_wp == 0) first_wp = wp;
+                if (wp && first_wp == 0)
+                    first_wp = wp;
+#ifndef TESTING
                 if (!wp)
                     ESP_LOGE("gpx_parser", "No Waypoint allocated");
+#endif
             } else if (state == TRKPT && strcmp("ele", buf) == 0)
                 state = ELE;
             break;
@@ -103,7 +114,9 @@ void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
             break;
         case SXML_CHARACTER:
             if (state == TRK_NAME) {
+#ifndef TESTING
                 ESP_LOGI("xml_data", "name: %s", buf);
+#endif
             } else if (state == ELE) {
                 if (wp)
                     wp->ele = atoff(buf);
@@ -138,11 +151,13 @@ void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
         default:
             break;
         }
+#ifndef TESTING
         vPortYield();
+#endif
     }
 }
 
-waypoint_t *gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp))
+waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp))
 {
     add_waypoint = add_waypoint_cb;
     /* Output token table */
@@ -196,8 +211,9 @@ waypoint_t *gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(wa
             /* Print out contents of line containing the error */
             // sprintf (fmt, "%%.%ds", MIN (bufferlen - parser.bufferpos, 72));
             //  fprintf (stderr, fmt, buffer + parser.bufferpos);
+#ifndef TESTING
             ESP_LOGI("xml_error", "%.3s", buffer + parser.bufferpos);
-
+#endif
             // abort();
             break;
         }
@@ -206,7 +222,9 @@ waypoint_t *gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(wa
             assert(0);
             break;
         }
+#ifndef TESTING
         vPortYield();
+#endif
     }
     return first_wp;
 }
