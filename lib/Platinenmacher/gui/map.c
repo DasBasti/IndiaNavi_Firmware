@@ -186,8 +186,7 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
             wp_t->pos_y = floor((_yf - wp_t->tile_y + ty) * 256); // offset from tile 0
         }
     }
-    ESP_LOGI("MAP", "waypoints %d %d", wp_t->num, wp_t->tile_x);
-
+    
     return PM_OK;
 }
 
