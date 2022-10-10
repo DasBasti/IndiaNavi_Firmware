@@ -11,6 +11,6 @@
 
 #include "../gui/waypoint.h"
 
-waypoint_t *gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp));
+waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp), uint16_t *num_wp);
 
 #endif //PLATINENMACHER_PARSER_GPX_H

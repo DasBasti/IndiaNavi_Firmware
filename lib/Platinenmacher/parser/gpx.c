@@ -157,7 +157,7 @@ void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
     }
 }
 
-waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp))
+waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp), uint16_t* num_wp)
 {
     add_waypoint = add_waypoint_cb;
     /* Output token table */
@@ -226,5 +226,7 @@ waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(wa
         vPortYield();
 #endif
     }
+    if (num_wp)
+        *num_wp = waypoint_num;
     return first_wp;
 }
