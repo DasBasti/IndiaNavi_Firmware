@@ -9,6 +9,8 @@
 #include "gui/label.h"
 #include "gui/map.h"
 
+#include "parser/gpx.h"
+
 #include "nmea_parser.h"
 
 #include "gui.h"
@@ -28,6 +30,8 @@ static uint8_t zoom_level_selected = 0;
 uint8_t zoom_level[] = { 16, 14 };
 uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
+
+static const char* TAG="map_screen";
 
 /**
  * render cb for InfoText label
@@ -79,6 +83,12 @@ error_code_t updateSatsInView(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
+void add_waypoints_to_renderer(waypoint_t *wp)
+{
+	if(wp->active)
+		add_to_render_pipeline(waypoint_render_marker, wp, RL_PATH);
+}
+
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 {
     // Only modify map if we are GPS fixed
@@ -89,109 +99,31 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 	if(gps_indicator_label){
 		gps_indicator_label->onBeforeRender = updateSatsInView;
 	}
-    map_update_zoom_level(map, 16);
     map_update_position(map, map_position);
+	map_update_waypoint_path(map);
+	
+	free_render_pipeline(RL_PATH);
+	map_run_on_waypoints(add_waypoints_to_renderer);
 
-    //TODO: move to map component
-    /*char *waypoint_file = RTOS_Malloc(32768);
-	char *wp_line = RTOS_Malloc(50);
-	async_file_t *wp_file = &AFILE;
-	wp_file->filename = "//TRACK";
-	wp_file->dest = waypoint_file;
-	wp_file->loaded = false;
-	loadFile(wp_file);
-	uint8_t delay = 0;
-	ESP_LOGI(TAG, "Load waypoint information queued");
-	while (!wp_file->loaded)
-	{
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		if (delay++ == 20)
-			break;
-	}
-	ESP_LOGI(TAG, "Loaded waypoint information. Calculating...");
+    return PM_OK;
+}
+
+void load_waypoint_file(char* filename)
+{
 	uint64_t start = esp_timer_get_time();
 
-	free_render_pipeline(RL_PATH);
+    async_file_t wp_file;
+    wp_file.filename = filename;
+    wp_file.loaded = 0;
+    createFileBuffer(&wp_file);
+    loadFile(&wp_file);
 
-	waypoint_t *wp_ = waypoints;
-	while (wp_)
-	{
-		waypoint_t *nwp;
-		nwp = wp_;
-		wp_ = wp_->next;
-		free(nwp);
-	}
+    waypoint_t *first_wp = gpx_parser(wp_file.dest, map_add_waypoint);
+    map_set_first_waypoint(first_wp);
+    RTOS_Free(wp_file.dest);
 
-	waypoint_t *prev_wp = NULL;
-	waypoint_t cur_wp = {};
-	cur_wp.color = BLUE;
-	if (wp_file->loaded)
-	{
-		ESP_LOGI(TAG, "Load waypoint information ");
-		char *f = waypoint_file;
-		bool header = true;
-		while (1)
-		{
-			f = readline(f, wp_line);
-			if (!f)
-				break;
-			if (wp_line[0] == '-' && wp_line[1] == '-')
-			{
-				header = false;
-				continue;
-			};
-			if (header)
-			{
-				continue;
-			}
-
-			float flon = atoff(strtok(wp_line, " "));
-			float flat = atoff(strtok(NULL, " "));
-			//ESP_LOGI(TAG, "Read waypoint: %f - %f", flon, flat);
-			// only load wp that are on currently shown tiles
-
-			cur_wp.lon = flon;
-			cur_wp.lat = flat;
-			calculate_waypoints(&cur_wp);
-			//ESP_LOGI(TAG, "Waypoint %d: %d/%d", cur_wp.num, cur_wp.tile_x, cur_wp.tile_y);
-			for (uint8_t i = 0; i < 6; i++)
-			{
-				if (cur_wp.tile_x == map_tiles[i].x && cur_wp.tile_y == map_tiles[i].y)
-				{
-					waypoint_t *wp_t = RTOS_Malloc(sizeof(waypoint_t));
-					memcpy(wp_t, &cur_wp, sizeof(waypoint_t));
-					if (prev_wp)
-					{
-						prev_wp->next = wp_t;
-					}
-					else
-					{
-						waypoints = wp_t;
-					}
-					prev_wp = wp_t;
-					add_to_render_pipeline(render_waypoint_marker, wp_t, RL_PATH);
-					// increase for next tile
-					cur_wp.num++;
-					break;
-				}
-			}
-			if (cur_wp.num % 10 == 0)
-			{
-				vTaskDelay(1);
-			}
-		}
-		ESP_LOGI(TAG, "Number of waypoints: %d", cur_wp.num);
-	}
-	else
-	{
-		ESP_LOGI(TAG, "Load waypoint information failed");
-	}
-	RTOS_Free(waypoint_file);
-	RTOS_Free(wp_line);
 	ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
-	ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
-	*/
-    return PM_OK;
+    ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
 }
 
 void map_screen_create(const display_t* display)
@@ -237,10 +169,12 @@ void map_screen_create(const display_t* display)
     infoBox->onBeforeRender = updateInfoText;
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 
-    map_update_zoom_level(map, 0);
+    map_update_zoom_level(map, zoom_level[0]);
     //map_update_position(map, map_position);
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
     map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
+
+	load_waypoint_file("//track.gpx");
 }
 
 void toggleZoom()

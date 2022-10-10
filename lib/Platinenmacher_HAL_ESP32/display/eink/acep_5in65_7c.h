@@ -23,7 +23,7 @@
 #define EINK_SPI_HOST HSPI_HOST
 
 display_t *ACEP_5IN65_Init(display_rotation_t rotation);
-error_code_t ACEP_5IN65_Write(const display_t *dsp, uint16_t x, uint16_t y, uint8_t color);
-uint8_t ACEP_5IN65_Decompress_Pixel(rect_t *size, uint16_t x, uint16_t y, const uint8_t *data);
+error_code_t ACEP_5IN65_Write(const display_t *dsp, int16_t x, int16_t y, uint8_t color);
+uint8_t ACEP_5IN65_Decompress_Pixel(rect_t *size, int16_t x, int16_t y, const uint8_t *data);
 
 #endif

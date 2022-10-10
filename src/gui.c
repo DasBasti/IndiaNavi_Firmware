@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_GPS_CREATE;
+app_mode_t _app_mode = APP_TEST_SCREEN;// APP_MODE_GPS_CREATE;
 
 /**
  * Add render function to pipeline
@@ -99,7 +99,7 @@ render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void*
     return add_to_render_pipeline(cb, NULL, RL_PRE_RENDER);
 }
 
-static label_t* create_icon_with_text(const display_t* dsp, const uint8_t* icon_data,
+static label_t* create_icon_with_text(const display_t* dsp, uint8_t* icon_data,
     uint16_t left, uint16_t top, char* text, font_t* font)
 {
 
@@ -225,6 +225,9 @@ void app_screen(const display_t* dsp)
     case APP_START_SCREEN:
         start_screen_create(dsp);
         gui_set_app_mode(APP_START_SCREEN_TRANSITION);
+        break;
+    case APP_TEST_SCREEN:
+        test_screen_create(dsp);
         break;
     case APP_START_SCREEN_TRANSITION:
         /* free start screen and fall throught to map screen generation*/

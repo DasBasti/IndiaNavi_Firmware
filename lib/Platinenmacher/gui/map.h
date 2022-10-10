@@ -13,6 +13,7 @@
 #include "image.h"
 #include "label.h"
 #include "memory.h"
+#include "waypoint.h"
 
 typedef struct
 {
@@ -57,6 +58,12 @@ uint8_t map_get_zoom_level(map_t* map);
 map_tile_t* map_get_tile(map_t* map, uint8_t x, uint8_t y);
 error_code_t map_update_position(map_t* map, map_position_t* pos);
 error_code_t map_update_tiles(map_t* map);
+error_code_t map_calculate_waypoint(map_t *map, waypoint_t* wp_t);
+uint32_t map_add_waypoint(waypoint_t* wp);
+void map_set_first_waypoint(waypoint_t* wp);
+error_code_t map_free_waypoints();
+error_code_t map_update_waypoint_path(map_t *map);
+error_code_t map_run_on_waypoints(void (*function)(waypoint_t *wp));
 
 error_code_t map_render(const display_t* dsp, void* component);
 error_code_t map_tile_render(const display_t* dsp, void* component);

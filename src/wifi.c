@@ -225,7 +225,7 @@ void StartWiFiTask(void const *argument)
         ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
         vEventGroupDelete(s_wifi_event_group);
 
-        gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
+        //gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
 
         while (isConnected())
         {

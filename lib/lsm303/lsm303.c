@@ -128,7 +128,7 @@ esp_err_t lsm303_acc_register_write(uint8_t reg_addr, uint8_t *data, size_t len)
 esp_err_t lsm303_acc_register_write_byte(uint8_t reg_addr, uint8_t data)
 {
     int ret = ESP_FAIL;
-    uint8_t write_buf[2] = {reg_addr, data};
+    //uint8_t write_buf[2] = {reg_addr, data};
 
     //ret = i2c_master_write_to_device(master_num, LSM303_ACC_ADDR, write_buf, sizeof(write_buf), LSM303_I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
 
@@ -174,7 +174,7 @@ esp_err_t lsm303_init(int i2c_master_port, int sda_io_num, int scl_io_num)
 esp_err_t lsm303_enable_taping(int double_taping)
 {
     lsm303_acc_ctrl_1 ctrl_1 = {
-        .odr = 0xf,
+        .odr = 7,
         .fs = 3,
         .hf_odr = 0,
         .bdu = 0
@@ -204,7 +204,6 @@ esp_err_t lsm303_enable_taping(int double_taping)
  */
 esp_err_t lsm303_read_tap(uint8_t *tap_src)
 {
-    uint8_t data;
     esp_err_t ret;
     ret = lsm303_acc_register_read(TAP_SRC_A, tap_src, 1);
     //ESP_LOGI(TAG, "TAP_SRC_A: 0x%X", *tap_src);
