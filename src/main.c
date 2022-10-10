@@ -193,8 +193,9 @@ void app_main()
     #endif
     //xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
 
+ /*
     uint32_t evt;
- /*   evt = TASK_EVENT_ENABLE_DISPLAY;
+    evt = TASK_EVENT_ENABLE_DISPLAY;
     xQueueSend(eventQueueHandle, &evt, 0);
     evt = TASK_EVENT_ENABLE_GPS;
     xQueueSend(eventQueueHandle, &evt, 0);

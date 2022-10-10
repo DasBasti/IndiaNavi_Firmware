@@ -108,7 +108,7 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     return PM_OK;
 }
 
-void load_waypoint_file(const char* filename)
+void load_waypoint_file(char* filename)
 {
 	uint64_t start = esp_timer_get_time();
 

@@ -33,7 +33,6 @@ struct tileset
 };
 
 static const char *TAG = "DL";
-static uint32_t filePosition = 0;
 static async_file_t *downloadfile;
 label_t *download_status;
 char *download_status_text = "Downloader active";
@@ -153,7 +152,6 @@ void StartMapDownloaderTask(void *pvParameter)
     save_sprintf(wp_file->filename, "//TRACK");
     wp_file->dest = waypoint_file;
     wp_file->loaded = false;
-    uint8_t delay = 0;
     ESP_ERROR_CHECK(loadFile(wp_file));
     ESP_LOGI(TAG, "Load track information queued.");
     /*

@@ -99,7 +99,7 @@ render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void*
     return add_to_render_pipeline(cb, NULL, RL_PRE_RENDER);
 }
 
-static label_t* create_icon_with_text(const display_t* dsp, const uint8_t* icon_data,
+static label_t* create_icon_with_text(const display_t* dsp, uint8_t* icon_data,
     uint16_t left, uint16_t top, char* text, font_t* font)
 {
 
