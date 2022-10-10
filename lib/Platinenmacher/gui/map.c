@@ -11,7 +11,7 @@
 
 static uint8_t right_side = 0;
 static font_t* map_font;
-static const char* not_loaded_string = "no tile loaded";
+static char* not_loaded_string = "no tile loaded";
 
 static waypoint_t* waypoints = NULL;
 static waypoint_t* prev_wp = NULL;
@@ -186,7 +186,7 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
             wp_t->pos_y = floor((_yf - wp_t->tile_y + ty) * 256); // offset from tile 0
         }
     }
-    
+
     return PM_OK;
 }
 
