@@ -100,7 +100,7 @@ lib/Platinenmacher/gui/map.c:109:15: style: Variable 'y_old' is assigned a value
 src/gps.c:63:5: style:inconclusive: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
     const gps_t* _gps;
     ^
-src/screens/map_screen.c:42:5: style: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
+src/screens/map_screen.c:46:5: style: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
     if (map_position->fix != GPS_FIX_INVALID) {
     ^
 src/sd.c:161:13: style: Variable 'res' is reassigned a value before the old one has been used. [redundantAssignment]
@@ -205,6 +205,9 @@ lib/Platinenmacher/display.c:325:0: style: The function 'display_draw_raw' is ne
 src/gps.c:100:0: style: The function 'gps_stop_parser' is never used. [unusedFunction]
 
 ^
+lib/Platinenmacher/gui/graph.c:97:0: style: The function 'graph_update_data' is never used. [unusedFunction]
+
+^
 lib/lsm303/lsm303.c:128:0: style: The function 'lsm303_acc_register_write_byte' is never used. [unusedFunction]
 
 ^
@@ -230,6 +233,9 @@ lib/Platinenmacher_HAL_ESP32/hw/esp32/spi.c:14:0: style: The function 'spi_init'
 
 ^
 test/embedded/test_gui/test_display.c:10:0: style: The function 'tearDown' is never used. [unusedFunction]
+
+^
+src/screens/map_screen.c:43:0: style: The function 'updateInfoText' is never used. [unusedFunction]
 
 ^
 nofile:0:0: information: Cppcheck cannot find all the include files (use --check-config for details) [missingInclude]
