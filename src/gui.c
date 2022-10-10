@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_TEST_SCREEN;// APP_MODE_GPS_CREATE;
+app_mode_t _app_mode = APP_MODE_GPS_CREATE;//APP_TEST_SCREEN;// 
 
 /**
  * Add render function to pipeline
@@ -162,7 +162,7 @@ static void create_top_bar(const display_t* dsp)
 
     char* GPSView = RTOS_Malloc(5);
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
-        dsp->size.width - ICON_SIZE - (2 * margin_right) - 8, margin_top, GPSView, &f8x8);
+        dsp->size.width - ICON_SIZE - (2 * margin_right) - 16, margin_top, GPSView, &f8x8);
     
     sd_indicator_label = create_icon_with_text(dsp, noSD,
         gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
