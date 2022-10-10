@@ -20,7 +20,7 @@ typedef struct {
     uint16_t min;
     uint16_t max;
     uint16_t data_len;
-    uint16_t *data;
+    float *data;
     uint16_t current_position;
     label_t *min_label;
     label_t *max_label;
@@ -29,9 +29,10 @@ typedef struct {
     color_t current_position_color;
 } graph_t;
 
-graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, uint16_t* data, uint16_t data_len, font_t*font);
+graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, float* data, uint16_t data_len, font_t*font);
 error_code_t graph_renderer(const display_t *dsp, void *component);
-error_code_t graph_set_range(graph_t* graph, uint16_t min, uint16_t max);
+error_code_t graph_set_range(graph_t* graph, float min, float max);
+error_code_t graph_update_data(graph_t* graph, float* data, uint16_t len);
 
 
 #endif //PLATINENMACHER_GUI_GRAPH_H
