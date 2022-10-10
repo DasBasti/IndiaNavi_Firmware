@@ -129,8 +129,11 @@ void load_waypoint_file(char* filename)
     wp_file.filename = filename;
     wp_file.loaded = 0;
     createFileBuffer(&wp_file);
-    loadFile(&wp_file);
+    if(wp_file.dest)
+        loadFile(&wp_file);
 
+    if(wp_file.loaded == LOADED )
+    {
     waypoint_t* first_wp = gpx_parser(wp_file.dest, map_add_waypoint, &height_graph_data_len);
     map_set_first_waypoint(first_wp);
     RTOS_Free(wp_file.dest);
@@ -138,6 +141,8 @@ void load_waypoint_file(char* filename)
     // populate height data
     height_graph_data = RTOS_Malloc(sizeof(float) * height_graph_data_len+1);
     map_run_on_waypoints(populate_height_data);
+    }
+    
 
     ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
