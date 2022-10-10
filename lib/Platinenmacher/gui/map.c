@@ -150,7 +150,7 @@ void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const
 error_code_t map_tile_render(const display_t* dsp, void* component)
 {
     map_tile_t* tile = (map_tile_t*)component;
-    if (tile->image && image_render(dsp, tile->image) == PM_OK && tile->image->loaded == LOADED) {
+    if (tile->image && image_render(dsp, tile->image) == PM_OK) {
         return PM_OK;
     }
 
