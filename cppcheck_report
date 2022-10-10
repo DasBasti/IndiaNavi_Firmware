@@ -88,51 +88,39 @@ error_code_t label_render(const display_t *dsp, void *label);
 lib/Platinenmacher/gui/label.c:40:55: note: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'.
 error_code_t label_render(const display_t *dsp, void *component)
                                                       ^
-lib/Platinenmacher/gui/map.c:103:22: style:inconclusive: Boolean expression 'x!=x_old' is used in bitwise operation. Did you mean '||'? [bitwiseOnBoolean]
+lib/Platinenmacher/gui/map.c:107:22: style:inconclusive: Boolean expression 'x!=x_old' is used in bitwise operation. Did you mean '||'? [bitwiseOnBoolean]
     if ((x != x_old) | (y != y_old)) {
                      ^
-lib/Platinenmacher/gui/map.c:104:15: style: Variable 'x_old' is assigned a value that is never used. [unreadVariable]
+lib/Platinenmacher/gui/map.c:108:15: style: Variable 'x_old' is assigned a value that is never used. [unreadVariable]
         x_old = x;
               ^
-lib/Platinenmacher/gui/map.c:105:15: style: Variable 'y_old' is assigned a value that is never used. [unreadVariable]
+lib/Platinenmacher/gui/map.c:109:15: style: Variable 'y_old' is assigned a value that is never used. [unreadVariable]
         y_old = y;
               ^
-lib/lsm303/lsm303.c:131:26: style: Variable 'write_buf' is assigned a value that is never used. [unreadVariable]
-    uint8_t write_buf[2] = {reg_addr, data};
-                         ^
-lib/lsm303/lsm303.c:207:13: style: Unused variable: data [unusedVariable]
-    uint8_t data;
-            ^
-src/gps.c:66:5: style:inconclusive: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
+src/gps.c:63:5: style:inconclusive: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
     const gps_t* _gps;
     ^
-src/main.c:200:14: style: Unused variable: evt [unusedVariable]
-    uint32_t evt;
-             ^
-src/screens/map_screen.c:38:5: style: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
+src/screens/map_screen.c:42:5: style: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
     if (map_position->fix != GPS_FIX_INVALID) {
     ^
-src/sd.c:134:7: style: Variable 'res' is reassigned a value before the old one has been used. [redundantAssignment]
-  res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
-      ^
-src/sd.c:124:8: note: res is assigned
-   res = f_mkdir(tmp_path);
-       ^
-src/sd.c:134:7: note: res is overwritten
-  res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
-      ^
-src/sd.c:109:9: style: Local variable 'path' shadows outer variable [shadowVariable]
-  char *path = RTOS_Malloc(strlen(file->filename));
-        ^
-src/icons_32/icons_32.h:23:22: note: Shadowed declaration
-extern const uint8_t path[];
-                     ^
-src/sd.c:109:9: note: Shadow variable
-  char *path = RTOS_Malloc(strlen(file->filename));
-        ^
-src/sd.c:188:14: style: Variable 'res' is assigned a value that is never used. [unreadVariable]
- FRESULT res = FR_NOT_READY;
-             ^
+src/sd.c:161:13: style: Variable 'res' is reassigned a value before the old one has been used. [redundantAssignment]
+        res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
+            ^
+src/sd.c:151:17: note: res is assigned
+            res = f_mkdir(tmp_path);
+                ^
+src/sd.c:161:13: note: res is overwritten
+        res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
+            ^
+src/sd.c:137:15: style: Local variable 'path' shadows outer variable [shadowVariable]
+        char* path = RTOS_Malloc(strlen(file->filename));
+              ^
+src/icons_32/icons_32.h:23:16: note: Shadowed declaration
+extern uint8_t path[];
+               ^
+src/sd.c:137:15: note: Shadow variable
+        char* path = RTOS_Malloc(strlen(file->filename));
+              ^
 src/wifi.c:236:63: style: Condition 'last_rssi_state!=3' is always true [knownConditionTrueFalse]
                 if (sta_record.rssi >= -70 && last_rssi_state != 3)
                                                               ^
@@ -193,19 +181,16 @@ lib/Platinenmacher_HAL_ESP32/display/eink/acep_5in65_7c.c:311:0: style: The func
 lib/Platinenmacher_HAL_ESP32/display/eink/acep_5in65_7c.c:350:0: style: The function 'ACEP_5IN65_Sleep' is never used. [unusedFunction]
 
 ^
-src/main.c:355:0: style: The function 'StartMapDownloaderTask' is never used. [unusedFunction]
+src/main.c:352:0: style: The function 'StartMapDownloaderTask' is never used. [unusedFunction]
 
 ^
 src/ota.c:59:0: style: The function 'StartOTATask' is never used. [unusedFunction]
 
 ^
-src/main.c:316:0: style: The function 'StartPowerTask' is never used. [unusedFunction]
+src/main.c:313:0: style: The function 'StartPowerTask' is never used. [unusedFunction]
 
 ^
-src/main.c:136:0: style: The function 'app_main' is never used. [unusedFunction]
-
-^
-src/gps.c:102:0: style: The function 'calculate_waypoints' is never used. [unusedFunction]
+src/main.c:134:0: style: The function 'app_main' is never used. [unusedFunction]
 
 ^
 lib/Platinenmacher/parser/command.c:105:0: style: The function 'command_init' is never used. [unusedFunction]
@@ -217,22 +202,22 @@ lib/Platinenmacher/parser/command.c:80:0: style: The function 'command_parser' i
 lib/Platinenmacher/display.c:325:0: style: The function 'display_draw_raw' is never used. [unusedFunction]
 
 ^
-src/gps.c:168:0: style: The function 'gps_stop_parser' is never used. [unusedFunction]
+src/gps.c:100:0: style: The function 'gps_stop_parser' is never used. [unusedFunction]
 
 ^
 lib/lsm303/lsm303.c:128:0: style: The function 'lsm303_acc_register_write_byte' is never used. [unusedFunction]
 
 ^
-src/map_loader.c:136:0: style: The function 'maploader_screen_element' is never used. [unusedFunction]
+lib/Platinenmacher/gui/map.c:215:0: style: The function 'map_free_waypoints' is never used. [unusedFunction]
+
+^
+src/map_loader.c:135:0: style: The function 'maploader_screen_element' is never used. [unusedFunction]
 
 ^
 lib/helper/printfb.c:4:0: style: The function 'printf_fb' is never used. [unusedFunction]
 
 ^
-src/gui.c:249:0: style: The function 'render_cmd_cb' is never used. [unusedFunction]
-
-^
-src/gps.c:123:0: style: The function 'render_waypoint_marker' is never used. [unusedFunction]
+src/gui.c:252:0: style: The function 'render_cmd_cb' is never used. [unusedFunction]
 
 ^
 test/embedded/test_gui/test_display.c:6:0: style: The function 'setUp' is never used. [unusedFunction]
