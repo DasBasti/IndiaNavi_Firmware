@@ -209,7 +209,6 @@ void closePhysicalFile(async_file_t* file)
 
 void StartSDTask(void const* argument)
 {
-    FRESULT res = FR_NOT_READY;
     xSemaphoreTake(sd_semaphore, portMAX_DELAY); // block SD mutex
     ESP_LOGI(TAG, "init gpio %d", SD_VCC_nEN);
 
