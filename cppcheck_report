@@ -79,14 +79,14 @@ lib/Platinenmacher/display.h:66:19: note: Function 'display_text_draw' argument 
 lib/Platinenmacher/display.c:341:13: note: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'.
     int16_t y, const char* text, uint8_t color)
             ^
-lib/Platinenmacher/gui/label.c:40:55: style:inconclusive: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'. [funcArgNamesDifferent]
-error_code_t label_render(const display_t *dsp, void *component)
+lib/Platinenmacher/gui/label.c:41:55: style:inconclusive: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'. [funcArgNamesDifferent]
+error_code_t label_render(const display_t* dsp, void* component)
                                                       ^
 lib/Platinenmacher/gui/label.h:38:55: note: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'.
 error_code_t label_render(const display_t *dsp, void *label);
                                                       ^
-lib/Platinenmacher/gui/label.c:40:55: note: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'.
-error_code_t label_render(const display_t *dsp, void *component)
+lib/Platinenmacher/gui/label.c:41:55: note: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'.
+error_code_t label_render(const display_t* dsp, void* component)
                                                       ^
 lib/Platinenmacher/gui/map.c:107:22: style:inconclusive: Boolean expression 'x!=x_old' is used in bitwise operation. Did you mean '||'? [bitwiseOnBoolean]
     if ((x != x_old) | (y != y_old)) {
