@@ -13,6 +13,8 @@ void test_screen_create(const display_t* display)
     graph_t* graph = graph_create(0, display->size.height - 45, display->size.width, 0, NULL, 2, &f8x8);
     graph_set_range(graph, 0, 10);
     graph->current_position = 4;
+    graph->current_position_color = BLUE;
+    graph->line_color = GREEN;
 
     add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
 }

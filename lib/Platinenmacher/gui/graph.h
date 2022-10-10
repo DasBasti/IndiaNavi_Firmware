@@ -25,6 +25,8 @@ typedef struct {
     label_t *min_label;
     label_t *max_label;
     font_t *font;
+    color_t line_color;
+    color_t current_position_color;
 } graph_t;
 
 graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, uint16_t* data, uint16_t data_len, font_t*font);

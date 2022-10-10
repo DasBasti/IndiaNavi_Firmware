@@ -10,6 +10,8 @@
 #include "font.h"
 #include "memory.h"
 
+#include <stdio.h>
+
 char min_str[10], max_str[10];
 
 graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, uint16_t* data, uint16_t data_len, font_t* font)
@@ -64,7 +66,7 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         uint16_t new_x = inner_box_left + (i * x_step);                     // x values grow in step;
         uint16_t new_y = inner_box_top + inner_box_height - ((val)*y_step); // y values are scaled from min to max
         if (i != 0)
-            display_line_draw(dsp, last_x, last_y, new_x, new_y, BLUE);
+            display_line_draw(dsp, last_x, last_y, new_x, new_y, graph->line_color);
         last_x = new_x;
         last_y = new_y;
     }
@@ -73,7 +75,7 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         display_circle_fill(dsp,
             inner_box_left + (graph->current_position * x_step),
             inner_box_top + inner_box_height - (graph->data[graph->current_position]) * y_step,
-            3, GREEN);
+            3, graph->current_position_color);
 
     label_render(dsp, graph->max_label);
     label_render(dsp, graph->min_label);
