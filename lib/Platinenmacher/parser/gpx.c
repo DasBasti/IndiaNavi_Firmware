@@ -34,13 +34,13 @@ static char buffer[BUFFER_MAXLEN];
 static uint32_t bufferlen = 0;
 static size_t file_pos = 0;
 static gpx_state_e state = SKIP;
-static gpx_cdata_e cdata = LAT;
+static gpx_cdata_e cdata = NONE;
 static uint32_t waypoint_num = 0;
 static waypoint_t* wp = NULL;
 waypoint_t *first_wp = NULL;
 uint32_t (*add_waypoint)(waypoint_t* wp);
 
-void ff_xml(sxml_t* parser, char* gpx)
+void ff_xml(sxml_t* parser, const char* gpx)
 {
     /*
      Example of how to reuse buffer array.
@@ -121,9 +121,9 @@ void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
             }
             break;
         case SXML_CDATA:
-            if (state == TRKPT && strcmp("lat", buf))
+            if (state == TRKPT && strcmp("lat", buf) == 0)
                 cdata = LAT;
-            else if (state == TRKPT && strcmp("lon", buf))
+            else if (state == TRKPT && strcmp("lon", buf) == 0)
                 cdata = LON;
             break;
         case SXML_INSTRUCTION:
@@ -188,7 +188,6 @@ waypoint_t *gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(wa
         }
 
         case SXML_ERROR_XMLINVALID: {
-            char fmt[8];
 
             /* Example of some simple error reporting */
             // lineno+= count_lines (buffer, parser.bufferpos);
