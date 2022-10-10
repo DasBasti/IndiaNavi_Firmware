@@ -27,7 +27,6 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
     FRESULT res = FR_NOT_READY;
     uint8_t* imageBuf = RTOS_Malloc(256 * 256 / 2);
 
-    ESP_LOGI(TAG, "Image at: 0x%X", (uint)imageBuf);
     if (!imageBuf)
         return UNAVAILABLE;
 
