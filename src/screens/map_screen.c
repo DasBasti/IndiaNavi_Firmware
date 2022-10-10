@@ -31,8 +31,6 @@ uint8_t zoom_level[] = { 16, 14 };
 uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
 
-static async_file_t AFILE;
-
 static const char* TAG="map_screen";
 
 /**
