@@ -232,7 +232,7 @@ void StartWiFiTask(void const *argument)
             if (wifi_indicator_label)
             {
                 image_t *icon = wifi_indicator_label->child;
-                uint8_t last_rssi_state = 0;
+                static uint8_t last_rssi_state = 0;
                 if (sta_record.rssi >= -70 && last_rssi_state != 3)
                 {
                     icon->data = WIFI_3;
@@ -259,7 +259,7 @@ void StartWiFiTask(void const *argument)
                 xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
                 vTaskSuspend(NULL);
             }*/
-                icon->data = WIFI_0;
+                //icon->data = WIFI_0;
                 trigger_rendering();
             }
             vTaskDelay(1000 / portTICK_PERIOD_MS);

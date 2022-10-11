@@ -112,13 +112,13 @@ error_code_t fileExists(async_file_t* file)
     return PM_FAIL;
 }
 
-error_code_t createFileBuffer(async_file_t * file)
+error_code_t createFileBuffer(async_file_t* file)
 {
     xSemaphoreTake(sd_semaphore, portMAX_DELAY);
     FILINFO fno;
     FRESULT fres = f_stat(file->filename, &fno);
     xSemaphoreGive(sd_semaphore);
-    if (FR_OK == fres){
+    if (FR_OK == fres) {
         file->dest = RTOS_Malloc(fno.fsize);
         return PM_OK;
     }
@@ -149,6 +149,10 @@ error_code_t openFileForWriting(async_file_t* file)
             strcat(tmp_path, token);
             // Create the folder in the path
             res = f_mkdir(tmp_path);
+            if (FR_OK != res) {
+                ESP_LOGD(TAG, "Folder %s could not be created: %d", tmp_path, res);
+                break;
+            }
             strcat(tmp_path, "/");
             token = strtok_r(NULL, "/", &strtokCtx);
 

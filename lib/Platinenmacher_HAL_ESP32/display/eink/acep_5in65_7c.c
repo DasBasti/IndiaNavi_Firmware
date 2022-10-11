@@ -308,6 +308,7 @@ static error_code_t ACEP_5IN65_Display(uint8_t *image)
  function :	Sends the part image buffer in RAM to e-Paper and displays
  parameter:
  ******************************************************************************/
+// cppcheck-suppress unusedFunction
 void ACEP_5IN65_Display_part(uint8_t *image, uint16_t xstart, uint16_t ystart,
 							 uint16_t image_width, uint16_t image_heigh)
 {
@@ -347,6 +348,7 @@ void ACEP_5IN65_Display_part(uint8_t *image, uint16_t xstart, uint16_t ystart,
  function :	Enter sleep mode
  parameter:
  ******************************************************************************/
+// cppcheck-suppress unusedFunction
 void ACEP_5IN65_Sleep(void)
 {
 	ACEP_5IN65_SendCommand(0x07);

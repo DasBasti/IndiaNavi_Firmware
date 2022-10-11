@@ -42,6 +42,7 @@ static const char* TAG = "map_screen";
  */
 static error_code_t updateInfoText(const display_t* dsp, void* comp)
 {
+    // ignore info test for now
     return PM_OK;
     if (map_position->fix != GPS_FIX_INVALID) {
         xSemaphoreTake(print_semaphore, portMAX_DELAY);

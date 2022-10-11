@@ -87,7 +87,8 @@ map_tile_t* map_get_tile(map_t* map, uint8_t x, uint8_t y)
 
 error_code_t map_update_position(map_t* map, map_position_t* pos)
 {
-    uint16_t x = 0, y = 0, x_old = 0, y_old = 0;
+    static uint16_t x_old = 0, y_old = 0;
+    uint16_t x = 0, y = 0;
     float xf = 0.0, yf = 0.0;
     // TODO: test for matching zoom_level
     // get tile number of tile with position on it as float and integer

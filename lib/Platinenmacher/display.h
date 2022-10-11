@@ -44,7 +44,7 @@ inline size_t sizeof_fb(rect_t size, uint8_t bpp)
 	return (size.width * size.height * bpp / 8);
 }
 
-display_t *display_init(uint16_t width, uint16_t height, uint8_t bbp,
+display_t *display_init(uint16_t width, uint16_t height, uint8_t bpp,
 						display_rotation_t rotation);
 error_code_t display_fill(const display_t *dsp, color_t color);
 error_code_t display_pixel_draw(const display_t *dsp, int16_t x, int16_t y,
@@ -53,13 +53,13 @@ error_code_t display_rect_draw(const display_t *dsp, int16_t x, int16_t y,
 							   uint16_t width, uint16_t height, uint8_t color);
 error_code_t display_line_draw(const display_t *dsp, int16_t x1, int16_t y1,
 							   int16_t x2, int16_t y2, uint8_t color);
-error_code_t display_circle_draw(const display_t *dsp, int16_t x, int16_t y,
+error_code_t display_circle_draw(const display_t *dsp, int16_t x0, int16_t y0,
 								 uint16_t r, uint8_t color);
 error_code_t display_circle_draw_segment(const display_t *dsp, int16_t x0,
 										 int16_t y0, uint16_t r, uint8_t color, uint8_t segment);
-error_code_t display_rect_fill(const display_t *dsp, int16_t x, int16_t y,
+error_code_t display_rect_fill(const display_t *dsp, int16_t x0, int16_t y0,
 							   uint16_t width, uint16_t height, uint8_t color);
-error_code_t display_circle_fill(const display_t *dsp, int16_t x, int16_t y,
+error_code_t display_circle_fill(const display_t *dsp, int16_t x0, int16_t y0,
 								 uint16_t r, uint8_t color);
 
 error_code_t display_text_draw(const display_t *dsp, font_t *font, int16_t x0,
