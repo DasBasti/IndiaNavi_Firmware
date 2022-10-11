@@ -1,66 +1,3 @@
-lib/Platinenmacher/display.c:16:66: style:inconclusive: Function 'display_init' argument 3 names different: declaration 'bbp' definition 'bpp'. [funcArgNamesDifferent]
-display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
-                                                                 ^
-lib/Platinenmacher/display.h:47:66: note: Function 'display_init' argument 3 names different: declaration 'bbp' definition 'bpp'.
-display_t *display_init(uint16_t width, uint16_t height, uint8_t bbp,
-                                                                 ^
-lib/Platinenmacher/display.c:16:66: note: Function 'display_init' argument 3 names different: declaration 'bbp' definition 'bpp'.
-display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
-                                                                 ^
-lib/Platinenmacher/display.c:213:64: style:inconclusive: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
-error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                               ^
-lib/Platinenmacher/display.h:62:64: note: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_fill(const display_t *dsp, int16_t x, int16_t y,
-                                                               ^
-lib/Platinenmacher/display.c:213:64: note: Function 'display_circle_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                               ^
-lib/Platinenmacher/display.c:213:76: style:inconclusive: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
-error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                                           ^
-lib/Platinenmacher/display.h:62:75: note: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_fill(const display_t *dsp, int16_t x, int16_t y,
-                                                                          ^
-lib/Platinenmacher/display.c:213:76: note: Function 'display_circle_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                                           ^
-lib/Platinenmacher/display.c:232:64: style:inconclusive: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
-error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
-                                                               ^
-lib/Platinenmacher/display.h:56:64: note: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_draw(const display_t *dsp, int16_t x, int16_t y,
-                                                               ^
-lib/Platinenmacher/display.c:232:64: note: Function 'display_circle_draw' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
-                                                               ^
-lib/Platinenmacher/display.c:232:76: style:inconclusive: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
-error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
-                                                                           ^
-lib/Platinenmacher/display.h:56:75: note: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_draw(const display_t *dsp, int16_t x, int16_t y,
-                                                                          ^
-lib/Platinenmacher/display.c:232:76: note: Function 'display_circle_draw' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_circle_draw(const display_t* dsp, int16_t x0, int16_t y0,
-                                                                           ^
-lib/Platinenmacher/display.c:288:62: style:inconclusive: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'. [funcArgNamesDifferent]
-error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                             ^
-lib/Platinenmacher/display.h:60:62: note: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_rect_fill(const display_t *dsp, int16_t x, int16_t y,
-                                                             ^
-lib/Platinenmacher/display.c:288:62: note: Function 'display_rect_fill' argument 2 names different: declaration 'x' definition 'x0'.
-error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                             ^
-lib/Platinenmacher/display.c:288:74: style:inconclusive: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'. [funcArgNamesDifferent]
-error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                                         ^
-lib/Platinenmacher/display.h:60:73: note: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_rect_fill(const display_t *dsp, int16_t x, int16_t y,
-                                                                        ^
-lib/Platinenmacher/display.c:288:74: note: Function 'display_rect_fill' argument 3 names different: declaration 'y' definition 'y0'.
-error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
-                                                                         ^
 lib/Platinenmacher/display.c:340:76: style:inconclusive: Function 'display_text_draw' argument 3 names different: declaration 'x0' definition 'x'. [funcArgNamesDifferent]
 error_code_t display_text_draw(const display_t* dsp, font_t* font, int16_t x,
                                                                            ^
@@ -79,39 +16,15 @@ lib/Platinenmacher/display.h:66:19: note: Function 'display_text_draw' argument 
 lib/Platinenmacher/display.c:341:13: note: Function 'display_text_draw' argument 4 names different: declaration 'y0' definition 'y'.
     int16_t y, const char* text, uint8_t color)
             ^
-lib/Platinenmacher/gui/label.c:41:55: style:inconclusive: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'. [funcArgNamesDifferent]
-error_code_t label_render(const display_t* dsp, void* component)
-                                                      ^
-lib/Platinenmacher/gui/label.h:38:55: note: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'.
-error_code_t label_render(const display_t *dsp, void *label);
-                                                      ^
-lib/Platinenmacher/gui/label.c:41:55: note: Function 'label_render' argument 2 names different: declaration 'label' definition 'component'.
-error_code_t label_render(const display_t* dsp, void* component)
-                                                      ^
-lib/Platinenmacher/gui/map.c:107:22: style:inconclusive: Boolean expression 'x!=x_old' is used in bitwise operation. Did you mean '||'? [bitwiseOnBoolean]
+lib/Platinenmacher/gui/map.c:108:22: style:inconclusive: Boolean expression 'x!=x_old' is used in bitwise operation. Did you mean '||'? [bitwiseOnBoolean]
     if ((x != x_old) | (y != y_old)) {
                      ^
-lib/Platinenmacher/gui/map.c:108:15: style: Variable 'x_old' is assigned a value that is never used. [unreadVariable]
-        x_old = x;
-              ^
-lib/Platinenmacher/gui/map.c:109:15: style: Variable 'y_old' is assigned a value that is never used. [unreadVariable]
-        y_old = y;
-              ^
 src/gps.c:63:5: style:inconclusive: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
     const gps_t* _gps;
     ^
-src/screens/map_screen.c:46:5: style: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
+src/screens/map_screen.c:47:5: style: Statements following return, break, continue, goto or throw will never be executed. [unreachableCode]
     if (map_position->fix != GPS_FIX_INVALID) {
     ^
-src/sd.c:161:13: style: Variable 'res' is reassigned a value before the old one has been used. [redundantAssignment]
-        res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
-            ^
-src/sd.c:151:17: note: res is assigned
-            res = f_mkdir(tmp_path);
-                ^
-src/sd.c:161:13: note: res is overwritten
-        res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
-            ^
 src/sd.c:137:15: style: Local variable 'path' shadows outer variable [shadowVariable]
         char* path = RTOS_Malloc(strlen(file->filename));
               ^
@@ -121,66 +34,6 @@ extern uint8_t path[];
 src/sd.c:137:15: note: Shadow variable
         char* path = RTOS_Malloc(strlen(file->filename));
               ^
-src/wifi.c:236:63: style: Condition 'last_rssi_state!=3' is always true [knownConditionTrueFalse]
-                if (sta_record.rssi >= -70 && last_rssi_state != 3)
-                                                              ^
-src/wifi.c:235:43: note: Assignment 'last_rssi_state=0', assigned value is 0
-                uint8_t last_rssi_state = 0;
-                                          ^
-src/wifi.c:236:63: note: Condition 'last_rssi_state!=3' is always true
-                if (sta_record.rssi >= -70 && last_rssi_state != 3)
-                                                              ^
-src/wifi.c:241:93: style: Condition 'last_rssi_state!=2' is always true [knownConditionTrueFalse]
-                else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2)
-                                                                                            ^
-src/wifi.c:235:43: note: Assignment 'last_rssi_state=0', assigned value is 0
-                uint8_t last_rssi_state = 0;
-                                          ^
-src/wifi.c:241:93: note: Condition 'last_rssi_state!=2' is always true
-                else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2)
-                                                                                            ^
-src/wifi.c:246:67: style: Condition 'last_rssi_state!=1' is always true [knownConditionTrueFalse]
-                else if (sta_record.rssi < -80 && last_rssi_state != 1)
-                                                                  ^
-src/wifi.c:235:43: note: Assignment 'last_rssi_state=0', assigned value is 0
-                uint8_t last_rssi_state = 0;
-                                          ^
-src/wifi.c:246:67: note: Condition 'last_rssi_state!=1' is always true
-                else if (sta_record.rssi < -80 && last_rssi_state != 1)
-                                                                  ^
-src/wifi.c:262:28: style: Variable 'icon->data' is reassigned a value before the old one has been used. [redundantAssignment]
-                icon->data = WIFI_0;
-                           ^
-src/wifi.c:238:32: note: icon->data is assigned
-                    icon->data = WIFI_3;
-                               ^
-src/wifi.c:262:28: note: icon->data is overwritten
-                icon->data = WIFI_0;
-                           ^
-src/wifi.c:262:28: style: Variable 'icon->data' is reassigned a value before the old one has been used. [redundantAssignment]
-                icon->data = WIFI_0;
-                           ^
-src/wifi.c:243:32: note: icon->data is assigned
-                    icon->data = WIFI_2;
-                               ^
-src/wifi.c:262:28: note: icon->data is overwritten
-                icon->data = WIFI_0;
-                           ^
-src/wifi.c:262:28: style: Variable 'icon->data' is reassigned a value before the old one has been used. [redundantAssignment]
-                icon->data = WIFI_0;
-                           ^
-src/wifi.c:248:32: note: icon->data is assigned
-                    icon->data = WIFI_1;
-                               ^
-src/wifi.c:262:28: note: icon->data is overwritten
-                icon->data = WIFI_0;
-                           ^
-lib/Platinenmacher_HAL_ESP32/display/eink/acep_5in65_7c.c:311:0: style: The function 'ACEP_5IN65_Display_part' is never used. [unusedFunction]
-
-^
-lib/Platinenmacher_HAL_ESP32/display/eink/acep_5in65_7c.c:350:0: style: The function 'ACEP_5IN65_Sleep' is never used. [unusedFunction]
-
-^
 src/main.c:352:0: style: The function 'StartMapDownloaderTask' is never used. [unusedFunction]
 
 ^
@@ -211,7 +64,7 @@ lib/Platinenmacher/gui/graph.c:97:0: style: The function 'graph_update_data' is 
 lib/lsm303/lsm303.c:128:0: style: The function 'lsm303_acc_register_write_byte' is never used. [unusedFunction]
 
 ^
-lib/Platinenmacher/gui/map.c:215:0: style: The function 'map_free_waypoints' is never used. [unusedFunction]
+lib/Platinenmacher/gui/map.c:216:0: style: The function 'map_free_waypoints' is never used. [unusedFunction]
 
 ^
 src/map_loader.c:135:0: style: The function 'maploader_screen_element' is never used. [unusedFunction]
