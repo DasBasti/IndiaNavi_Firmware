@@ -33,7 +33,7 @@ void test_create_map_at_negative_position()
     TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[0]->image->box.left);
     TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[1]->image->box.left);
     TEST_ASSERT_EQUAL_INT16(246, _map->tiles[2]->image->box.left);
-    TEST_ASSERT_EQUAL_INT16(246, _map->tiles[3]->image->box.left);    
+    TEST_ASSERT_EQUAL_INT16(246, _map->tiles[3]->image->box.left);
     TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[0]->image->box.top);
     TEST_ASSERT_EQUAL_INT16(246, _map->tiles[1]->image->box.top);
     TEST_ASSERT_EQUAL_INT16(-10, _map->tiles[2]->image->box.top);
@@ -91,6 +91,57 @@ void test_map_render_callbacks()
     TEST_ASSERT_EQUAL_INT(map->tile_count, onBeforeRender_cnt);
 }
 
+void run_on_waypoint(waypoint_t* wp)
+{
+    wp->active = 1;
+}
+
+void test_waypoints()
+{
+    waypoint_t* wp = RTOS_Malloc(sizeof(waypoint_t));
+    wp->lat = 49.5;
+    wp->lon = 8.0;
+    wp->ele = 123.45;
+    wp->tile_x = 0;
+    wp->tile_y = 0;
+    wp->active = 0;
+    map_position_t pos = {
+        .latitude = 49.5,
+        .longitude = 8.00
+    };
+    map->tile_zoom = 16;
+    map_update_position(map, &pos);
+    TEST_ASSERT_EQUAL(PM_OK, map_calculate_waypoint(map, wp));
+    TEST_ASSERT_EQUAL_UINT16(34224, wp->tile_x);
+    TEST_ASSERT_EQUAL_UINT16(22367, wp->tile_y);
+    TEST_ASSERT_EQUAL_UINT16(347, wp->pos_x);
+    TEST_ASSERT_EQUAL_UINT16(17, wp->pos_y);
+
+    map_set_first_waypoint(wp);
+    map_add_waypoint(wp);
+    TEST_ASSERT_EQUAL_UINT(0, wp->num);
+    waypoint_t* new_wp = RTOS_Malloc(sizeof(waypoint_t));
+    map_add_waypoint(new_wp);
+    TEST_ASSERT_EQUAL_UINT(1, new_wp->num);
+    TEST_ASSERT_EQUAL(new_wp, wp->next);
+
+    TEST_ASSERT_EQUAL_UINT(0, wp->active);
+    TEST_ASSERT_EQUAL_UINT(0, new_wp->active);
+
+    map_run_on_waypoints(run_on_waypoint);
+
+    TEST_ASSERT_EQUAL_UINT(1, wp->active);
+    TEST_ASSERT_EQUAL_UINT(1, new_wp->active);
+
+    map_update_waypoint_path(map);
+
+    // since map posiiton is on wp we expect it to be active.
+    TEST_ASSERT_EQUAL_UINT(1, wp->active);
+    TEST_ASSERT_EQUAL_UINT(0, new_wp->active);
+
+    map_free_waypoints();
+}
+
 int main(int argc, char** argv)
 {
     UNITY_BEGIN();
@@ -100,5 +151,6 @@ int main(int argc, char** argv)
     RUN_TEST(test_map_get_tile);
     RUN_TEST(test_position_update);
     RUN_TEST(test_map_render_callbacks);
+    RUN_TEST(test_waypoints);
     UNITY_END();
 }
