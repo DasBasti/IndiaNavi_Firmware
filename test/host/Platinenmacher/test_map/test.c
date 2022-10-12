@@ -116,6 +116,7 @@ void test_waypoints()
     TEST_ASSERT_EQUAL_UINT16(22367, wp->tile_y);
     TEST_ASSERT_EQUAL_UINT16(347, wp->pos_x);
     TEST_ASSERT_EQUAL_UINT16(17, wp->pos_y);
+    TEST_ASSERT_EQUAL_UINT(1, wp->active);
 
     map_set_first_waypoint(wp);
     map_add_waypoint(wp);
@@ -125,7 +126,6 @@ void test_waypoints()
     TEST_ASSERT_EQUAL_UINT(1, new_wp->num);
     TEST_ASSERT_EQUAL(new_wp, wp->next);
 
-    TEST_ASSERT_EQUAL_UINT(0, wp->active);
     TEST_ASSERT_EQUAL_UINT(0, new_wp->active);
 
     map_run_on_waypoints(run_on_waypoint);
