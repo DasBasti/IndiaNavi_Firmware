@@ -183,8 +183,9 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
             uint16_t ty = i % map->width;
             uint16_t tx = (i - ty) / map->height;
 
-            wp_t->pos_x = floor((_xf - wp_t->tile_x + tx) * 256); // offset from tile 0
-            wp_t->pos_y = floor((_yf - wp_t->tile_y + ty) * 256); // offset from tile 0
+            wp_t->pos_x = floor((_xf - wp_t->tile_x + tx) * 256) + map->box.left; // offset from tile 0
+            wp_t->pos_y = floor((_yf - wp_t->tile_y + ty) * 256) + map->box.top;  // offset from tile 0
+            wp_t->active = 1;
         }
     }
 
@@ -240,11 +241,8 @@ error_code_t map_update_waypoint_path(map_t* map)
     waypoint_t* wp_ = waypoints;
     while (wp_) {
         wp_->active = 0;
+        wp_->line_thickness = 3;
         map_calculate_waypoint(map, wp_);
-        for (uint32_t i = 0; i < map->tile_count; i++) {
-            if (wp_->tile_x == map->tiles[i]->x && wp_->tile_y == map->tiles[i]->y)
-                wp_->active = 1;
-        }
         wp_ = wp_->next;
     }
     return PM_OK;
