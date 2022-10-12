@@ -71,11 +71,12 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         last_y = new_y;
     }
 
-    if (graph->current_position)
+    if (graph->current_position) {
         display_circle_fill(dsp,
-            inner_box_left + (graph->current_position * x_step),
-            inner_box_top + inner_box_height - (uint32_t)floorf(graph->data[graph->current_position]) * y_step,
+            inner_box_left + (uint16_t)(graph->current_position * x_step),
+            inner_box_top + inner_box_height - (uint16_t)(ceilf(graph->data[graph->current_position] - graph->min) * y_step),
             3, graph->current_position_color);
+    }
 
     label_render(dsp, graph->max_label);
     label_render(dsp, graph->min_label);
