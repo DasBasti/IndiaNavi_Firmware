@@ -210,7 +210,6 @@ void map_screen_create(const display_t* display)
 
     graph_t* graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, gpx_data->waypoints_num, &f8x8);
     graph_set_range(graph, height_min, height_max);
-    graph->current_position = 4;
     graph->current_position_color = BLUE;
     graph->line_color = BLACK;
 
@@ -228,14 +227,14 @@ void map_screen_create(const display_t* display)
 
 void toggleZoom()
 {
+    ESP_LOGI(TAG, "Zoom level was: %d", zoom_level[zoom_level_selected]);
     zoom_level_selected = !zoom_level_selected;
+    ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+    map_update_position(map, map_position);
 
-    // ESP_LOGI(TAG, "Set zoom level to: %d", tile_zoom);
-    //  TODO: Update Waypoints
     scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
     scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
 
-    // map_update_position(map, map_position);
     trigger_rendering();
 }
