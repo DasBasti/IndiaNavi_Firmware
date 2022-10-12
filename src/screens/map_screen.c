@@ -72,11 +72,11 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
     uint8_t hdop = floor(map_position->hdop / 2);
     hdop += 8;
     if (map_position->fix != GPS_FIX_INVALID) {
-        label->box.left = map->pos_x - label->box.width / 2;
-        label->box.top = map->pos_y - label->box.height / 2;
-        display_circle_fill(dsp, map->pos_x, map->pos_y, 6, BLUE);
-        display_circle_fill(dsp, map->pos_x, map->pos_y, 2, WHITE);
-        display_circle_draw(dsp, map->pos_x, map->pos_y, hdop, BLACK);
+        label->box.left = map->box.left + map->pos_x - label->box.width / 2;
+        label->box.top = map->box.top + map->pos_y - label->box.height / 2;
+        display_circle_fill(dsp, label->box.left, label->box.top, 6, BLUE);
+        display_circle_fill(dsp, label->box.left, label->box.top, 2, WHITE);
+        display_circle_draw(dsp, label->box.left, label->box.top, hdop, BLACK);
         return PM_OK;
     }
     return ABORT;
