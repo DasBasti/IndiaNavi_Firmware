@@ -45,7 +45,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
         tile->z,
         tile->x,
         tile->y);
-    ESP_LOGI(TAG, "Load %s  to %u", fn, (uint)tile->image->data);
+    ESP_LOGI(TAG, "Load %s  to %p", fn, tile->image->data);
 
     if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
 
