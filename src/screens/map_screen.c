@@ -122,13 +122,16 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     return PM_OK;
 }
 
-void populate_height_data(waypoint_t* wp)
+void populate_height_data_prepare_waypoints(waypoint_t* wp)
 {
     height_graph_data[wp->num] = wp->ele;
     if (wp->ele < height_min)
         height_min = wp->ele;
     if (wp->ele > height_max)
         height_max = wp->ele;
+
+    wp->line_thickness = 3;
+    wp->color = BLUE;
 }
 
 void load_waypoint_file(char* filename)
@@ -148,7 +151,7 @@ void load_waypoint_file(char* filename)
 
         // populate height data
         height_graph_data = RTOS_Malloc(sizeof(float) * height_graph_data_len + 1);
-        map_run_on_waypoints(populate_height_data);
+        map_run_on_waypoints(populate_height_data_prepare_waypoints);
         ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     } else {
         ESP_LOGI(TAG, "Load waypoint information failed. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);

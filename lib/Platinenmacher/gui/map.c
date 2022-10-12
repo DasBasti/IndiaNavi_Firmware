@@ -241,7 +241,6 @@ error_code_t map_update_waypoint_path(map_t* map)
     waypoint_t* wp_ = waypoints;
     while (wp_) {
         wp_->active = 0;
-        wp_->line_thickness = 3;
         map_calculate_waypoint(map, wp_);
         wp_ = wp_->next;
     }
