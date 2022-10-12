@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_GPS_CREATE;//APP_TEST_SCREEN;// 
+app_mode_t _app_mode = APP_MODE_GPS_CREATE; // APP_TEST_SCREEN;//
 
 /**
  * Add render function to pipeline
@@ -87,11 +87,11 @@ void free_all_render_pipelines()
         free_render_pipeline(i);
 }
 
-/** 
+/**
  * Add a prerender callback to pipeline
- * 
+ *
  * This is called before all other renderers are called.
- * 
+ *
  * @return render slot
  */
 render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void* component))
@@ -160,10 +160,10 @@ static void create_top_bar(const display_t* dsp)
         north_indicator_label->box.left + north_indicator_label->box.width + margin_horizontal,
         margin_top, "", &f8x8);
 
-    char* GPSView = RTOS_Malloc(5);
+    char* GPSView = RTOS_Malloc(sizeof(char) * 5);
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
         dsp->size.width - ICON_SIZE - (2 * margin_right) - 16, margin_top, GPSView, &f8x8);
-    
+
     sd_indicator_label = create_icon_with_text(dsp, noSD,
         gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
         &f8x8);
@@ -233,7 +233,7 @@ void app_screen(const display_t* dsp)
         /* free start screen and fall throught to map screen generation*/
         start_screen_free();
         gui_set_app_mode(APP_MODE_GPS_CREATE);
-        __attribute__ ((fallthrough));
+        __attribute__((fallthrough));
     case APP_MODE_GPS_CREATE:
         map_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
@@ -262,9 +262,9 @@ void StartGuiTask(void const* argument)
     font_load_from_array(&f8x8, font8x8, font8x8_name);
     font_load_from_array(&f8x16, font8x16, font8x16_name);
 
-    //gpio_t *eeprom = gpio_create(OUTPUT, 0, EINK_EEPROM_nEN);
-    //eeprom->onValue = GPIO_RESET;
-    //gpio_write(eeprom, GPIO_SET);
+    // gpio_t *eeprom = gpio_create(OUTPUT, 0, EINK_EEPROM_nEN);
+    // eeprom->onValue = GPIO_RESET;
+    // gpio_write(eeprom, GPIO_SET);
 
     ESP_LOGI(TAG, "init Display regualtor");
     gpio_t* reg_gpio = gpio_create(OUTPUT, 0, EINK_VCC_nEN);
@@ -297,7 +297,7 @@ void StartGuiTask(void const* argument)
     ESP_LOGI(TAG, "Screen clear done");
 #endif
 
-    //TODO: check if we want that here
+    // TODO: check if we want that here
     create_top_bar(eink);
     ESP_LOGI(TAG, "App screen init done");
 
@@ -315,9 +315,9 @@ void StartGuiTask(void const* argument)
                     app_render();
                 }
                 ESP_LOGI(TAG, "Refresh.");
-                //vTaskPrioritySet(NULL, 1);
+                // vTaskPrioritySet(NULL, 1);
                 display_commit_fb(eink);
-                //vTaskPrioritySet(NULL, 5);
+                // vTaskPrioritySet(NULL, 5);
                 ESP_LOGI(TAG, "Refresh finished.");
                 xSemaphoreGive(gui_semaphore);
             } else {
