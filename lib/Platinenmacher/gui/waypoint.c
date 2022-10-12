@@ -13,7 +13,7 @@ error_code_t waypoint_render_marker(const display_t* dsp, void* comp)
 {
     waypoint_t* wp = (waypoint_t*)comp;
     if ((wp->active == 1) && (wp->tile_x != 0) && (wp->tile_y != 0)) {
-        display_circle_fill(dsp, wp->pos_x, wp->pos_y, 2, wp->color);
+        display_circle_fill(dsp, wp->pos_x, wp->pos_y, wp->line_thickness + 2, wp->color);
         if (wp->next) {
             // line to next waypoint
             uint32_t x2 = wp->next->pos_x;
@@ -25,7 +25,6 @@ error_code_t waypoint_render_marker(const display_t* dsp, void* comp)
                 // uint16_t vec_len = length(wp->pos_x, wp->pos_y, x2, y2);
                 // display_line_draw(dsp, wp->pos_x, wp->pos_y, wp->pos_x + (wp->pos_x / vec_len * 5), wp->pos_y + (wp->pos_y / vec_len * 5), BLACK);
             }
-            ESP_LOGI(__func__, "wp %d - %d/%d -> %d/%d", wp->num, wp->pos_x, wp->pos_x, wp->next->pos_x, wp->next->pos_y);
         }
         display_pixel_draw(dsp, wp->pos_x, wp->pos_y, WHITE);
     }
