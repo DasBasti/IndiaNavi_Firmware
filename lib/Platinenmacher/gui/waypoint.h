@@ -15,8 +15,8 @@ struct Waypoint {
     float ele;
     uint32_t tile_x;
     uint32_t tile_y;
-    uint16_t pos_x;
-    uint16_t pos_y;
+    int16_t pos_x;
+    int16_t pos_y;
     uint16_t num;
     uint8_t active;
     error_code_t (*onBeforeRender)(const display_t *dsp, void *label);
