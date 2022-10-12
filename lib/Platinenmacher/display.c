@@ -100,18 +100,18 @@ error_code_t display_rect_draw(const display_t* dsp, int16_t x, int16_t y,
 static void display_line_draw_low(const display_t* dsp, int16_t x1, int16_t y1,
     int16_t x2, int16_t y2, uint8_t color)
 {
-    int32_t dX = x2 - x1;
-    int32_t dY = y2 - y1;
-    int32_t yi = 1;
+    int16_t dX = x2 - x1;
+    int16_t dY = y2 - y1;
+    int16_t yi = 1;
 
     if (dY < 0) {
         yi = -1;
         dY = -dY;
     }
 
-    int32_t D = (2 * dY) - dX;
-    uint32_t y = y1;
-    for (uint32_t x = x1; x <= x2; x++) {
+    int16_t D = (2 * dY) - dX;
+    int16_t y = y1;
+    for (int16_t x = x1; x <= x2; x++) {
         display_pixel_draw(dsp, x, y, color);
         if (D > 0) {
             y = y + yi;
@@ -123,18 +123,18 @@ static void display_line_draw_low(const display_t* dsp, int16_t x1, int16_t y1,
 static void display_line_draw_height(const display_t* dsp, int16_t x1, int16_t y1,
     int16_t x2, int16_t y2, uint8_t color)
 {
-    int32_t dX = x2 - x1;
-    int32_t dY = y2 - y1;
-    int32_t xi = 1;
+    int16_t dX = x2 - x1;
+    int16_t dY = y2 - y1;
+    int16_t xi = 1;
 
     if (dX < 0) {
         xi = -1;
         dX = -dX;
     }
 
-    int32_t D = (2 * dX) - dY;
-    uint32_t x = x1;
-    for (uint32_t y = y1; y <= y2; y++) {
+    int16_t D = (2 * dX) - dY;
+    int16_t x = x1;
+    for (int16_t y = y1; y <= y2; y++) {
         display_pixel_draw(dsp, x, y, color);
         if (D > 0) {
             x = x + xi;
@@ -168,24 +168,28 @@ error_code_t display_line_draw(const display_t* dsp, int16_t x1, int16_t y1,
     int16_t x2, int16_t y2, uint8_t color)
 {
     error_code_t ret = PM_OK;
+    if (x1 < 0 || x2 < 0 || y1 < 0 || y2 < 0
+        || x1 >= dsp->size.width || x2 >= dsp->size.width
+        || y1 >= dsp->size.height || y2 >= dsp->size.height)
+        ret = OUT_OF_BOUNDS;
 
     if (x1 - x2 == 0) { // staight line in y direction
         if (y1 > y2) {  // flip direction
-            uint32_t b = y2;
+            int16_t b = y2;
             y2 = y1;
             y1 = b;
         }
-        for (int y = y1; y <= y2; y++)
+        for (int16_t y = y1; y <= y2; y++)
             display_pixel_draw(dsp, x1, y, color);
         return ret;
     }
     if (y1 - y2 == 0) { // staight line in x direction
         if (x1 > x2) {  // flip direction
-            uint32_t b = x2;
+            int16_t b = x2;
             x2 = x1;
             x1 = b;
         }
-        for (int x = x1; x <= x2; x++)
+        for (int16_t x = x1; x <= x2; x++)
             display_pixel_draw(dsp, x, y1, color);
         return ret;
     }
