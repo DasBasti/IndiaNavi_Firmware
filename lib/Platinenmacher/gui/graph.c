@@ -37,6 +37,8 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         return PM_FAIL;
 
     graph_t* graph = (graph_t*)component;
+    
+    display_rect_draw(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, BLACK);
 
     if (graph->data_len < 2)
         return OUT_OF_BOUNDS;
@@ -46,8 +48,6 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
 
     if ((graph->max - graph->min) > graph->box.height)
         return OUT_OF_BOUNDS;
-
-    display_rect_draw(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, BLACK);
 
     uint16_t inner_box_top = graph->box.top + 1;
     uint16_t inner_box_left = graph->box.left + 1;
