@@ -42,16 +42,25 @@ static const char* TAG = "map_screen";
  */
 static error_code_t updateInfoText(const display_t* dsp, void* comp)
 {
-    // ignore info test for now
-    return PM_OK;
+    if (!map_position)
+        return UNAVAILABLE;
+
     if (map_position->fix != GPS_FIX_INVALID) {
+        char lat = 'N';
+        if (map_position->latitude < 0)
+            lat = 'S';
+
+        char lon = 'E';
+        if (map_position->longitude < 0)
+            lon = 'W';
+
         xSemaphoreTake(print_semaphore, portMAX_DELAY);
-        sprintf(infoBox->text, "GPS: %fN %fE %.02fm (HDOP:%f)",
-            map_position->longitude, map_position->longitude, map_position->altitude, map_position->hdop);
+        snprintf(infoBox->text, (dsp->size.width / f8x8.width), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
+            map_position->latitude, lat, map_position->longitude, lon, map_position->altitude, map_position->hdop);
         xSemaphoreGive(print_semaphore);
     } else {
         xSemaphoreTake(print_semaphore, portMAX_DELAY);
-        sprintf(infoBox->text, "No GPS Signal found!");
+        snprintf(infoBox->text, (dsp->size.width / f8x8.width), "No GPS Signal found!");
         xSemaphoreGive(print_semaphore);
     }
     return PM_OK;
@@ -129,23 +138,22 @@ void load_waypoint_file(char* filename)
     async_file_t wp_file;
     wp_file.filename = filename;
     wp_file.loaded = 0;
-    createFileBuffer(&wp_file);
-    if(wp_file.dest)
+    if (PM_OK == createFileBuffer(&wp_file))
         loadFile(&wp_file);
 
-    if(wp_file.loaded == LOADED )
-    {
-    waypoint_t* first_wp = gpx_parser(wp_file.dest, map_add_waypoint, &height_graph_data_len);
-    map_set_first_waypoint(first_wp);
-    RTOS_Free(wp_file.dest);
+    if (wp_file.loaded == LOADED) {
+        waypoint_t* first_wp = gpx_parser(wp_file.dest, map_add_waypoint, &height_graph_data_len);
+        map_set_first_waypoint(first_wp);
+        RTOS_Free(wp_file.dest);
 
-    // populate height data
-    height_graph_data = RTOS_Malloc(sizeof(float) * height_graph_data_len+1);
-    map_run_on_waypoints(populate_height_data);
+        // populate height data
+        height_graph_data = RTOS_Malloc(sizeof(float) * height_graph_data_len + 1);
+        map_run_on_waypoints(populate_height_data);
+        ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
+    } else {
+        ESP_LOGI(TAG, "Load waypoint information failed. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     }
-    
 
-    ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
 }
 
@@ -182,16 +190,7 @@ void map_screen_create(const display_t* display)
     label_shrink_to_text(map_copyright);
     map_copyright->box.left = dsp->size.width - map_copyright->box.width;
     add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
-    /*
-        infoBox = label_create("", &f8x8, 0, dsp->size.height - 14,
-            dsp->size.width - 1, 13);
-        infoBox->borderWidth = 1;
-        infoBox->borderLines = ALL_SOLID;
-        infoBox->alignVertical = MIDDLE;
-        infoBox->backgroundColor = WHITE;
-        infoBox->onBeforeRender = updateInfoText;
-        add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
-    */
+
     map_update_zoom_level(map, zoom_level[0]);
     // map_update_position(map, map_position);
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
@@ -206,6 +205,15 @@ void map_screen_create(const display_t* display)
     graph->line_color = BLACK;
 
     add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
+
+    infoBox = label_create("", &f8x8, 0, dsp->size.height - 14,
+        dsp->size.width - 1, 13);
+    infoBox->alignVertical = MIDDLE;
+    infoBox->alignHorizontal = RIGHT;
+    infoBox->backgroundColor = TRANSPARENT;
+    infoBox->onBeforeRender = updateInfoText;
+    infoBox->text = RTOS_Malloc(dsp->size.width / f8x8.width);
+    add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 }
 
 void toggleZoom()
