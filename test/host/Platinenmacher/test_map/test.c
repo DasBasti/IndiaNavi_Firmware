@@ -9,14 +9,14 @@ map_t* map;
 
 void setUp()
 {
-    map = map_create(0, 0, 2, 3, 256, 0);
+    map = map_create(0, 0, 3, 3, 256, 0);
 }
 
 void test_create_map()
 {
-    TEST_ASSERT_EQUAL_UINT8(2, map->width);
+    TEST_ASSERT_EQUAL_UINT8(3, map->width);
     TEST_ASSERT_EQUAL_UINT8(3, map->height);
-    TEST_ASSERT_EQUAL_UINT16(512, map->box.width);
+    TEST_ASSERT_EQUAL_UINT16(768, map->box.width);
     TEST_ASSERT_EQUAL_UINT16(768, map->box.height);
     TEST_ASSERT_NOT_NULL(map->tiles);
     map_t* empty_map = map_create(0, 0, 0, 0, 256, 0);
@@ -114,7 +114,7 @@ void test_waypoints()
     TEST_ASSERT_EQUAL(PM_OK, map_calculate_waypoint(map, wp));
     TEST_ASSERT_EQUAL_UINT16(34224, wp->tile_x);
     TEST_ASSERT_EQUAL_UINT16(22367, wp->tile_y);
-    TEST_ASSERT_EQUAL_UINT16(91, wp->pos_x);
+    TEST_ASSERT_EQUAL_UINT16(347, wp->pos_x);
     TEST_ASSERT_EQUAL_UINT16(273, wp->pos_y);
     TEST_ASSERT_EQUAL_UINT(1, wp->active);
 

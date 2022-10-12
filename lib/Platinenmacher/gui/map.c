@@ -9,7 +9,6 @@
 #include "waypoint.h"
 #include <math.h>
 
-static uint8_t right_side = 0;
 static font_t* map_font;
 static char* not_loaded_string = "no tile loaded";
 
@@ -100,33 +99,17 @@ error_code_t map_update_position(map_t* map, map_position_t* pos)
         y = (uint16_t)floor(yf);
     }
     // get offset to tile corner of tile with position
-    int16_t pos_x = floor((xf - x) * 256); // offset from tile 0
-    int16_t pos_y = floor((yf - y) * 256); // offset from tile 0
-    int8_t y_offset = 0;
-    if (pos_y > 128)
-        y_offset = -1;
+    map->pos_x = floor((xf - x) * 256) + 256; // offset to tile 1
+    map->pos_y = floor((yf - y) * 256) + 256; // offset to tile 1
 
     for (uint8_t i = 0; i < map->width; i++) {
         for (uint8_t j = 0; j < map->height; j++) {
             uint16_t idx = i * map->height + j;
-            if (pos_x < 128) {
-                map->tiles[idx]->x = x - 1 + i;
-                right_side = 1;
-            } else {
-                map->tiles[idx]->x = x + i;
-                right_side = 0;
-            }
-            map->tiles[idx]->y = y + (y_offset + j);
+            map->tiles[idx]->x = x - 1 + i;
+            map->tiles[idx]->y = y - 1 + j;
             map->tiles[idx]->z = map->tile_zoom;
         }
     }
-
-    pos_y += -256 * y_offset;
-    if (right_side)
-        pos_x += 256;
-
-    map->pos_x = pos_x;
-    map->pos_y = pos_y;
 
     return PM_OK;
 }
