@@ -8,16 +8,16 @@
 #ifndef ERROR_H_
 #define ERROR_H_
 
-typedef enum
-{
-	PM_OK = 0U,
-	PM_FAIL,
-	DELEAYED,
-	OUT_OF_BOUNDS,
-	UNAVAILABLE,
-	ABORT,
-	NOT_NEEDED,
-	TIMEOUT,
+typedef enum {
+    PM_OK = 0U,
+    PM_FAIL,
+    DELEAYED,
+    OUT_OF_BOUNDS,
+    UNAVAILABLE,
+    ABORT,
+    NOT_NEEDED,
+    TIMEOUT,
+    DEFERRED,
 
 } error_code_t;
 
