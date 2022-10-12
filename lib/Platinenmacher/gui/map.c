@@ -87,44 +87,41 @@ map_tile_t* map_get_tile(map_t* map, uint8_t x, uint8_t y)
 
 error_code_t map_update_position(map_t* map, map_position_t* pos)
 {
-    static uint16_t x_old = 0, y_old = 0;
     uint16_t x = 0, y = 0;
     float xf = 0.0, yf = 0.0;
-    // TODO: test for matching zoom_level
     // get tile number of tile with position on it as float and integer
     if (pos->longitude != 0.0) {
         xf = flon2tile(pos->longitude, map->tile_zoom);
-        x = floor(xf);
+        x = (uint16_t)floor(xf);
     }
     // also for y axis
     if (pos->latitude != 0.0) {
         yf = flat2tile(pos->latitude, map->tile_zoom);
-        y = floor(yf);
+        y = (uint16_t)floor(yf);
     }
     // get offset to tile corner of tile with position
-    uint32_t pos_x = floor((xf - x) * 256); // offset from tile 0
-    uint32_t pos_y = floor((yf - y) * 256); // offset from tile 0
-    /* grab necessary tiles */
-    if ((x != x_old) | (y != y_old)) {
-        x_old = x;
-        y_old = y;
-        for (uint8_t i = 0; i < map->width; i++) {
-            for (uint8_t j = 0; j < map->height; j++) {
-                uint32_t idx = i * map->height + j;
-                if (pos_x < 128) {
-                    map->tiles[idx]->x = x - 1 + i;
-                    right_side = 1;
-                } else {
-                    map->tiles[idx]->x = x + i;
-                    right_side = 0;
-                }
-                map->tiles[idx]->y = y + (-1 + j);
-                map->tiles[idx]->z = map->tile_zoom;
+    int16_t pos_x = floor((xf - x) * 256); // offset from tile 0
+    int16_t pos_y = floor((yf - y) * 256); // offset from tile 0
+    int8_t y_offset = 0;
+    if (pos_y > 128)
+        y_offset = -1;
+
+    for (uint8_t i = 0; i < map->width; i++) {
+        for (uint8_t j = 0; j < map->height; j++) {
+            uint16_t idx = i * map->height + j;
+            if (pos_x < 128) {
+                map->tiles[idx]->x = x - 1 + i;
+                right_side = 1;
+            } else {
+                map->tiles[idx]->x = x + i;
+                right_side = 0;
             }
+            map->tiles[idx]->y = y + (y_offset + j);
+            map->tiles[idx]->z = map->tile_zoom;
         }
     }
 
-    pos_y += 256;
+    pos_y += -256 * y_offset;
     if (right_side)
         pos_x += 256;
 
