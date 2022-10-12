@@ -48,6 +48,8 @@ static waypoint_t* wp = NULL;
 waypoint_t* first_wp = NULL;
 uint32_t (*add_waypoint)(waypoint_t* wp);
 
+gpx_t* gpx;
+
 void ff_xml(sxml_t* parser, const char* gpx)
 {
     /*
@@ -114,6 +116,8 @@ void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
             break;
         case SXML_CHARACTER:
             if (state == TRK_NAME) {
+                gpx->track_name = RTOS_Malloc(sizeof(char) * strlen(buf));
+                strcpy(gpx->track_name, buf);
 #ifndef TESTING
                 ESP_LOGI("xml_data", "name: %s", buf);
 #endif
@@ -157,9 +161,10 @@ void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
     }
 }
 
-waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp), uint16_t* num_wp)
+gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp))
 {
     add_waypoint = add_waypoint_cb;
+    gpx = RTOS_Malloc(sizeof(gpx_t));
     /* Output token table */
     sxmltok_t tokens[128];
 
@@ -226,7 +231,7 @@ waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(wa
         vPortYield();
 #endif
     }
-    if (num_wp)
-        *num_wp = waypoint_num;
-    return first_wp;
+    gpx->waypoints_num = waypoint_num;
+    gpx->waypoints = first_wp;
+    return gpx;
 }

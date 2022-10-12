@@ -26,14 +26,16 @@ static label_t* scaleBox;
 static label_t* positon_marker;
 static label_t* map_copyright;
 static label_t* infoBox;
+static gpx_t* gpx_data;
 
 static uint8_t zoom_level_selected = 0;
 uint8_t zoom_level[] = { 16, 14 };
 uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
 float* height_graph_data;
-uint16_t height_graph_data_len = 0;
 float height_min = __FLT_MAX__, height_max = 0;
+
+#define INFOBOX_STRLEN (dsp->size.width / f8x8.width)
 
 static const char* TAG = "map_screen";
 
@@ -45,7 +47,9 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
     if (!map_position)
         return UNAVAILABLE;
 
-    if (map_position->fix != GPS_FIX_INVALID) {
+    if (gpx_data && gpx_data->track_name) {
+        strncpy(infoBox->text, gpx_data->track_name, INFOBOX_STRLEN);
+    } else if (map_position->fix != GPS_FIX_INVALID) {
         char lat = 'N';
         if (map_position->latitude < 0)
             lat = 'S';
@@ -55,12 +59,12 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
             lon = 'W';
 
         xSemaphoreTake(print_semaphore, portMAX_DELAY);
-        snprintf(infoBox->text, (dsp->size.width / f8x8.width), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
+        snprintf(infoBox->text, (INFOBOX_STRLEN), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
             map_position->latitude, lat, map_position->longitude, lon, map_position->altitude, map_position->hdop);
         xSemaphoreGive(print_semaphore);
     } else {
         xSemaphoreTake(print_semaphore, portMAX_DELAY);
-        snprintf(infoBox->text, (dsp->size.width / f8x8.width), "No GPS Signal found!");
+        snprintf(infoBox->text, (INFOBOX_STRLEN), "No GPS Signal found!");
         xSemaphoreGive(print_semaphore);
     }
     return PM_OK;
@@ -130,7 +134,10 @@ void populate_height_data_prepare_waypoints(waypoint_t* wp)
     if (wp->ele > height_max)
         height_max = wp->ele;
 
-    wp->line_thickness = 3;
+    if (map->tile_zoom > 14)
+        wp->line_thickness = 3;
+    else
+        wp->line_thickness = 1;
     wp->color = BLUE;
 }
 
@@ -145,12 +152,12 @@ void load_waypoint_file(char* filename)
         loadFile(&wp_file);
 
     if (wp_file.loaded == LOADED) {
-        waypoint_t* first_wp = gpx_parser(wp_file.dest, map_add_waypoint, &height_graph_data_len);
-        map_set_first_waypoint(first_wp);
+        gpx_data = gpx_parser(wp_file.dest, map_add_waypoint);
+        map_set_first_waypoint(gpx_data->waypoints);
         RTOS_Free(wp_file.dest);
 
         // populate height data
-        height_graph_data = RTOS_Malloc(sizeof(float) * height_graph_data_len + 1);
+        height_graph_data = RTOS_Malloc(sizeof(float) * gpx_data->waypoints_num + 1);
         map_run_on_waypoints(populate_height_data_prepare_waypoints);
         ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     } else {
@@ -194,14 +201,14 @@ void map_screen_create(const display_t* display)
     map_copyright->box.left = dsp->size.width - map_copyright->box.width;
     add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 
-    map_update_zoom_level(map, zoom_level[0]);
+    map_update_zoom_level(map, zoom_level[zoom_level_selected]);
     // map_update_position(map, map_position);
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
     map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
 
     load_waypoint_file("//track.gpx");
 
-    graph_t* graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, height_graph_data_len, &f8x8);
+    graph_t* graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, gpx_data->waypoints_num, &f8x8);
     graph_set_range(graph, height_min, height_max);
     graph->current_position = 4;
     graph->current_position_color = BLUE;
@@ -215,7 +222,7 @@ void map_screen_create(const display_t* display)
     infoBox->alignHorizontal = RIGHT;
     infoBox->backgroundColor = TRANSPARENT;
     infoBox->onBeforeRender = updateInfoText;
-    infoBox->text = RTOS_Malloc(dsp->size.width / f8x8.width);
+    infoBox->text = RTOS_Malloc(INFOBOX_STRLEN);
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 }
 

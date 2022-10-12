@@ -11,6 +11,12 @@
 
 #include "../gui/waypoint.h"
 
-waypoint_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp), uint16_t *num_wp);
+typedef struct {
+    waypoint_t* waypoints;
+    uint16_t waypoints_num;
+    char* track_name;
+} gpx_t;
+
+gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp));
 
 #endif //PLATINENMACHER_PARSER_GPX_H
