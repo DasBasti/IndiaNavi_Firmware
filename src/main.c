@@ -193,13 +193,13 @@ void app_main()
     #endif
     //xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
 
- /*
-    uint32_t evt;
-    evt = TASK_EVENT_ENABLE_DISPLAY;
-    xQueueSend(eventQueueHandle, &evt, 0);
-    evt = TASK_EVENT_ENABLE_GPS;
-    xQueueSend(eventQueueHandle, &evt, 0);
-   */     
+    /*
+       uint32_t evt;
+       evt = TASK_EVENT_ENABLE_DISPLAY;
+       xQueueSend(eventQueueHandle, &evt, 0);
+       evt = TASK_EVENT_ENABLE_GPS;
+       xQueueSend(eventQueueHandle, &evt, 0);
+      */
     ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
     ESP_ERROR_CHECK(lsm303_enable_taping(1));
     for (;;)
@@ -243,7 +243,8 @@ void app_main()
             //ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
             if (event_num == BTN)
             {
-                toggleZoom();
+                if (!xSemaphoreGetMutexHolder(gui_semaphore))
+                    toggleZoom();
                 gpio_isr_handler_add(BTN, handleButtonPress, (void *)BTN);
             }
             if (event_num == I2C_INT)
