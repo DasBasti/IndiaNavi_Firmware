@@ -168,8 +168,6 @@ error_code_t display_line_draw(const display_t* dsp, int16_t x1, int16_t y1,
     int16_t x2, int16_t y2, uint8_t color)
 {
     error_code_t ret = PM_OK;
-    if (x1 > dsp->size.width || x2 > dsp->size.width || y1 > dsp->size.height || y2 > dsp->size.height)
-        ret = OUT_OF_BOUNDS;
 
     if (x1 - x2 == 0) { // staight line in y direction
         if (y1 > y2) {  // flip direction
@@ -192,7 +190,7 @@ error_code_t display_line_draw(const display_t* dsp, int16_t x1, int16_t y1,
         return ret;
     }
 
-    // case for line going down
+    // case for line going skewed
     if (abs(y2 - y1) < abs(x2 - x1)) {
         if (x1 > x2)
             display_line_draw_low(dsp, x2, y2, x1, y1, color);
@@ -204,8 +202,6 @@ error_code_t display_line_draw(const display_t* dsp, int16_t x1, int16_t y1,
         else
             display_line_draw_height(dsp, x1, y1, x2, y2, color);
     }
-
-    // case for line going up
 
     return ret;
 }
