@@ -13,7 +13,7 @@ error_code_t waypoint_render_marker(const display_t* dsp, void* comp)
 {
     waypoint_t* wp = (waypoint_t*)comp;
     if ((wp->active == 1) && (wp->tile_x != 0) && (wp->tile_y != 0)) {
-        display_circle_fill(dsp, wp->pos_x, wp->pos_y, wp->line_thickness + 2, wp->color);
+        display_circle_fill(dsp, wp->pos_x, wp->pos_y, wp->line_thickness + 1, wp->color);
         if (wp->next) {
             // line to next waypoint
             uint32_t x2 = wp->next->pos_x;
