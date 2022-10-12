@@ -26,7 +26,10 @@ static label_t* scaleBox;
 static label_t* positon_marker;
 static label_t* map_copyright;
 static label_t* infoBox;
+static graph_t* graph;
 static gpx_t* gpx_data;
+static waypoint_t* closest_wp;
+static int32_t dlat_min = INT32_MAX, dlon_min = INT32_MAX;
 
 static uint8_t zoom_level_selected = 0;
 uint8_t zoom_level[] = { 16, 14 };
@@ -101,6 +104,20 @@ error_code_t updateSatsInView(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
+void find_closest_waypoint(waypoint_t* wp)
+{
+    // ignore inactive waypoints
+    if (wp->active) {
+        int32_t dlat = abs((wp->lat - map_position->latitude) * 1000000);
+        int32_t dlon = abs((wp->lon - map_position->longitude) * 1000000);
+        if (dlat < dlat_min && dlon < dlon_min) {
+            dlat_min = dlat;
+            dlon_min = dlon;
+            closest_wp = wp;
+        }
+    }
+}
+
 void add_waypoints_to_renderer(waypoint_t* wp)
 {
     if (wp->active)
@@ -122,6 +139,14 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 
     free_render_pipeline(RL_PATH);
     map_run_on_waypoints(add_waypoints_to_renderer);
+
+    dlat_min = INT32_MAX;
+    dlon_min = INT32_MAX;
+    closest_wp = NULL;
+    map_run_on_waypoints(find_closest_waypoint);
+
+    if (closest_wp)
+        graph->current_position = closest_wp->num;
 
     return PM_OK;
 }
@@ -208,7 +233,7 @@ void map_screen_create(const display_t* display)
 
     load_waypoint_file("//track.gpx");
 
-    graph_t* graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, gpx_data->waypoints_num, &f8x8);
+    graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, gpx_data->waypoints_num, &f8x8);
     graph_set_range(graph, height_min, height_max);
     graph->current_position_color = BLUE;
     graph->line_color = BLACK;
