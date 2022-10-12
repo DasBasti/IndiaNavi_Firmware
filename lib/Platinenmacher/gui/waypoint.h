@@ -1,14 +1,15 @@
 #ifndef PLATINENMACHER_DISPLAY_GUI_WAYPOINT_H_
 #define PLATINENMACHER_DISPLAY_GUI_WAYPOINT_H_
 
+#include "colors.h"
 #include "display.h"
 #include "gui/geometric.h"
-#include "colors.h"
 
 typedef struct Waypoint waypoint_t;
 struct Waypoint {
     void *child;			/// Pointer to child element.
     color_t color;
+    uint8_t line_thickness;
     float lat;
     float lon;
     float ele;
