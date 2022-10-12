@@ -52,13 +52,10 @@ jobs:
         exclude_check: build
         other_options: 
 
-    - name: Extract branch name
-      shell: bash
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: extract_branch
-
-    - name: publish report    
-      uses: mikeal/publish-to-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BRANCH_NAME: ${{ steps.extract_branch.outputs.branch }}
+    - name: Upload report file
+      if: success()
+      uses: actions/upload-artifact@v2
+      with:
+        name: cpp_report.txt.bin
+        path: ./cppcheck_report
+        retention-days: 5   
