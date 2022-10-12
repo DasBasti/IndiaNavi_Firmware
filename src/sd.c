@@ -82,11 +82,9 @@ error_code_t loadFile(async_file_t* file)
             res = f_open(&t_file, file->filename, FA_READ);
             if (FR_OK == res && file->dest != 0) {
                 res = f_read(&t_file,
-                    file->dest, fno.fsize, // FIXME: only load file size bytes!
-                    &br);
+                    file->dest, fno.fsize, &br);
                 if (FR_OK == res) {
-                    // ESP_LOGI(TAG, "--- %s", file->dest);
-                    file->loaded = 1;
+                    file->loaded = LOADED;
                 }
                 f_close(&t_file);
             } else {
@@ -94,6 +92,8 @@ error_code_t loadFile(async_file_t* file)
             }
         }
         xSemaphoreGive(sd_semaphore);
+    } else {
+        ESP_LOGE(TAG, "sd semapore not available");
     }
 
     if (file->loaded == 1)
