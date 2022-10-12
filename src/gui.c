@@ -182,9 +182,8 @@ static void create_top_bar(const display_t* dsp)
 
 /**
  * Render all App components.
- *
  */
-static void app_render()
+static error_code_t app_render()
 {
     render_t* rd;
     uint64_t start = esp_timer_get_time();
@@ -192,6 +191,8 @@ static void app_render()
     for (uint8_t layer = 0; layer < RL_MAX; layer++) {
         rd = render_pipeline[layer];
         while (rd) {
+            if (render_needed)
+                return DEFERRED;
             if (rd->render)
                 rd->render(eink, rd->comp);
             rd = rd->next;
@@ -202,6 +203,8 @@ static void app_render()
     uint64_t end = esp_timer_get_time();
 
     ESP_LOGI(TAG, "render time %i ms", (uint32_t)(end - start) / 1000);
+
+    return PM_OK;
 }
 
 /**
@@ -312,7 +315,8 @@ void StartGuiTask(void const* argument)
                     // reset render count. if a renderer triggers a rerender we will directly rerender
                     render_needed = 0;
                     app_screen(eink);
-                    app_render();
+                    if (DEFERRED == app_render())
+                        ESP_LOGI(TAG, "rendering got restarted");
                 }
                 ESP_LOGI(TAG, "Refresh.");
                 // vTaskPrioritySet(NULL, 1);
