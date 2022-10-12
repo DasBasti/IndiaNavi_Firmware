@@ -198,7 +198,8 @@ void map_screen_create(const display_t* display)
     /* register pre_render callback */
     add_pre_render_callback(map_pre_render_cb);
 
-    map = map_create(-32, 42, 2, 2, 256, &f8x8);
+    /* 3x3 tiles the middle tile is centered */
+    map = map_create(-159, -85, 3, 3, 256, &f8x8);
     add_to_render_pipeline(map_render, map, RL_MAP);
 
     /* position marker */
