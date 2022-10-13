@@ -1,26 +1,34 @@
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <freertos/semphr.h>
-#include <freertos/queue.h>
-#include <Platinenmacher.h>
+/*
+ * Main Task for Wander Navi Application
+ *
+ * Copyright (c) 2022, Bastian Neumann <info@platinenmacher.tech>
+ *
+ * SPDX-License-Identifier: MIT
+ */
 
-#include <esp_system.h>
-#include <esp_pm.h>
+#include <Platinenmacher.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+
+#include <driver/adc.h>
+#include <driver/gpio.h>
 #include <esp_event.h>
 #include <esp_log.h>
 #include <esp_ota_ops.h>
+#include <esp_pm.h>
+#include <esp_system.h>
 #include <nvs.h>
 #include <nvs_flash.h>
-#include <driver/gpio.h>
-#include <driver/adc.h>
 
 #include <lsm303.h>
 
+#include "gui.h"
 #include "pins.h"
 #include "tasks.h"
-#include "gui.h"
 
-static const char *TAG = "MAIN";
+static const char* TAG = "MAIN";
 #define HASH_LEN 32
 extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
@@ -31,14 +39,14 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 #define taskWifiStackSize 1024 * 5
 #define taskDownloaderStackSize 1024 * 8
 
-void StartGpsTask(void *argument);
-void StartGuiTask(void *argument);
-void StartPowerTask(void *argument);
-void StartSDTask(void *argument);
-void StartWiFiTask(void *argument);
-void StartMapDownloaderTask(void *argument);
+void StartGpsTask(void* argument);
+void StartGuiTask(void* argument);
+void StartPowerTask(void* argument);
+void StartSDTask(void* argument);
+void StartWiFiTask(void* argument);
+void StartMapDownloaderTask(void* argument);
 
-//Create semphore
+// Create semphore
 SemaphoreHandle_t print_semaphore = NULL;
 SemaphoreHandle_t gui_semaphore = NULL;
 SemaphoreHandle_t sd_semaphore = NULL;
@@ -51,12 +59,11 @@ uint32_t ledDelay = 100;
 gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
 
-static void print_sha256(const uint8_t *image_hash, const char *label)
+static void print_sha256(const uint8_t* image_hash, const char* label)
 {
     char hash_print[HASH_LEN * 2 + 1];
     hash_print[HASH_LEN * 2] = 0;
-    for (int i = 0; i < HASH_LEN; ++i)
-    {
+    for (int i = 0; i < HASH_LEN; ++i) {
         sprintf(&hash_print[i * 2], "%02x", image_hash[i]);
     }
     ESP_LOGI(TAG, "%s %s", label, hash_print);
@@ -98,7 +105,7 @@ int readBatteryPercent()
 
 static void get_sha256_of_partitions(void)
 {
-    uint8_t sha_256[HASH_LEN] = {0};
+    uint8_t sha_256[HASH_LEN] = { 0 };
     esp_partition_t partition;
 
     // get sha256 digest for bootloader
@@ -113,16 +120,14 @@ static void get_sha256_of_partitions(void)
     print_sha256(sha_256, "SHA-256 for current firmware: ");
 }
 
-static void IRAM_ATTR handleButtonPress(void *arg)
+static void IRAM_ATTR handleButtonPress(void* arg)
 {
     uint32_t gpio_num = UINT32_MAX;
-    if (gpio_get_level(BTN) == BTN_LEVEL)
-    {
+    if (gpio_get_level(BTN) == BTN_LEVEL) {
         gpio_num = BTN;
         xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
     }
-    if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL)
-    {
+    if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL) {
         gpio_num = I2C_INT;
         xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
     }
@@ -135,12 +140,10 @@ void app_main()
 {
     uint16_t cnt = 300;
     uint32_t event_num;
-    gpio_t *led = gpio_create(OUTPUT, 0, LED);
-    uint8_t ledState = 1;
-    //Initialize NVS
+    gpio_t* led = gpio_create(OUTPUT, 0, LED);
+    // Initialize NVS
     esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
-    {
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
@@ -178,20 +181,20 @@ void app_main()
 
     // configure ADC for VBATT measurement
     ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11));
-    //ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_6));
+    // ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_6));
 
     // configure ADC for VIN measurement -> Loading cable attached?
     ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
-    //ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
+    // ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
 
     ESP_LOGI(TAG, "start");
 
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
     xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
-    #ifndef JTAG
+#ifndef JTAG
     xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 1, &sdTask_h);
-    #endif
-    //xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+#endif
+    // xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
 
     /*
        uint32_t evt;
@@ -200,83 +203,69 @@ void app_main()
        evt = TASK_EVENT_ENABLE_GPS;
        xQueueSend(eventQueueHandle, &evt, 0);
       */
-    ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
-    ESP_ERROR_CHECK(lsm303_enable_taping(1));
-    for (;;)
-    {
-        uint8_t tap_register;
-        ESP_ERROR_CHECK(lsm303_read_tap(&tap_register));
-        if(tap_register & 0x09) // double tap
+    // ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
+    // ESP_ERROR_CHECK(lsm303_enable_taping(1));
+    for (;;) {
+        uint8_t tap_register = 0;
+        // ESP_ERROR_CHECK(lsm303_read_tap(&tap_register));
+        if (tap_register & 0x09) // double tap
         {
             ESP_LOGI(TAG, "Double Tap recognized. rerender.");
             trigger_rendering();
         }
-        
-        gpio_write(led, ledState);
-        ledState = !ledState;
-        if (++cnt >= 300)
-        {
-            ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
-            #ifdef DEBUG
-                esp_pm_dump_locks(stdout);
-            #endif
-            cnt = 0;
 
-            if (battery_label)
-            {
-                int bat = readBatteryPercent();
-                ESP_LOGI(TAG, "bat %d", bat);
-                if (bat >= 0)
-                {
-                    save_sprintf(battery_label->text, "%03d%%", bat);
-                }
-                else
-                {
-                    save_sprintf(battery_label->text, "CHRG");
-                }
-                label_shrink_to_text(battery_label);
+        gpio_write(led, GPIO_SET);
+        if (++cnt >= 300) {
+            ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
+#ifdef DEBUG
+            esp_pm_dump_locks(stdout);
+#endif
+            cnt = 0;
+        }
+
+        if (battery_label) {
+            int bat = readBatteryPercent();
+            ESP_LOGI(TAG, "bat %d", bat);
+            if (bat >= 0) {
+                save_sprintf(battery_label->text, "%03d%%", bat);
+            } else {
+                save_sprintf(battery_label->text, "CHRG");
             }
+            label_shrink_to_text(battery_label);
         }
         // Delay for LED blinking. LED blinks faster if ISRs are handled
-        if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS))
-        {
-            //ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
-            if (event_num == BTN)
-            {
+        if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
+            // ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+            if (event_num == BTN) {
                 if (!xSemaphoreGetMutexHolder(gui_semaphore))
                     toggleZoom();
-                gpio_isr_handler_add(BTN, handleButtonPress, (void *)BTN);
+                gpio_isr_handler_add(BTN, handleButtonPress, (void*)BTN);
             }
-            if (event_num == I2C_INT)
-            {
+            if (event_num == I2C_INT) {
                 ESP_LOGI(TAG, "Acc");
-                //gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
+                // gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
             }
-            if (event_num == TASK_EVENT_ENABLE_GPS)
-            {
+            if (event_num == TASK_EVENT_ENABLE_GPS) {
                 xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
             }
-            if (event_num == TASK_EVENT_DISABLE_GPS)
-            {
+            if (event_num == TASK_EVENT_DISABLE_GPS) {
                 vTaskDelete(&gpsTask_h);
             }
-            if (event_num == TASK_EVENT_ENABLE_DISPLAY)
-            {
+            if (event_num == TASK_EVENT_ENABLE_DISPLAY) {
                 xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
             }
-            if (event_num == TASK_EVENT_DISABLE_DISPLAY)
-            {
+            if (event_num == TASK_EVENT_DISABLE_DISPLAY) {
                 vTaskDelete(&guiTask_h);
             }
-            if (event_num == TASK_EVENT_ENABLE_WIFI)
-            {
+            if (event_num == TASK_EVENT_ENABLE_WIFI) {
                 xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
             }
-            if (event_num == TASK_EVENT_DISABLE_WIFI)
-            {
+            if (event_num == TASK_EVENT_DISABLE_WIFI) {
                 vTaskDelete(&wifiTask_h);
             }
         }
+        gpio_write(led, GPIO_RESET);
+        vTaskDelay(pdTICKS_TO_MS(100));
     }
 }
 
@@ -285,10 +274,9 @@ void app_main()
  * @param argument: Not used
  * @retval None
  */
-__weak void StartGpsTask(void *argument)
+__weak void StartGpsTask(void* argument)
 {
-    for (;;)
-    {
+    for (;;) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -298,10 +286,9 @@ __weak void StartGpsTask(void *argument)
  * @param argument: Not used
  * @retval None
  */
-__weak void StartGuiTask(void *argument)
+__weak void StartGuiTask(void* argument)
 {
-    for (;;)
-    {
+    for (;;) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -311,10 +298,9 @@ __weak void StartGuiTask(void *argument)
  * @param argument: Not used
  * @retval None
  */
-__weak void StartPowerTask(void *argument)
+__weak void StartPowerTask(void* argument)
 {
-    for (;;)
-    {
+    for (;;) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -324,10 +310,9 @@ __weak void StartPowerTask(void *argument)
  * @param argument: Not used
  * @retval None
  */
-__weak void StartSDTask(void *argument)
+__weak void StartSDTask(void* argument)
 {
-    for (;;)
-    {
+    for (;;) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -337,10 +322,9 @@ __weak void StartSDTask(void *argument)
  * @param argument: Not used
  * @retval None
  */
-__weak void StartWiFiTask(void *argument)
+__weak void StartWiFiTask(void* argument)
 {
-    for (;;)
-    {
+    for (;;) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -350,10 +334,9 @@ __weak void StartWiFiTask(void *argument)
  * @param argument: Not used
  * @retval None
  */
-__weak void StartMapDownloaderTask(void *argument)
+__weak void StartMapDownloaderTask(void* argument)
 {
-    for (;;)
-    {
+    for (;;) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
