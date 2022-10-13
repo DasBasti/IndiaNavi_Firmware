@@ -350,6 +350,10 @@ error_code_t display_text_draw(const display_t* dsp, font_t* font, int16_t x,
         if (text[i] == '\n') {
             line++;
             column = 0;
+        } else if (text[i] == '\r') {
+            column = 0;
+        } else if (text[i] == '\t') {
+            column += 8-((column + 1) % 8);
         } else {
             uint32_t pos = (text[i] - font->asciiOffset) * font->height * font->width / 8;
             uint8_t* c = (uint8_t*)&font->data[pos];
