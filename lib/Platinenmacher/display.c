@@ -342,13 +342,21 @@ error_code_t display_text_draw(const display_t* dsp, font_t* font, int16_t x,
 {
     if (NULL == font)
         return PM_FAIL;
-        
+
     uint32_t i = 0;
+    uint16_t line = 0;
+    uint16_t column = 0;
     while (text[i]) { // for every character in char array until \0 is encountered
-        uint32_t pos = (text[i] - font->asciiOffset) * font->height * font->width / 8;
-        uint8_t* c = (uint8_t*)&font->data[pos];
-        display_draw_raw_rot(dsp, c, x + (i * 8), y, font->width, font->height,
-            color, TRANSPARENT, font->rotation);
+        if (text[i] == '\n') {
+            line++;
+            column = 0;
+        } else {
+            uint32_t pos = (text[i] - font->asciiOffset) * font->height * font->width / 8;
+            uint8_t* c = (uint8_t*)&font->data[pos];
+            display_draw_raw_rot(dsp, c, x + (column * 8), y + (line * (font->height + 2)), font->width, font->height,
+                color, TRANSPARENT, font->rotation);
+            column++;
+        }
         i++; // next char
     }
 
