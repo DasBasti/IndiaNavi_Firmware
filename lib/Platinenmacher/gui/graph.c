@@ -37,7 +37,8 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         return PM_FAIL;
 
     graph_t* graph = (graph_t*)component;
-    
+
+    display_rect_fill(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, WHITE);
     display_rect_draw(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, BLACK);
 
     if (graph->data_len < 2)
