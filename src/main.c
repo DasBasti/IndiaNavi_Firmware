@@ -187,6 +187,9 @@ void app_main()
     ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
     // ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
 
+    // inital battery level read
+    current_battery_level = readBatteryPercent();
+
     ESP_LOGI(TAG, "start");
 
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
@@ -224,10 +227,10 @@ void app_main()
         }
 
         if (battery_label) {
-            int bat = readBatteryPercent();
-            ESP_LOGI(TAG, "bat %d", bat);
-            if (bat >= 0) {
-                save_sprintf(battery_label->text, "%03d%%", bat);
+            current_battery_level = readBatteryPercent();
+            ESP_LOGI(TAG, "current_battery_level %d", current_battery_level);
+            if (current_battery_level >= 0) {
+                save_sprintf(battery_label->text, "%03d%%", current_battery_level);
             } else {
                 save_sprintf(battery_label->text, "CHRG");
             }
