@@ -44,12 +44,6 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
     if (graph->data_len < 2)
         return OUT_OF_BOUNDS;
 
-    if (graph->data_len > graph->box.width)
-        return OUT_OF_BOUNDS;
-
-    if ((graph->max - graph->min) > graph->box.height)
-        return OUT_OF_BOUNDS;
-
     uint16_t inner_box_top = graph->box.top + 1;
     uint16_t inner_box_left = graph->box.left + 1;
     uint16_t inner_box_width = graph->box.width - 2;
