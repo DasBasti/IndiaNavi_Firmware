@@ -231,6 +231,7 @@ void app_screen(const display_t* dsp)
         break;
     case APP_TEST_SCREEN:
         test_screen_create(dsp);
+        gui_set_app_mode(APP_MODE_RUNNING);
         break;
     case APP_START_SCREEN_TRANSITION:
         /* free start screen and fall throught to map screen generation*/
