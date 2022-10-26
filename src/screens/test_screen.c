@@ -6,13 +6,20 @@
 #include "pins.h"
 #include "tasks.h"
 
+#include <driver/adc.h>
 #include <esp_log.h>
 static float* battery_voltage;
+static float* charger_voltage;
 static uint32_t battery_voltage_offset = 0;
-static const uint32_t battery_voltage_num = 1024; // adjust to a sensible amount
+static const uint32_t battery_voltage_num = 4096; // adjust to a sensible amount
 static graph_t* graph;
+static graph_t* graph_zahl;
 char bat_graph[10];
+char bat_graph1[10];
+char bat_graph2[10];
 static label_t* bat_graph_label;
+static label_t* bat_graph_label1;
+static label_t* bat_graph_label2;
 static label_t* gps;
 char gps_info[1024];
 static label_t* task_info_label;
@@ -26,18 +33,25 @@ char sd_info[1024];
 error_code_t record_battery_voltage(const display_t* dsp, void* comp)
 {
     // record the battery voltage for this iteration
-    if (battery_voltage && battery_voltage_offset < battery_voltage_num) {
-        if (current_battery_level > 0)
-            battery_voltage[battery_voltage_offset] = (float)current_battery_level;
-        else
-            battery_voltage[battery_voltage_offset] = 110;
+    adc_power_acquire();
+    int currentBatteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
+    int currentChargerVoltage = adc1_get_raw(ADC1_CHANNEL_7);
+    adc_power_release();
+
+    if (battery_voltage_offset < battery_voltage_num && charger_voltage && battery_voltage) {
+        charger_voltage[battery_voltage_offset] = (float)currentChargerVoltage;
+        battery_voltage[battery_voltage_offset] = (float)currentBatteryVoltage;
         battery_voltage_offset++;
-        if (graph) {
-            graph->data_len = battery_voltage_offset;
-            if (xSemaphoreTake(print_semaphore, 1000)) {
-                snprintf(bat_graph, 10, "%d pts", battery_voltage_offset);
-                xSemaphoreGive(print_semaphore);
-            }
+    }
+
+    if (graph && graph_zahl && bat_graph_label1 && bat_graph_label2) {
+        graph->data_len = battery_voltage_offset;
+        graph_zahl->data_len = battery_voltage_offset;
+        if (xSemaphoreTake(print_semaphore, 1000)) {
+            snprintf(bat_graph, 10, "%d pts", battery_voltage_offset);
+            snprintf(bat_graph1, 10, "BV: %d", currentBatteryVoltage);
+            snprintf(bat_graph2, 10, "CV: %d", currentChargerVoltage);
+            xSemaphoreGive(print_semaphore);
         }
     }
 
@@ -156,17 +170,33 @@ void test_screen_create(const display_t* display)
 {
     // add a hook to record the current battery voltage each render execution
     battery_voltage = RTOS_Malloc(sizeof(float) * battery_voltage_num);
+    charger_voltage = RTOS_Malloc(sizeof(float) * battery_voltage_num);
     add_pre_render_callback(record_battery_voltage);
 
-    graph = graph_create(0, display->size.height - 150, display->size.width, 150, battery_voltage, battery_voltage_offset, &f8x8);
-    graph_set_range(graph, 0, 110);
-    graph->line_color = BLACK;
+    graph = graph_create(0, display->size.height - 200, display->size.width, 200, battery_voltage, battery_voltage_offset, &f8x8);
+    graph_set_range(graph, 1500, 2900);
+    graph->line_color = BLUE;
+
+    graph_zahl = graph_create(0, display->size.height - 200, display->size.width, 200, charger_voltage, battery_voltage_offset, &f8x8);
+    graph_set_range(graph_zahl, 1500, 2900);
+    graph_zahl->line_color = RED;
 
     bat_graph_label = label_create(bat_graph, &f8x8, 10, graph->box.top + 2, display->size.width - 10, 10);
     bat_graph_label->alignHorizontal = RIGHT;
 
+    bat_graph_label1 = label_create(bat_graph1, &f8x8, 10, graph->box.top - 10, display->size.width - 10, 10);
+    bat_graph_label1->alignHorizontal = RIGHT;
+    bat_graph_label1->textColor = BLUE;
+
+    bat_graph_label2 = label_create(bat_graph2, &f8x8, 10, graph->box.top - 20, display->size.width - 10, 10);
+    bat_graph_label2->alignHorizontal = RIGHT;
+    bat_graph_label2->textColor = RED;
+
     add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
+    add_to_render_pipeline(graph_renderer, graph_zahl, RL_GUI_ELEMENTS);
     add_to_render_pipeline(label_render, bat_graph_label, RL_GUI_ELEMENTS);
+    add_to_render_pipeline(label_render, bat_graph_label1, RL_GUI_ELEMENTS);
+    add_to_render_pipeline(label_render, bat_graph_label2, RL_GUI_ELEMENTS);
 
     gps = label_create(gps_info, &f8x8, 5, 50, display->size.width - 5, 9 * (f8x8.height + 2));
 
