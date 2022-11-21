@@ -26,6 +26,7 @@ typedef struct {
     label_t *max_label;
     font_t *font;
     color_t line_color;
+    color_t background_color;
     color_t current_position_color;
 } graph_t;
 

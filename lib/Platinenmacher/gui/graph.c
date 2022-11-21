@@ -38,6 +38,8 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
 
     graph_t* graph = (graph_t*)component;
     
+    if(graph->background_color != TRANSPARENT)
+        display_rect_fill(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, graph->background_color);
     display_rect_draw(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, BLACK);
 
     if (graph->data_len < 2)
@@ -65,8 +67,20 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
             val = 0;
         uint16_t new_x = inner_box_left + (uint16_t)(i * x_step);                     // x values grow in step;
         uint16_t new_y = inner_box_top + inner_box_height - (uint16_t)ceilf((val)*y_step); // y values are scaled from min to max
-        if (i != 0)
-            display_line_draw(dsp, last_x, last_y, new_x, new_y, graph->line_color);
+        if (i != 0){
+            uint16_t delta_y = abs(last_y - new_y);
+            color_t line_color = graph->line_color;
+            if(delta_y > 2)
+                line_color = RED;
+            else if (delta_y > 1)
+                line_color = GREEN;
+            else if (delta_y == 1)
+                line_color = BLUE;
+            else if (delta_y == 0)
+                line_color = BLACK;
+            ESP_LOGI("GRAPH", "Delta Y: %d", delta_y);
+            display_line_draw(dsp, last_x, last_y, new_x, new_y, line_color);
+        }
         last_x = new_x;
         last_y = new_y;
     }
