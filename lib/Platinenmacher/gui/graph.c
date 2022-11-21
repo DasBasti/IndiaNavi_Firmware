@@ -14,7 +14,7 @@
 
 char min_str[10], max_str[10];
 
-graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, float* data, uint16_t data_len, font_t* font)
+graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, graph_point_t* data, uint16_t data_len, font_t* font)
 {
     graph_t* graph = RTOS_Malloc(sizeof(graph_t));
     graph->box.left = left;
@@ -56,24 +56,14 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
 
     // TODO: there can be more data points than pixel on the screen!
     for (uint16_t i = 0; i < graph->data_len; i++) {
-        int32_t val = (uint32_t)(graph->data[i]) - graph->min;
+        int32_t val = (uint32_t)(graph->data[i].value) - graph->min;
         if (val < 0)
             val = 0;
         uint16_t new_x = inner_box_left + (uint16_t)(i * x_step);                     // x values grow in step;
         uint16_t new_y = inner_box_top + inner_box_height - (uint16_t)ceilf((val)*y_step); // y values are scaled from min to max
         if (i != 0){
-            uint16_t delta_y = abs(last_y - new_y);
-            color_t line_color = graph->line_color;
-            if(delta_y > 2)
-                line_color = RED;
-            else if (delta_y > 1)
-                line_color = GREEN;
-            else if (delta_y == 1)
-                line_color = BLUE;
-            else if (delta_y == 0)
-                line_color = BLACK;
-            display_line_draw(dsp, last_x, last_y, new_x, new_y, line_color);
-            display_line_draw(dsp, last_x, last_y-1, new_x, new_y, line_color);
+            display_line_draw(dsp, last_x, last_y, new_x, new_y, graph->data[i].color);
+            display_line_draw(dsp, last_x, last_y-1, new_x, new_y, graph->data[i].color);
         }
         last_x = new_x;
         last_y = new_y;
@@ -82,7 +72,7 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
     if (graph->current_position) {
         display_circle_fill(dsp,
             inner_box_left + (uint16_t)(graph->current_position * x_step),
-            inner_box_top + inner_box_height - (uint16_t)(ceilf(graph->data[graph->current_position] - graph->min) * y_step),
+            inner_box_top + inner_box_height - (uint16_t)(ceilf(graph->data[graph->current_position].value - graph->min) * y_step),
             3, graph->current_position_color);
     }
 

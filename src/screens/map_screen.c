@@ -35,7 +35,7 @@ static uint8_t zoom_level_selected = 0;
 uint8_t zoom_level[] = { 16, 14 };
 uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
-float* height_graph_data;
+graph_point_t* height_graph_data;
 float height_min = __FLT_MAX__, height_max = 0;
 
 #define INFOBOX_STRLEN (dsp->size.width / f8x8.width)
@@ -153,7 +153,15 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 
 void populate_height_data_prepare_waypoints(waypoint_t* wp)
 {
-    height_graph_data[wp->num] = wp->ele;
+    height_graph_data[wp->num].value = wp->ele;
+    if(wp->next){
+        uint32_t diff = abs(wp->ele - wp->next->ele);
+            height_graph_data[wp->num].color = BLUE;
+            if(diff >= 10)
+                height_graph_data[wp->num].color = RED;
+            else if (diff > 1)
+                height_graph_data[wp->num].color = GREEN;
+    }
     if (wp->ele < height_min)
         height_min = wp->ele;
     if (wp->ele > height_max)
@@ -182,7 +190,7 @@ void load_waypoint_file(char* filename)
         RTOS_Free(wp_file.dest);
 
         // populate height data
-        height_graph_data = RTOS_Malloc(sizeof(float) * gpx_data->waypoints_num + 1);
+        height_graph_data = RTOS_Malloc(sizeof(graph_point_t) * gpx_data->waypoints_num + 1);
         map_run_on_waypoints(populate_height_data_prepare_waypoints);
         ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     } else {
