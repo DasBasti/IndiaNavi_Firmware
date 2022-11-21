@@ -72,8 +72,8 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
                 line_color = BLUE;
             else if (delta_y == 0)
                 line_color = BLACK;
-            ESP_LOGI("GRAPH", "Delta Y: %d", delta_y);
             display_line_draw(dsp, last_x, last_y, new_x, new_y, line_color);
+            display_line_draw(dsp, last_x, last_y-1, new_x, new_y, line_color);
         }
         last_x = new_x;
         last_y = new_y;

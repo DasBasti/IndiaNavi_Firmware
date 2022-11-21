@@ -238,6 +238,7 @@ void map_screen_create(const display_t* display)
     graph_set_range(graph, height_min, height_max);
     graph->current_position_color = BLUE;
     graph->line_color = BLACK;
+    graph->background_color = WHITE;
 
     add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
 
