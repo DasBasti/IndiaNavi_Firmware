@@ -52,6 +52,7 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
 
     if (gpx_data && gpx_data->track_name) {
         strncpy(infoBox->text, gpx_data->track_name, INFOBOX_STRLEN);
+        infoBox->backgroundColor = TRANSPARENT;
     } else if (map_position->fix != GPS_FIX_INVALID) {
         char lat = 'N';
         if (map_position->latitude < 0)
@@ -154,13 +155,13 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 void populate_height_data_prepare_waypoints(waypoint_t* wp)
 {
     height_graph_data[wp->num].value = wp->ele;
-    if(wp->next){
+    if (wp->next) {
         uint32_t diff = abs(wp->ele - wp->next->ele);
-            height_graph_data[wp->num].color = BLUE;
-            if(diff >= 10)
-                height_graph_data[wp->num].color = RED;
-            else if (diff > 1)
-                height_graph_data[wp->num].color = GREEN;
+        height_graph_data[wp->num].color = BLUE;
+        if (diff >= 10)
+            height_graph_data[wp->num].color = RED;
+        else if (diff > 1)
+            height_graph_data[wp->num].color = GREEN;
     }
     if (wp->ele < height_min)
         height_min = wp->ele;
@@ -242,19 +243,25 @@ void map_screen_create(const display_t* display)
 
     load_waypoint_file("//track.gpx");
 
-    graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, gpx_data->waypoints_num, &f8x8);
-    graph_set_range(graph, height_min, height_max);
-    graph->current_position_color = BLUE;
-    graph->line_color = BLACK;
-    graph->background_color = WHITE;
+    if (height_graph_data) {
+        graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, gpx_data->waypoints_num, &f8x8);
+        graph_set_range(graph, height_min, height_max);
+        graph->current_position_color = BLUE;
+        graph->line_color = BLACK;
+        graph->background_color = WHITE;
 
-    add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
+        add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
+    } else {
+        // move scalebox and copyright notice down
+        map_copyright->box.top += 29;
+        scaleBox->box.top += 29;
+    }
 
     infoBox = label_create("", &f8x8, 0, dsp->size.height - 14,
         dsp->size.width - 1, 13);
     infoBox->alignVertical = MIDDLE;
     infoBox->alignHorizontal = RIGHT;
-    infoBox->backgroundColor = TRANSPARENT;
+    infoBox->backgroundColor = WHITE;
     infoBox->onBeforeRender = updateInfoText;
     infoBox->text = RTOS_Malloc(INFOBOX_STRLEN);
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
