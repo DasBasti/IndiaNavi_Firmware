@@ -59,6 +59,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
             }
             f_close(&t_img);
         } else {
+            ESP_LOGI(TAG, "Error from SD card: %d", res);
             tile->image->loaded = NOT_FOUND;
         }
         xSemaphoreGive(sd_semaphore);

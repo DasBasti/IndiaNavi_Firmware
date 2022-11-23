@@ -134,7 +134,7 @@ error_code_t updateTimeText(const display_t* dsp, void* comp)
 
 static void create_top_bar(const display_t* dsp)
 {
-    label_t* sb = label_create("", &f8x8, 0, 0, (dsp->size.width - 1),
+    label_t* sb = label_create("", &f8x8, 0, 0, dsp->size.width,
         ICON_SIZE + margin_vertical);
 
     sb->borderColor = BLACK;
@@ -144,8 +144,6 @@ static void create_top_bar(const display_t* dsp)
     sb->alignVertical = MIDDLE;
     sb->backgroundColor = WHITE;
     add_to_render_pipeline(label_render, sb, RL_GUI_BACKGROUND);
-
-    /* TODO: export battery component */
 
     battery_label = create_icon_with_text(dsp, bat_100,
         sb->box.left + margin_left, margin_top, RTOS_Malloc(4), &f8x8);
