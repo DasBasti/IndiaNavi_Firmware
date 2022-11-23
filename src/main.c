@@ -244,7 +244,7 @@ void app_main()
             else if (current_battery_level == 0)
                 bat_icon->data = bat_0;
             if (!is_charging) {
-                save_sprintf(battery_label->text, "%03d%%", current_battery_level);
+                save_sprintf(battery_label->text, "%3d%%", current_battery_level);
             } else {
                 save_sprintf(battery_label->text, "CHRG");
             }
