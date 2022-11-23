@@ -24,6 +24,7 @@ graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height
     graph->data = data;
     graph->data_len = data_len;
     graph->font = font;
+    graph->background_color = WHITE;
 
     graph->max_label = label_create(max_str, graph->font, left + 2, top + 2, 0, 8);
     graph->min_label = label_create(min_str, graph->font, left + 2, top + height - 2 - 8, 0, 8);
