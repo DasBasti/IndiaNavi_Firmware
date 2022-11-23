@@ -33,6 +33,7 @@ nmea_parser_handle_t nmea_hdl;
 static async_file_t AFILE;
 char timezone_file[100];
 uint8_t hour;
+uint32_t gps_ticks = 0;
 
 static map_position_t current_position = {
 #ifdef NO_GPS
@@ -79,13 +80,14 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
             t.tm_year = _gps->date.year + 100; // This is year+100, so 121 = 2021
             t.tm_mon = _gps->date.month - 1;
             t.tm_mday = _gps->date.day;
-            t.tm_hour = _gps->tim.hour;
+            t.tm_hour = _gps->tim.hour + 1;
             t.tm_min = _gps->tim.minute;
             t.tm_sec = _gps->tim.second;
 
             struct timeval tv = { mktime(&t), 0 }; // epoch time (seconds)
             settimeofday(&tv, NULL);
         }
+        gps_ticks++;
         break;
     case GPS_UNKNOWN:
         /* print unknown statements */

@@ -39,6 +39,9 @@ label_t* sd_indicator_label;
 /* the global position object */
 map_position_t* map_position;
 
+/* battery level */
+int32_t current_battery_level;
+
 typedef struct Render render_t;
 struct Render {
     error_code_t (*render)(const display_t* dsp, void* component);

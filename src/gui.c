@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_GPS_CREATE; // APP_TEST_SCREEN;//
+app_mode_t _app_mode = APP_TEST_SCREEN; // APP_MODE_GPS_CREATE; //
 
 /**
  * Add render function to pipeline
@@ -229,6 +229,7 @@ void app_screen(const display_t* dsp)
         break;
     case APP_TEST_SCREEN:
         test_screen_create(dsp);
+        gui_set_app_mode(APP_MODE_RUNNING);
         break;
     case APP_START_SCREEN_TRANSITION:
         /* free start screen and fall throught to map screen generation*/
@@ -274,7 +275,7 @@ void StartGuiTask(void const* argument)
 
     ESP_LOGI(TAG, "reset E-Ink Display");
     reg->disable(reg);
-    vTaskDelay(100);
+    vTaskDelay(300);
     reg->enable(reg);
     vTaskDelay(10);
     ESP_LOGI(TAG, "init E-Ink Display");
