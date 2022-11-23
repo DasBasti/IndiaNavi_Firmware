@@ -40,7 +40,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_TEST_SCREEN; // APP_MODE_GPS_CREATE; //
+app_mode_t _app_mode = APP_MODE_GPS_CREATE;
 
 /**
  * Add render function to pipeline
