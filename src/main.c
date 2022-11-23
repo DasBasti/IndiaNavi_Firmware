@@ -128,10 +128,12 @@ static void IRAM_ATTR handleButtonPress(void* arg)
         gpio_num = BTN;
         xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
     }
+#ifdef WITH_ACC    
     if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL) {
         gpio_num = I2C_INT;
         xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
     }
+#endif
     // deactivate isr handler until reinitialized by queue handling
     if (gpio_num != UINT32_MAX)
         gpio_isr_handler_remove(gpio_num);
@@ -170,6 +172,7 @@ void app_main()
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(BTN, handleButtonPress, NULL);
 
+#ifdef WITH_ACC
     /* Set Accelerator IO to input, with PUI and falling edge IRQ */
     esp_acc.mode = GPIO_MODE_INPUT;
     esp_acc.pull_up_en = true;
@@ -179,6 +182,7 @@ void app_main()
     gpio_set_intr_type(I2C_INT, GPIO_INTR_NEGEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
+#endif
 
     // configure ADC for VBATT measurement
     ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11));
@@ -207,9 +211,12 @@ void app_main()
        evt = TASK_EVENT_ENABLE_GPS;
        xQueueSend(eventQueueHandle, &evt, 0);
       */
+#ifdef WITH_ACC   
     // ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
     // ESP_ERROR_CHECK(lsm303_enable_taping(1));
+#endif
     for (;;) {
+#ifdef WITH_ACC        
         uint8_t tap_register = 0;
         // ESP_ERROR_CHECK(lsm303_read_tap(&tap_register));
         if (tap_register & 0x09) // double tap
@@ -217,7 +224,7 @@ void app_main()
             ESP_LOGI(TAG, "Double Tap recognized. rerender.");
             trigger_rendering();
         }
-
+#endif
         gpio_write(led, GPIO_SET);
         if (++cnt >= 300) {
             ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
@@ -259,10 +266,12 @@ void app_main()
                     toggleZoom();
                 gpio_isr_handler_add(BTN, handleButtonPress, (void*)BTN);
             }
+#ifdef WITH_ACC
             if (event_num == I2C_INT) {
                 ESP_LOGI(TAG, "Acc");
                 // gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
             }
+#endif
             if (event_num == TASK_EVENT_ENABLE_GPS) {
                 xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
             }
