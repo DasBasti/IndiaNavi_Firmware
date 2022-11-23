@@ -28,6 +28,8 @@
 #include "pins.h"
 #include "tasks.h"
 
+#include "icons_32/icons_32.h"
+
 static const char* TAG = "MAIN";
 #define HASH_LEN 32
 extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
@@ -227,8 +229,21 @@ void app_main()
 
         if (battery_label) {
             current_battery_level = readBatteryPercent();
+            image_t* bat_icon = battery_label->child;
             ESP_LOGI(TAG, "current_battery_level %d", current_battery_level);
-            if (current_battery_level >= 0) {
+            if (current_battery_level > 80)
+                bat_icon->data = bat_100;
+            else if (current_battery_level > 50)
+                bat_icon->data = bat_80;
+            else if (current_battery_level > 30)
+                bat_icon->data = bat_50;
+            else if (current_battery_level > 10)
+                bat_icon->data = bat_30;
+            else if (current_battery_level > 1)
+                bat_icon->data = bat_10;
+            else if (current_battery_level == 0)
+                bat_icon->data = bat_0;
+            if (!is_charging) {
                 save_sprintf(battery_label->text, "%03d%%", current_battery_level);
             } else {
                 save_sprintf(battery_label->text, "CHRG");
