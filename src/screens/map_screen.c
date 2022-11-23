@@ -237,7 +237,6 @@ void map_screen_create(const display_t* display)
     add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
-    // map_update_position(map, map_position);
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
     map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
 
