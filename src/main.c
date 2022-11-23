@@ -85,11 +85,10 @@ int readBatteryPercent()
     ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
     adc_power_release();
 
-    if (chargerVoltage - 5 > batteryVoltage)
-        return -1;
+    is_charging = (chargerVoltage - 5 > batteryVoltage);
 
-    const int min = 1750;
-    const int max = 2100;
+    const int min = 1550;
+    const int max = 2330;
     if (batteryVoltage > max)
         return 100;
 
@@ -240,6 +239,7 @@ void app_main()
         if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
             // ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
             if (event_num == BTN) {
+                ESP_LOGI(TAG, "button gedrückt!");
                 if (!xSemaphoreGetMutexHolder(gui_semaphore))
                     toggleZoom();
                 gpio_isr_handler_add(BTN, handleButtonPress, (void*)BTN);

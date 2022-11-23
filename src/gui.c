@@ -268,11 +268,16 @@ void StartGuiTask(void const* argument)
     // eeprom->onValue = GPIO_RESET;
     // gpio_write(eeprom, GPIO_SET);
 
+    while(current_battery_level < 50){
+        ESP_LOGE(TAG, "wait for battery charge. Current value: %d%%", current_battery_level);
+        vTaskDelay(30000 / portTICK_PERIOD_MS);
+    }
+
     ESP_LOGI(TAG, "init Display regualtor");
     gpio_t* reg_gpio = gpio_create(OUTPUT, 0, EINK_VCC_nEN);
     reg_gpio->onValue = GPIO_RESET;
     regulator_t* reg = regulator_gpio_create(reg_gpio);
-
+    
     ESP_LOGI(TAG, "reset E-Ink Display");
     reg->disable(reg);
     vTaskDelay(300);

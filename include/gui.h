@@ -41,6 +41,7 @@ map_position_t* map_position;
 
 /* battery level */
 int32_t current_battery_level;
+int32_t is_charging;
 
 typedef struct Render render_t;
 struct Render {
