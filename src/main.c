@@ -234,8 +234,8 @@ void app_main()
             cnt = 0;
         }
 
+        current_battery_level = readBatteryPercent();
         if (battery_label) {
-            current_battery_level = readBatteryPercent();
             image_t* bat_icon = battery_label->child;
             ESP_LOGI(TAG, "current_battery_level %d", current_battery_level);
             if (current_battery_level > 80)
