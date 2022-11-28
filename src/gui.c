@@ -268,7 +268,7 @@ void StartGuiTask(void const* argument)
     // eeprom->onValue = GPIO_RESET;
     // gpio_write(eeprom, GPIO_SET);
 
-    while(current_battery_level < 50){
+    while(current_battery_level < 65){
         ESP_LOGE(TAG, "wait for battery charge. Current value: %d%%", current_battery_level);
         vTaskDelay(30000 / portTICK_PERIOD_MS);
     }
