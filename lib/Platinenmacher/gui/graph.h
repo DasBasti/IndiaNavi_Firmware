@@ -38,7 +38,7 @@ typedef struct {
 graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, graph_point_t* data, uint16_t data_len, font_t*font);
 error_code_t graph_renderer(const display_t *dsp, void *component);
 error_code_t graph_set_range(graph_t* graph, float min, float max);
-error_code_t graph_update_data(graph_t* graph, float* data, uint16_t len);
+error_code_t graph_update_data(graph_t* graph, graph_point_t* data, uint16_t len);
 
 
 #endif //PLATINENMACHER_GUI_GRAPH_H

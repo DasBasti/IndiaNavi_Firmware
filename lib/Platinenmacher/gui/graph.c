@@ -94,7 +94,7 @@ error_code_t graph_set_range(graph_t* graph, float min, float max)
     return PM_OK;
 }
 
-error_code_t graph_update_data(graph_t* graph, float* data, uint16_t len)
+error_code_t graph_update_data(graph_t* graph, graph_point_t* data, uint16_t len)
 {
     if (!data)
         return PM_FAIL;
