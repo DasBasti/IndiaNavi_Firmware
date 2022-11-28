@@ -299,7 +299,7 @@ void StartGuiTask(void const* argument)
 
 #ifndef DEBUG
     ESP_LOGI(TAG, "Screen clear");
-    display_fill(eink, TRANSPARENT);
+    display_fill(eink, WHITE);
     display_commit_fb(eink);
     ESP_LOGI(TAG, "Screen clear done");
 #endif
