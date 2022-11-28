@@ -38,9 +38,6 @@ typedef enum {
 } gpx_cdata_e;
 
 /* Input XML text */
-static char buffer[BUFFER_MAXLEN];
-static uint32_t bufferlen = 0;
-static size_t file_pos = 0;
 static gpx_state_e state = SKIP;
 static gpx_cdata_e cdata = NONE;
 static uint32_t waypoint_num = 0;
@@ -50,31 +47,8 @@ uint32_t (*add_waypoint)(waypoint_t* wp);
 
 gpx_t* gpx;
 
-void ff_xml(sxml_t* parser, const char* gpx)
-{
-    /*
-     Example of how to reuse buffer array.
-     Move unprocessed buffer content to start of array
-    */
-    bufferlen -= parser->bufferpos;
-    memmove(buffer, buffer + parser->bufferpos, bufferlen);
 
-    /*
-     If your buffer is smaller than the size required to complete a token the parser will endlessly call SXML_ERROR_BUFFERDRY.
-     You will most likely encounter this problem if you have XML comments longer than BUFFER_MAXLEN in size.
-     SXML_CHARACTER solves this problem by dividing the data over multiple tokens, but other token types remain affected.
-    */
-    assert(bufferlen < BUFFER_MAXLEN);
-
-    /* Fill remaining buffer with new data from file */
-    const char* new_gpx = strncpy(buffer + bufferlen, gpx + file_pos, BUFFER_MAXLEN - bufferlen);
-    // assert (0 < len);
-    size_t str_len = strlen(new_gpx);
-    file_pos += str_len;
-    bufferlen += str_len;
-}
-
-void process_tokens(char* buffer, sxmltok_t* tokens, sxml_t* parser)
+void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
 {
     char buf[255];
     for (uint32_t i = 0; i < parser->ntokens; i++) {
@@ -171,9 +145,10 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
     /* Parser object stores all data required for SXML to be reentrant */
     sxml_t parser;
     sxml_init(&parser);
+    size_t data_len = strlen(gpx_file_data);
 
     for (;;) {
-        sxmlerr_t err = sxml_parse(&parser, buffer, bufferlen, tokens, COUNT(tokens));
+        sxmlerr_t err = sxml_parse(&parser, gpx_file_data, data_len, tokens, COUNT(tokens));
         if (err == SXML_SUCCESS)
             break;
 
@@ -187,7 +162,7 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
              Instead you might be interested in creating your own DOM structure
              or other processing of XML data useful to your application.
             */
-            process_tokens(buffer, tokens, &parser);
+            process_tokens(gpx_file_data, tokens, &parser);
 
             /* Parser can now safely reuse all of the token table */
             parser.ntokens = 0;
@@ -196,11 +171,11 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
 
         case SXML_ERROR_BUFFERDRY: {
             /* Need to processs existing tokens before buffer is overwritten with new data */
-            process_tokens(buffer, tokens, &parser);
+            process_tokens(gpx_file_data, tokens, &parser);
 
             parser.ntokens = 0;
 
-            ff_xml(&parser, gpx_file_data);
+            ESP_LOGE(__func__, "bufferdry but why?");
 
             /* Parser will now have to read from beginning of buffer to contiue */
             parser.bufferpos = 0;
@@ -217,7 +192,7 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
             // sprintf (fmt, "%%.%ds", MIN (bufferlen - parser.bufferpos, 72));
             //  fprintf (stderr, fmt, buffer + parser.bufferpos);
 #ifndef TESTING
-            ESP_LOGI("xml_error", "%.3s", buffer + parser.bufferpos);
+            ESP_LOGI("xml_error", "%.30s [%d]", gpx_file_data + parser.bufferpos, parser.bufferpos);
 #endif
             // abort();
             break;
