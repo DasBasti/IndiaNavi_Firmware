@@ -8,8 +8,8 @@
 
 #include <driver/adc.h>
 #include <esp_log.h>
-static float* battery_voltage;
-static float* charger_voltage;
+static graph_point_t* battery_voltage;
+static graph_point_t* charger_voltage;
 static uint32_t battery_voltage_offset = 0;
 static const uint32_t battery_voltage_num = 4096; // adjust to a sensible amount
 static graph_t* graph;
@@ -39,8 +39,8 @@ error_code_t record_battery_voltage(const display_t* dsp, void* comp)
     adc_power_release();
 
     if (battery_voltage_offset < battery_voltage_num && charger_voltage && battery_voltage) {
-        charger_voltage[battery_voltage_offset] = (float)currentChargerVoltage;
-        battery_voltage[battery_voltage_offset] = (float)currentBatteryVoltage;
+        charger_voltage[battery_voltage_offset].value = (float)currentChargerVoltage;
+        battery_voltage[battery_voltage_offset].value = (float)currentBatteryVoltage;
         battery_voltage_offset++;
     }
 
@@ -157,7 +157,7 @@ error_code_t update_sd_info_label(const display_t* dsp, void* comp)
     pwr.pin = SD_VCC_nEN;
     if (xSemaphoreTake(print_semaphore, 1000)) {
         snprintf(sd_info, 1024, "SD Info\n Power: %d\n Semaphore Count: %d",
-            0, //! gpio_read(&pwr),
+            !gpio_read(&pwr),
             uxSemaphoreGetCount(sd_semaphore));
 
         xSemaphoreGive(print_semaphore);
@@ -169,17 +169,19 @@ error_code_t update_sd_info_label(const display_t* dsp, void* comp)
 void test_screen_create(const display_t* display)
 {
     // add a hook to record the current battery voltage each render execution
-    battery_voltage = RTOS_Malloc(sizeof(float) * battery_voltage_num);
-    charger_voltage = RTOS_Malloc(sizeof(float) * battery_voltage_num);
+    battery_voltage = RTOS_Malloc(sizeof(graph_point_t) * battery_voltage_num);
+    charger_voltage = RTOS_Malloc(sizeof(graph_point_t) * battery_voltage_num);
     add_pre_render_callback(record_battery_voltage);
 
     graph = graph_create(0, display->size.height - 200, display->size.width, 200, battery_voltage, battery_voltage_offset, &f8x8);
     graph_set_range(graph, 1500, 2900);
     graph->line_color = BLUE;
+    graph->background_color = WHITE;
 
     graph_zahl = graph_create(0, display->size.height - 200, display->size.width, 200, charger_voltage, battery_voltage_offset, &f8x8);
     graph_set_range(graph_zahl, 1500, 2900);
     graph_zahl->line_color = RED;
+    graph_zahl->background_color = TRANSPARENT;
 
     bat_graph_label = label_create(bat_graph, &f8x8, 10, graph->box.top + 2, display->size.width - 10, 10);
     bat_graph_label->alignHorizontal = RIGHT;
@@ -193,7 +195,7 @@ void test_screen_create(const display_t* display)
     bat_graph_label2->textColor = RED;
 
     add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
-    add_to_render_pipeline(graph_renderer, graph_zahl, RL_GUI_ELEMENTS);
+   // add_to_render_pipeline(graph_renderer, graph_zahl, RL_GUI_ELEMENTS);
     add_to_render_pipeline(label_render, bat_graph_label, RL_GUI_ELEMENTS);
     add_to_render_pipeline(label_render, bat_graph_label1, RL_GUI_ELEMENTS);
     add_to_render_pipeline(label_render, bat_graph_label2, RL_GUI_ELEMENTS);
