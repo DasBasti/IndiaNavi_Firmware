@@ -58,7 +58,7 @@ static const esp_vfs_fat_sdmmc_mount_config_t mount_config = {
 error_code_t statusRender(const display_t* dsp, void* comp)
 {
     image_t* icon = sd_indicator_label->child;
-    if (sd_status == OK)
+    if (sd_status == PM_OK)
         icon->data = SD; // show SD card symbol
     else
         icon->data = noSD; // show SD card symbol
@@ -82,7 +82,7 @@ error_code_t loadFile(async_file_t* file)
             res = f_open(&t_file, file->filename, FA_READ);
             if (FR_OK == res && file->dest != 0) {
                 res = f_read(&t_file,
-                    file->dest, fno.fsize, &br);
+                    file->dest, fno.fsize, (UINT*)&br);
                 if (FR_OK == res) {
                     file->loaded = LOADED;
                 }
@@ -180,7 +180,7 @@ async_file_t* createPhysicalFile()
 
 error_code_t writeToFile(async_file_t* file, void* in_data, uint32_t count, uint32_t* written)
 {
-    FRESULT res = f_write(file->file, in_data, count, written);
+    FRESULT res = f_write(file->file, in_data, count, (UINT*)written);
     if (FR_OK == res)
         return PM_OK;
     return PM_FAIL;
@@ -232,8 +232,8 @@ void StartSDTask(void const* argument)
 
     for (;;) {
         if (!gpio_read(dc_dt)) {
-            if (sd_status != OK) {
-                sd_status = OK;
+            if (sd_status != PM_OK) {
+                sd_status = PM_OK;
                 esp_err_t ret = esp_vfs_fat_sdmmc_mount("", &host, &slot_config, &mount_config, &card);
                 if (ret != ESP_OK) {
                     if (ret == ESP_FAIL) {
@@ -241,7 +241,7 @@ void StartSDTask(void const* argument)
                     } else {
                         ESP_LOGE(TAG, "Failed to initialize the card (0x%x).", ret);
                     }
-                    sd_status = !OK;
+                    sd_status = !PM_OK;
                 }
                 // Card has been initialized, print its properties
                 ESP_LOGI(TAG, "SDC: init done");
@@ -249,7 +249,7 @@ void StartSDTask(void const* argument)
                 trigger_rendering();
             }
         } else {
-            if (sd_status == OK) {
+            if (sd_status == PM_OK) {
                 ESP_LOGE("SD", "Unmount filesystem.");
                 sd_status = UNAVAILABLE;
                 xSemaphoreTake(sd_semaphore, portMAX_DELAY);
