@@ -1,11 +1,13 @@
-#include <esp_system.h>
-#include <esp_log.h>
 #include <driver/i2c.h>
+#include <esp_log.h>
+#include <esp_system.h>
+
+#include <freertos/FreeRTOS.h>
 
 #include <lsm303.h>
 
-#define LSM303_ACC_ADDR  0x1D
-#define LSM303_MAG_ADDR  0x1E
+#define LSM303_ACC_ADDR 0x1D
+#define LSM303_MAG_ADDR 0x1E
 
 /**
  * @brief All registers present in LSM303AH
@@ -71,23 +73,23 @@ enum lsm303_register {
 };
 
 static int master_num;
-static const char *TAG = "LSM303";
+static const char* TAG = "LSM303";
 
-static esp_err_t i2c_master_write_slave(i2c_port_t i2c_num, uint8_t addr, uint8_t reg, uint8_t *data_wr, size_t size)
+static esp_err_t i2c_master_write_slave(i2c_port_t i2c_num, uint8_t addr, uint8_t reg, uint8_t* data_wr, size_t size)
 {
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, ACK_CHECK_EN);
     i2c_master_write_byte(cmd, reg, ACK_CHECK_EN);
-    if(size > 0)
+    if (size > 0)
         i2c_master_write(cmd, data_wr, size, ACK_CHECK_EN);
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, LSM303_I2C_MASTER_TIMEOUT_MS / 1000);
     i2c_cmd_link_delete(cmd);
     return ret;
 }
 
-static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t addr, uint8_t *data_rd, size_t size, uint32_t timeout)
+static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t addr, uint8_t* data_rd, size_t size, uint32_t timeout)
 {
     if (size == 0) {
         return ESP_OK;
@@ -108,16 +110,16 @@ static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t addr, uint8_t
 /**
  * @brief Read a sequence of bytes from a lsm303 sensor registers
  */
-esp_err_t lsm303_acc_register_read(uint8_t reg_addr, uint8_t *data, size_t len)
+esp_err_t lsm303_acc_register_read(uint8_t reg_addr, uint8_t* data, size_t len)
 {
-    ESP_ERROR_CHECK(i2c_master_write_slave(master_num, LSM303_ACC_ADDR, reg_addr, NULL,0));
-    return i2c_master_read_slave(master_num, LSM303_ACC_ADDR, data, len, LSM303_I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
+    ESP_ERROR_CHECK(i2c_master_write_slave(master_num, LSM303_ACC_ADDR, reg_addr, NULL, 0));
+    return i2c_master_read_slave(master_num, LSM303_ACC_ADDR, data, len, LSM303_I2C_MASTER_TIMEOUT_MS / 1000);
 }
 
 /**
  * @brief Write a sequence of bytes to a lsm303 sensor registers
  */
-esp_err_t lsm303_acc_register_write(uint8_t reg_addr, uint8_t *data, size_t len)
+esp_err_t lsm303_acc_register_write(uint8_t reg_addr, uint8_t* data, size_t len)
 {
     return i2c_master_write_slave(master_num, LSM303_ACC_ADDR, reg_addr, data, len);
 }
@@ -135,7 +137,6 @@ esp_err_t lsm303_acc_register_write_byte(uint8_t reg_addr, uint8_t data)
     return ret;
 }
 
-
 /**
  * @brief Initialize Driver
  */
@@ -145,11 +146,11 @@ esp_err_t lsm303_init(int i2c_master_port, int sda_io_num, int scl_io_num)
     master_num = i2c_master_port;
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
-        .sda_io_num = sda_io_num,         // select GPIO specific to your project
+        .sda_io_num = sda_io_num, // select GPIO specific to your project
         .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_io_num = scl_io_num,         // select GPIO specific to your project
+        .scl_io_num = scl_io_num, // select GPIO specific to your project
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = 400000,  // select frequency specific to your project
+        .master.clk_speed = 400000, // select frequency specific to your project
         //.clk_flags = I2C_SCLK_SRC_FLAG_FOR_NOMAL,          /*!< Optional, you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here. */
     };
 
@@ -158,8 +159,7 @@ esp_err_t lsm303_init(int i2c_master_port, int sda_io_num, int scl_io_num)
     ESP_ERROR_CHECK(i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0));
 
     ESP_ERROR_CHECK(lsm303_acc_register_read(WHO_AM_I_A, &data, 1));
-    if (data != LSM303_WHO_AM_I_A_VALUE) 
-    {
+    if (data != LSM303_WHO_AM_I_A_VALUE) {
         ESP_LOGE(TAG, "WHO AM I register does not match! 0x%X != 0x%X", data, LSM303_WHO_AM_I_A_VALUE);
         return ESP_ERR_INVALID_ARG;
     }
@@ -193,16 +193,14 @@ esp_err_t lsm303_enable_taping(int double_taping)
     ESP_ERROR_CHECK(lsm303_acc_register_write(TAP_6D_THS_A, &tap_ths, 1));
     uint8_t wakeup = 0x80;
     ESP_ERROR_CHECK(lsm303_acc_register_write(WAKE_UP_THS_A, &wakeup, 1));
-    
 
     return ESP_OK;
 }
 
-
 /**
  * @brief Read Tap source register
  */
-esp_err_t lsm303_read_tap(uint8_t *tap_src)
+esp_err_t lsm303_read_tap(uint8_t* tap_src)
 {
     esp_err_t ret;
     ret = lsm303_acc_register_read(TAP_SRC_A, tap_src, 1);
