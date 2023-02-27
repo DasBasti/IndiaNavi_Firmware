@@ -291,19 +291,19 @@ void app_main()
                 xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
             }
             if (event_num == TASK_EVENT_DISABLE_GPS) {
-                vTaskDelete(&gpsTask_h);
+                vTaskDelete(gpsTask_h);
             }
             if (event_num == TASK_EVENT_ENABLE_DISPLAY) {
                 xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
             }
             if (event_num == TASK_EVENT_DISABLE_DISPLAY) {
-                vTaskDelete(&guiTask_h);
+                vTaskDelete(guiTask_h);
             }
             if (event_num == TASK_EVENT_ENABLE_WIFI) {
                 xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
             }
             if (event_num == TASK_EVENT_DISABLE_WIFI) {
-                vTaskDelete(&wifiTask_h);
+                vTaskDelete(wifiTask_h);
             }
         }
         gpio_write(led, GPIO_RESET);
