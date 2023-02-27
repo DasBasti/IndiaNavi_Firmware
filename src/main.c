@@ -244,7 +244,7 @@ void app_main()
         if (++cnt >= 300) {
             ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
 #ifdef DEBUG
-            esp_pm_dump_locks(stdout);
+            // FIXME: this fails on 5.0.0 because of printf issue! esp_pm_dump_locks(stdout);
 #endif
             cnt = 0;
         }
