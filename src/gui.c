@@ -42,7 +42,15 @@ render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
 app_mode_t _app_mode = APP_MODE_GPS_CREATE;
+font_t f8x8, f8x16;
+label_t* clock_label;
+label_t* battery_label;
+label_t* north_indicator_label;
+label_t* wifi_indicator_label;
+label_t* gps_indicator_label;
+label_t* sd_indicator_label;
 
+map_position_t* map_position;
 /**
  * Add render function to pipeline
  *

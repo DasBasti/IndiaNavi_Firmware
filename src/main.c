@@ -53,6 +53,14 @@ SemaphoreHandle_t print_semaphore = NULL;
 SemaphoreHandle_t gui_semaphore = NULL;
 SemaphoreHandle_t sd_semaphore = NULL;
 
+TaskHandle_t housekeepingTask_h;
+TaskHandle_t gpsTask_h;
+TaskHandle_t guiTask_h;
+TaskHandle_t powerTask_h;
+TaskHandle_t sdTask_h;
+TaskHandle_t wifiTask_h;
+TaskHandle_t mapLoaderTask_h;
+
 // File loading queue
 QueueHandle_t eventQueueHandle = NULL;
 
@@ -60,6 +68,8 @@ uint32_t ledDelay = 100;
 
 gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
+int32_t current_battery_level;
+int32_t is_charging;
 
 static void print_sha256(const uint8_t* image_hash, const char* label)
 {

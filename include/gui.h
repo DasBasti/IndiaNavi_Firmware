@@ -29,19 +29,19 @@ typedef enum {
     APP_MODE_RUNNING,
 } app_mode_t;
 
-label_t* clock_label;
-label_t* battery_label;
-label_t* north_indicator_label;
-label_t* wifi_indicator_label;
-label_t* gps_indicator_label;
-label_t* sd_indicator_label;
+extern label_t* clock_label;
+extern label_t* battery_label;
+extern label_t* north_indicator_label;
+extern label_t* wifi_indicator_label;
+extern label_t* gps_indicator_label;
+extern label_t* sd_indicator_label;
 
 /* the global position object */
-map_position_t* map_position;
+extern map_position_t* map_position;
 
 /* battery level */
-int32_t current_battery_level;
-int32_t is_charging;
+extern int32_t current_battery_level;
+extern int32_t is_charging;
 
 typedef struct Render render_t;
 struct Render {

@@ -12,8 +12,8 @@
 #define __weak __attribute__((weak))
 
 /* Power management */
-#include "hw/regulator_gpio.h"
 #include "hw/gpio.h"
+#include "hw/regulator_gpio.h"
 
 /* WaveShare ACep 7 color ePaper display */
 #include "display.h"
@@ -21,13 +21,13 @@
 
 /* GUI drawing */
 #include "font.h"
-#include "fonts/font8x8.h"
 #include "fonts/font8x16.h"
-font_t f8x8, f8x16;
+#include "fonts/font8x8.h"
+extern font_t f8x8, f8x16;
 #include "gui/image.h"
 #include "gui/label.h"
-#include "gui/waypoint.h"
 #include "gui/map.h"
+#include "gui/waypoint.h"
 /* SD Card */
 //#include "hw/gpio.h"
 //#include "storage/sdcard/sd_spi.h"
