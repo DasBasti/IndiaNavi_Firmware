@@ -24,7 +24,7 @@
 #include <stdint.h>
 
 extern const uint8_t font8x8_offset;
-extern const char *font8x8_name;
+extern const char* font8x8_name;
 extern const uint8_t font8x8[];
 
 #endif // DISPLAY_FONT_8x8_H

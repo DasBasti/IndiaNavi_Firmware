@@ -4,33 +4,32 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_system.h"
 #include "esp_event.h"
-#include "esp_log.h"
-#include "esp_ota_ops.h"
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
+#include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "string.h"
 
+#include "esp_wifi.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include <sys/socket.h>
-#include "esp_wifi.h"
 
-#include "tasks.h"
 #include "gui.h"
+#include "tasks.h"
 
-static const char *TAG = "OTA";
+static const char* TAG = "OTA";
 #define OTA_URL_SIZE 1024
-char ota_update_url[OTA_URL_SIZE] = {0};
+char ota_update_url[OTA_URL_SIZE] = { 0 };
 #define FIRMWARE_UPGRADE_URL "http://laptop.local:8070/firmware.bin"
 
-static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
+static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
 {
-    switch (evt->event_id)
-    {
+    switch (evt->event_id) {
     case HTTP_EVENT_ERROR:
         ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
         break;
@@ -59,7 +58,7 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-void StartOTATask(void *pvParameter)
+void StartOTATask(void* pvParameter)
 {
     ESP_LOGI(TAG, "Starting OTA...");
 
@@ -75,17 +74,15 @@ void StartOTATask(void *pvParameter)
     };
 
     async_file_t AFILE;
-    async_file_t *ota = &AFILE;
+    async_file_t* ota = &AFILE;
     ota->filename = "//OTA";
     ota->dest = ota_update_url;
     ota->loaded = false;
     loadFile(ota);
     uint8_t timeout = 0;
-    while (!ota->loaded)
-    {
+    while (!ota->loaded) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        if (timeout++ > 100)
-        {
+        if (timeout++ > 100) {
             ESP_LOGI(TAG, "timeout loading OTA url");
             break;
         }
@@ -94,26 +91,21 @@ void StartOTATask(void *pvParameter)
     extern uint32_t ledDelay;
     ledDelay = 200;
     esp_err_t ret = ESP_FAIL;
-    if (ota_update_url[0] != 0)
-    {
-        char *url = RTOS_Malloc(sizeof(ota_update_url));
+    if (ota_update_url[0] != 0) {
+        char* url = RTOS_Malloc(sizeof(ota_update_url));
         readline(ota_update_url, url);
         config.url = url;
         ESP_LOGI(TAG, "Download from: %s", config.url);
         ret = esp_https_ota(&config);
-        if (ret != ESP_OK)
-        {
+        if (ret != ESP_OK) {
             config.url = FIRMWARE_UPGRADE_URL;
             ESP_LOGI(TAG, "Download from internal url: %s", config.url);
             ret = esp_https_ota(&config);
         }
     }
-    if (ret == ESP_OK)
-    {
+    if (ret == ESP_OK) {
         esp_restart();
-    }
-    else
-    {
+    } else {
         ESP_LOGE(TAG, "Firmware upgrade failed");
         /*
          * TODO:
@@ -123,8 +115,7 @@ void StartOTATask(void *pvParameter)
          * redraw
          */
     }
-    while (1)
-    {
+    while (1) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }

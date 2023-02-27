@@ -8,26 +8,26 @@
  *      Author: Bastian Neumann
  */
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <freertos/semphr.h>
 #include <freertos/event_groups.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
 
 #include <lwip/dns.h>
 
+#include <esp_event.h>
+#include <esp_http_client.h>
 #include <esp_log.h>
 #include <esp_wifi.h>
-#include <esp_event.h>
 #include <mdns.h>
-#include <esp_http_client.h>
 
 #include "gui.h"
-#include "tasks.h"
 #include "icons_32/icons_32.h"
+#include "tasks.h"
 char wifi_file[32 + 1 + 64];
 wifi_config_t wifi_config;
 static int s_retry_num = 0;
 static int s_max_retry_num = 10;
-static const char *TAG = "WIFI";
+static const char* TAG = "WIFI";
 static async_file_t AFILE;
 
 static bool _is_connected = false;
@@ -41,32 +41,24 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_FAIL_BIT BIT1
 
 wifi_ap_record_t sta_record;
-void StartOTATask(void *pvParameter);
+void StartOTATask(void* pvParameter);
 
-static void event_handler(void *arg, esp_event_base_t event_base,
-                          int32_t event_id, void *event_data)
+static void event_handler(void* arg, esp_event_base_t event_base,
+    int32_t event_id, void* event_data)
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
-    {
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
-    }
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
-    {
-        if (s_retry_num < s_max_retry_num)
-        {
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < s_max_retry_num) {
             esp_wifi_connect();
             s_retry_num++;
             ESP_LOGI(TAG, "retry to connect to the AP");
-        }
-        else
-        {
+        } else {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
         ESP_LOGI(TAG, "connect to the AP fail");
-    }
-    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
-    {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         _is_connected = true;
@@ -78,8 +70,7 @@ void start_mdns_service()
 {
     //initialize mDNS service
     esp_err_t err = mdns_init();
-    if (err)
-    {
+    if (err) {
         printf("MDNS Init failed: %d\n", err);
         return;
     }
@@ -92,15 +83,14 @@ void start_mdns_service()
 
 bool isConnected()
 {
-    if (esp_wifi_sta_get_ap_info(&sta_record) != ESP_OK)
-    {
+    if (esp_wifi_sta_get_ap_info(&sta_record) != ESP_OK) {
         ESP_LOGE(TAG, "No Station available!");
         esp_wifi_connect();
         vTaskDelay(100);
         return PM_FAIL;
     }
 
-    const ip_addr_t *ip = dns_getserver(0);
+    const ip_addr_t* ip = dns_getserver(0);
     if (ip->addr)
         return PM_OK;
 
@@ -118,7 +108,7 @@ bool isConnected()
  *  - ESP_OK on successful
  *  - ESP_FAIL on error
  */
-esp_err_t startDownloadFile(void *handler, const char *url)
+esp_err_t startDownloadFile(void* handler, const char* url)
 {
     esp_http_client_config_t client_config = {
         .url = url,
@@ -140,17 +130,16 @@ esp_err_t startDownloadFile(void *handler, const char *url)
     return err;
 }
 
-void StartWiFiTask(void const *argument)
+void StartWiFiTask(void const* argument)
 {
     ESP_LOGI(TAG, "Start");
 
-    async_file_t *creds = &AFILE;
+    async_file_t* creds = &AFILE;
     creds->filename = "//WIFI";
     creds->dest = wifi_file;
     creds->loaded = false;
     ESP_ERROR_CHECK(loadFile(creds));
-    while (!creds->loaded)
-    {
+    while (!creds->loaded) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
@@ -160,22 +149,22 @@ void StartWiFiTask(void const *argument)
     //wifi_config.sta.pmf_cfg.capable = true;
     //wifi_config.sta.pmf_cfg.required = false;
 
-    char *next = readline(wifi_file, (char *)wifi_config.sta.ssid);
-    readline(next, (char *)wifi_config.sta.password);
+    char* next = readline(wifi_file, (char*)wifi_config.sta.ssid);
+    readline(next, (char*)wifi_config.sta.password);
 
     wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_any_id));
+        ESP_EVENT_ANY_ID,
+        &event_handler,
+        NULL,
+        &instance_any_id));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-                                                        IP_EVENT_STA_GOT_IP,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_got_ip));
+        IP_EVENT_STA_GOT_IP,
+        &event_handler,
+        NULL,
+        &instance_got_ip));
 
     ESP_ERROR_CHECK(esp_wifi_init(&config));
 
@@ -185,8 +174,7 @@ void StartWiFiTask(void const *argument)
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
-    for (;;)
-    {
+    for (;;) {
         s_wifi_event_group = xEventGroupCreate();
         _is_connected = false;
 
@@ -194,28 +182,23 @@ void StartWiFiTask(void const *argument)
          * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) 
          */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-                                               WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                               pdFALSE,
-                                               pdFALSE,
-                                               portMAX_DELAY);
+            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            pdFALSE,
+            pdFALSE,
+            portMAX_DELAY);
 
         /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
          * happened. 
          */
-        if (bits & WIFI_CONNECTED_BIT)
-        {
+        if (bits & WIFI_CONNECTED_BIT) {
             ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-                     wifi_config.sta.ssid, wifi_config.sta.password);
+                wifi_config.sta.ssid, wifi_config.sta.password);
             start_mdns_service();
-        }
-        else if (bits & WIFI_FAIL_BIT)
-        {
+        } else if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Failed to connect to SSID:'%s', password:'%s'",
-                     wifi_config.sta.ssid, wifi_config.sta.password);
+                wifi_config.sta.ssid, wifi_config.sta.password);
             continue;
-        }
-        else
-        {
+        } else {
             ESP_LOGE(TAG, "UNEXPECTED EVENT");
             continue;
         }
@@ -227,24 +210,17 @@ void StartWiFiTask(void const *argument)
 
         //gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
 
-        while (isConnected())
-        {
-            if (wifi_indicator_label)
-            {
-                image_t *icon = wifi_indicator_label->child;
+        while (isConnected()) {
+            if (wifi_indicator_label) {
+                image_t* icon = wifi_indicator_label->child;
                 static uint8_t last_rssi_state = 0;
-                if (sta_record.rssi >= -70 && last_rssi_state != 3)
-                {
+                if (sta_record.rssi >= -70 && last_rssi_state != 3) {
                     icon->data = WIFI_3;
                     last_rssi_state = 3;
-                }
-                else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2)
-                {
+                } else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2) {
                     icon->data = WIFI_2;
                     last_rssi_state = 2;
-                }
-                else if (sta_record.rssi < -80 && last_rssi_state != 1)
-                {
+                } else if (sta_record.rssi < -80 && last_rssi_state != 1) {
                     icon->data = WIFI_1;
                     last_rssi_state = 1;
                 }

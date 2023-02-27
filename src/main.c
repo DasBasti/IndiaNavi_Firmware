@@ -151,7 +151,7 @@ static void IRAM_ATTR handleButtonPress(void* arg)
         gpio_num = BTN;
         xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
     }
-#ifdef WITH_ACC    
+#ifdef WITH_ACC
     if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL) {
         gpio_num = I2C_INT;
         xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
@@ -226,12 +226,12 @@ void app_main()
        evt = TASK_EVENT_ENABLE_GPS;
        xQueueSend(eventQueueHandle, &evt, 0);
       */
-#ifdef WITH_ACC   
+#ifdef WITH_ACC
     // ESP_ERROR_CHECK(lsm303_init(I2C_MASTER_NUM, I2C_SDA, I2C_SCL));
     // ESP_ERROR_CHECK(lsm303_enable_taping(1));
 #endif
     for (;;) {
-#ifdef WITH_ACC        
+#ifdef WITH_ACC
         uint8_t tap_register = 0;
         // ESP_ERROR_CHECK(lsm303_read_tap(&tap_register));
         if (tap_register & 0x09) // double tap
