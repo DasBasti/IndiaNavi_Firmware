@@ -19,6 +19,8 @@
 
 #include "icons_32/icons_32.h"
 
+#include <esp_timer.h>
+
 static const display_t* dsp;
 
 static map_t* map;
@@ -185,7 +187,7 @@ void load_waypoint_file(char* filename)
     if (PM_OK == createFileBuffer(&wp_file))
         loadFile(&wp_file);
 
-    if (wp_file.loaded == LOADED) {
+    if (0 && wp_file.loaded == LOADED) {
         gpx_data = gpx_parser(wp_file.dest, map_add_waypoint);
         map_set_first_waypoint(gpx_data->waypoints);
         RTOS_Free(wp_file.dest);
