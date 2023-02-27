@@ -12,8 +12,8 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
-#include <driver/adc.h>
 #include <driver/gpio.h>
+#include <esp_adc/adc_oneshot.h>
 #include <esp_event.h>
 #include <esp_log.h>
 #include <esp_ota_ops.h>
@@ -80,12 +80,24 @@ int readBatteryPercent()
 {
     int batteryVoltage;
     int chargerVoltage;
-    adc_power_acquire();
-    batteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
+    adc_oneshot_unit_handle_t adc1_handle;
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = ADC_ATTEN_DB_11,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_6, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_7, &config));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_6, &batteryVoltage));
     ESP_LOGI(TAG, "Battery Voltage: %d", batteryVoltage);
-    chargerVoltage = adc1_get_raw(ADC1_CHANNEL_7);
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_7, &chargerVoltage));
     ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
-    adc_power_release();
+
+    ESP_ERROR_CHECK(adc_oneshot_del_unit(adc1_handle));
 
     is_charging = (chargerVoltage - 5 > batteryVoltage);
 
@@ -183,14 +195,6 @@ void app_main()
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
 #endif
-
-    // configure ADC for VBATT measurement
-    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11));
-    // ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_6));
-
-    // configure ADC for VIN measurement -> Loading cable attached?
-    ESP_ERROR_CHECK(adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11));
-    // ESP_ERROR_CHECK(adc_gpio_init(ADC_UNIT_1, ADC1_CHANNEL_7));
 
     // inital battery level read
     current_battery_level = readBatteryPercent();

@@ -6,7 +6,7 @@
 #include "pins.h"
 #include "tasks.h"
 
-#include <driver/adc.h>
+#include <esp_adc/adc_oneshot.h>
 #include <esp_log.h>
 static graph_point_t* battery_voltage;
 static graph_point_t* charger_voltage;
@@ -33,10 +33,24 @@ char sd_info[1024];
 error_code_t record_battery_voltage(const display_t* dsp, void* comp)
 {
     // record the battery voltage for this iteration
-    adc_power_acquire();
-    int currentBatteryVoltage = adc1_get_raw(ADC1_CHANNEL_6);
-    int currentChargerVoltage = adc1_get_raw(ADC1_CHANNEL_7);
-    adc_power_release();
+    int currentBatteryVoltage;
+    int currentChargerVoltage;
+    adc_oneshot_unit_handle_t adc1_handle;
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = ADC_ATTEN_DB_11,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_6, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_7, &config));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_6, &currentBatteryVoltage));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_7, &currentChargerVoltage));
+
+    ESP_ERROR_CHECK(adc_oneshot_del_unit(adc1_handle));
 
     if (battery_voltage_offset < battery_voltage_num && charger_voltage && battery_voltage) {
         charger_voltage[battery_voltage_offset].value = (float)currentChargerVoltage;
@@ -195,7 +209,7 @@ void test_screen_create(const display_t* display)
     bat_graph_label2->textColor = RED;
 
     add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
-   // add_to_render_pipeline(graph_renderer, graph_zahl, RL_GUI_ELEMENTS);
+    // add_to_render_pipeline(graph_renderer, graph_zahl, RL_GUI_ELEMENTS);
     add_to_render_pipeline(label_render, bat_graph_label, RL_GUI_ELEMENTS);
     add_to_render_pipeline(label_render, bat_graph_label1, RL_GUI_ELEMENTS);
     add_to_render_pipeline(label_render, bat_graph_label2, RL_GUI_ELEMENTS);
