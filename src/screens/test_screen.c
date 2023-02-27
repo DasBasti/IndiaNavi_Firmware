@@ -48,9 +48,9 @@ error_code_t record_battery_voltage(const display_t* dsp, void* comp)
         graph->data_len = battery_voltage_offset;
         graph_zahl->data_len = battery_voltage_offset;
         if (xSemaphoreTake(print_semaphore, 1000)) {
-            snprintf(bat_graph, 10, "%d pts", battery_voltage_offset);
-            snprintf(bat_graph1, 10, "BV: %d", currentBatteryVoltage);
-            snprintf(bat_graph2, 10, "CV: %d", currentChargerVoltage);
+            snprintf(bat_graph, 10, "%lu pts", battery_voltage_offset);
+            snprintf(bat_graph1, 10, "BV: %u", currentBatteryVoltage);
+            snprintf(bat_graph2, 10, "CV: %u", currentChargerVoltage);
             xSemaphoreGive(print_semaphore);
         }
     }
@@ -63,7 +63,7 @@ error_code_t update_gps_info_label(const display_t* dsp, void* comp)
     gpio_t pwr = {};
     pwr.pin = GPS_VCC_nEN;
     if (map_position && xSemaphoreTake(print_semaphore, 1000)) {
-        snprintf(gps_info, 1024, "GPS Info\n Power: %d\n Fix: %d HDOP:%f\n Lat: %f\n Lon:%f\n Ele:%f\n Sats in view/use %d/%d\n Ticks: %d",
+        snprintf(gps_info, 1024, "GPS Info\n Power: %d\n Fix: %d HDOP:%f\n Lat: %f\n Lon:%f\n Ele:%f\n Sats in view/use %d/%d\n Ticks: %lu",
             !gpio_read(&pwr),
             map_position->fix,
             map_position->hdop,

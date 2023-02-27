@@ -38,8 +38,8 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         return PM_FAIL;
 
     graph_t* graph = (graph_t*)component;
-    
-    if(graph->background_color != TRANSPARENT)
+
+    if (graph->background_color != TRANSPARENT)
         display_rect_fill(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, graph->background_color);
     display_rect_draw(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, BLACK);
 
@@ -60,11 +60,11 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         int32_t val = (uint32_t)(graph->data[i].value) - graph->min;
         if (val < 0)
             val = 0;
-        uint16_t new_x = inner_box_left + (uint16_t)(i * x_step);                     // x values grow in step;
+        uint16_t new_x = inner_box_left + (uint16_t)(i * x_step);                          // x values grow in step;
         uint16_t new_y = inner_box_top + inner_box_height - (uint16_t)ceilf((val)*y_step); // y values are scaled from min to max
-        if (i != 0){
+        if (i != 0) {
             display_line_draw(dsp, last_x, last_y, new_x, new_y, graph->data[i].color);
-            display_line_draw(dsp, last_x, last_y-1, new_x, new_y, graph->data[i].color);
+            display_line_draw(dsp, last_x, last_y - 1, new_x, new_y, graph->data[i].color);
         }
         last_x = new_x;
         last_y = new_y;
@@ -88,8 +88,8 @@ error_code_t graph_set_range(graph_t* graph, float min, float max)
     graph->min = floorf(min);
     graph->max = ceilf(max);
     // TODO: deuglify this!!!!
-    snprintf(min_str, 10, "%dm", graph->min);
-    snprintf(max_str, 10, "%dm", graph->max);
+    snprintf(min_str, 10, "%um", graph->min);
+    snprintf(max_str, 10, "%um", graph->max);
 
     return PM_OK;
 }

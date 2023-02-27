@@ -156,7 +156,7 @@ void app_main()
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    ESP_LOGI(TAG, "Initial Heap Free: %d Byte", xPortGetFreeHeapSize());
+    ESP_LOGI(TAG, "Initial Heap Free: %lu Byte", xPortGetFreeHeapSize());
     print_semaphore = xSemaphoreCreateMutex();
     gui_semaphore = xSemaphoreCreateMutex();
     sd_semaphore = xSemaphoreCreateMutex();
@@ -227,7 +227,7 @@ void app_main()
 #endif
         gpio_write(led, GPIO_SET);
         if (++cnt >= 300) {
-            ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
+            ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
 #ifdef DEBUG
             esp_pm_dump_locks(stdout);
 #endif
@@ -237,7 +237,7 @@ void app_main()
         current_battery_level = readBatteryPercent();
         if (battery_label) {
             image_t* bat_icon = battery_label->child;
-            ESP_LOGI(TAG, "current_battery_level %d", current_battery_level);
+            ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
             if (current_battery_level > 80)
                 bat_icon->data = bat_100;
             else if (current_battery_level > 50)
@@ -251,7 +251,7 @@ void app_main()
             else if (current_battery_level == 0)
                 bat_icon->data = bat_0;
             if (!is_charging) {
-                save_sprintf(battery_label->text, "%3d%%", current_battery_level);
+                save_sprintf(battery_label->text, "%3ld%%", current_battery_level);
             } else {
                 save_sprintf(battery_label->text, "CHRG");
             }

@@ -41,7 +41,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
     FIL t_img;
     uint32_t br;
     // TODO: decompress lz4 tiles
-    save_sprintf(fn, "//MAPS/%u/%u/%u.RAW",
+    save_sprintf(fn, "//MAPS/%u/%lu/%lu.RAW",
         tile->z,
         tile->x,
         tile->y);
@@ -90,7 +90,7 @@ error_code_t check_if_map_tile_is_loaded(const display_t* dsp, void* image)
 {
     image_t* img = (image_t*)image;
     if (img->loaded == LOADED) {
-		img->loaded = NOT_LOADED;
+        img->loaded = NOT_LOADED;
         RTOS_Free(img->data);
     }
     return PM_OK;

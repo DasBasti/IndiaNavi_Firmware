@@ -193,12 +193,12 @@ void load_waypoint_file(char* filename)
         // populate height data
         height_graph_data = RTOS_Malloc(sizeof(graph_point_t) * gpx_data->waypoints_num + 1);
         map_run_on_waypoints(populate_height_data_prepare_waypoints);
-        ESP_LOGI(TAG, "Load waypoint information done. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
+        ESP_LOGI(TAG, "Load waypoint information done. Took: %lu ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     } else {
-        ESP_LOGI(TAG, "Load waypoint information failed. Took: %d ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
+        ESP_LOGI(TAG, "Load waypoint information failed. Took: %lu ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     }
 
-    ESP_LOGI(TAG, "Heap Free: %d Byte", xPortGetFreeHeapSize());
+    ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
 }
 
 void map_screen_create(const display_t* display)

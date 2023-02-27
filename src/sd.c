@@ -199,7 +199,7 @@ void closePhysicalFile(async_file_t* file)
     if (file) {
         if (file->file) {
             if (file->file->fptr)
-                ESP_LOGI(TAG, "File: %d is still open", file->file->fptr);
+                ESP_LOGI(TAG, "File: %lu is still open", file->file->fptr);
             // f_close(file->file);
             // RTOS_Free(file->file);
         }

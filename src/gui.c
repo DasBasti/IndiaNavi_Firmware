@@ -200,7 +200,7 @@ static error_code_t app_render()
 
     uint64_t end = esp_timer_get_time();
 
-    ESP_LOGI(TAG, "render time %i ms", (uint32_t)(end - start) / 1000);
+    ESP_LOGI(TAG, "render time %lu ms", (uint32_t)(end - start) / 1000);
 
     return PM_OK;
 }
@@ -268,8 +268,8 @@ void StartGuiTask(void const* argument)
     // eeprom->onValue = GPIO_RESET;
     // gpio_write(eeprom, GPIO_SET);
 
-    while(current_battery_level < 65){
-        ESP_LOGE(TAG, "wait for battery charge. Current value: %d%%", current_battery_level);
+    while (current_battery_level < 65) {
+        ESP_LOGE(TAG, "wait for battery charge. Current value: %ld%%", current_battery_level);
         vTaskDelay(30000 / portTICK_PERIOD_MS);
     }
 
@@ -277,7 +277,7 @@ void StartGuiTask(void const* argument)
     gpio_t* reg_gpio = gpio_create(OUTPUT, 0, EINK_VCC_nEN);
     reg_gpio->onValue = GPIO_RESET;
     regulator_t* reg = regulator_gpio_create(reg_gpio);
-    
+
     ESP_LOGI(TAG, "reset E-Ink Display");
     reg->disable(reg);
     vTaskDelay(300);

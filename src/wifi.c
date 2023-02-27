@@ -133,9 +133,9 @@ esp_err_t startDownloadFile(void *handler, const char *url)
     };
     esp_http_client_handle_t client = esp_http_client_init(&client_config);
     esp_err_t err = esp_http_client_perform(client);
-    ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %d\n",
-             esp_http_client_get_status_code(client),
-             esp_http_client_get_content_length(client));
+    ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %llu\n",
+        esp_http_client_get_status_code(client),
+        esp_http_client_get_content_length(client));
     esp_http_client_cleanup(client);
     return err;
 }

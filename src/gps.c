@@ -37,7 +37,7 @@ uint32_t gps_ticks = 0;
 
 static map_position_t current_position = {
 #ifdef NO_GPS
-    .longitude = 8.581875,  
+    .longitude = 8.581875,
     .latitude = 49.626846,
     .satellites_in_use = 3,
     .satellites_in_view = 10,
@@ -70,8 +70,7 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         current_position.altitude = _gps->altitude;
         current_position.hdop = _gps->dop_h;
         current_position.fix = _gps->fix;
-        //ESP_LOGI(TAG, "%d:%d:%d", _gps->tim.hour, _gps->tim.minute, _gps->tim.second);
-        ESP_LOGI(TAG, "sats: %d/%d", _gps->sats_in_use, _gps->sats_in_view);
+        ESP_LOGI(TAG, "sats: %u/%u", _gps->sats_in_use, _gps->sats_in_view);
         current_position.satellites_in_use = _gps->sats_in_use;
         current_position.satellites_in_view = _gps->sats_in_view;
         if (hour != _gps->tim.hour) {
@@ -97,7 +96,6 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         break;
     }
 }
-
 
 void gps_stop_parser()
 {

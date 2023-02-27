@@ -62,11 +62,10 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
         break;
     case HTTP_EVENT_ON_DATA:
         ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-        if (downloadfile->file != 0)
-        {
+        if (downloadfile->file != 0) {
             uint32_t bytes_written = 0;
             writeToFile(downloadfile, evt->data, evt->data_len, &bytes_written);
-            ESP_LOGD(TAG, "Wrote to download: %d/%d", evt->data_len, bytes_written);
+            ESP_LOGD(TAG, "Wrote to download: %d/%lu", evt->data_len, bytes_written);
             if (evt->data_len != bytes_written)
                 return ESP_FAIL;
         }
@@ -251,7 +250,7 @@ void StartMapDownloaderTask(void *pvParameter)
         }
         tileset->file_max = atoi(wp_line);
 
-        ESP_LOGI(TAG, "Get Map for [%d-%d]/[%d-%d]", tileset->folder_min, tileset->folder_max, tileset->file_min, tileset->file_max);
+        ESP_LOGI(TAG, "Get Map for [%lu-%lu]/[%lu-%lu]", tileset->folder_min, tileset->folder_max, tileset->file_min, tileset->file_max);
         ESP_LOGI(TAG, "Download from: %s", baseurl);
 
         tileset->file_count = 0;
