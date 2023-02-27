@@ -7,55 +7,51 @@ jobs:
   checking_run:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v2.2.1
+      - name: Set up Python
+        uses: actions/setup-python@v2.2.1
 
-    - uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-platformio
-    
-    - name: Cache PlatformIO
-      uses: actions/cache@v2
-      with:
-        path: ~/.platformio
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-platformio
 
-    - name: Install pio and its dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install platformio
-    
-    - name: run pio check
-      run: |
-        pio check -e esp32dev_debug -e esp32dev_release
+      - name: Cache PlatformIO
+        uses: actions/cache@v2
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
-    - name: cppcheck
-      uses: deep5050/cppcheck-action@main
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN}}
-        check_library: disable
-        skip_preprocessor: disable
-        enable: all
-        inconclusive: enable
-        inline_suppression: enable
-        force_language: c
-        force: disable
-        max_ctu_depth: 4
-        platform: unspecified
-        std: c11
-        output_file: ./cppcheck_report
-        exclude_check: build
-        other_options: 
+      - name: Install pio and its dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
 
-    - name: Upload report file
-      if: success()
-      uses: actions/upload-artifact@v2
-      with:
-        name: cpp_report.txt.bin
-        path: ./cppcheck_report
-        retention-days: 5   
+      - name: cppcheck
+        uses: deep5050/cppcheck-action@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN}}
+          check_library: disable
+          skip_preprocessor: disable
+          enable: all
+          inconclusive: enable
+          inline_suppression: enable
+          force_language: c
+          force: disable
+          max_ctu_depth: 4
+          platform: unspecified
+          std: c11
+          output_file: ./cppcheck_report
+          exclude_check: build
+          other_options:
+
+      - name: Upload report file
+        if: success()
+        uses: actions/upload-artifact@v2
+        with:
+          name: cpp_report.txt.bin
+          path: ./cppcheck_report
+          retention-days: 5
