@@ -16,6 +16,7 @@
 #include <esp_adc/adc_oneshot.h>
 #include <esp_event.h>
 #include <esp_log.h>
+#include <esp_netif.h>
 #include <esp_ota_ops.h>
 #include <esp_pm.h>
 #include <esp_system.h>
