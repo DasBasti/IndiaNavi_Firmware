@@ -18,7 +18,6 @@
 #include <esp_log.h>
 #include <esp_netif.h>
 #include <esp_ota_ops.h>
-#include <esp_pm.h>
 #include <esp_system.h>
 #include <nvs.h>
 #include <nvs_flash.h>
@@ -243,9 +242,6 @@ void app_main()
         gpio_write(led, GPIO_SET);
         if (++cnt >= 300) {
             ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
-#ifdef DEBUG
-            // FIXME: this fails on 5.0.0 because of printf issue! esp_pm_dump_locks(stdout);
-#endif
             cnt = 0;
         }
 
