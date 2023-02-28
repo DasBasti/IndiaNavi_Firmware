@@ -53,7 +53,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
         if (FR_OK == res && tile->image->data != 0) {
             res = f_read(&t_img,
                 tile->image->data, 32768,
-                &br); // Tilesize 256*256/2 bytes
+                (UINT*)&br); // Tilesize 256*256/2 bytes
             if (FR_OK == res) {
                 tile->image->loaded = LOADED;
             }
