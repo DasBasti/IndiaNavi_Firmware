@@ -70,7 +70,6 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         current_position.altitude = _gps->altitude;
         current_position.hdop = _gps->dop_h;
         current_position.fix = _gps->fix;
-        ESP_LOGI(TAG, "sats: %u/%u", _gps->sats_in_use, _gps->sats_in_view);
         current_position.satellites_in_use = _gps->sats_in_use;
         current_position.satellites_in_view = _gps->sats_in_view;
         if (hour != _gps->tim.hour) {
