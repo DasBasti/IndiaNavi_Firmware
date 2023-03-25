@@ -242,8 +242,13 @@ void map_screen_create(const display_t* display)
     add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+#ifdef ESP_S3
+    map_tile_attach_onBeforeRender_callback(map, load_map_tiles_to_permanent_memory);
+    //map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
+#else
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
     map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
+#endif // ESP_S3
 
     load_waypoint_file("//track.gpx");
 

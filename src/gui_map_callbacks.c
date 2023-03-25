@@ -86,6 +86,82 @@ freeImageMemory:
     return TIMEOUT;
 }
 
+error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map)
+{
+    char fn[30]; // Filename size for zoom level 16.
+    FRESULT res = FR_NOT_READY;
+
+    map_t* map = (map_t*)_map;
+
+    if (!uxSemaphoreGetCount(sd_semaphore)) { // binary semaphore returns 1 on not taken
+        return UNAVAILABLE;
+    }
+
+    for (size_t i = 0; i < map->tile_count; i++) {
+        map_tile_t* tile = map->tiles[i];
+        FIL t_img;
+        FILINFO t_img_nfo;
+        uint32_t br;
+
+        if(tile->image->loaded == LOADED){
+            continue;
+        }
+
+        save_sprintf(fn, "//MAPS/%u/%lu/%lu.RAW",
+            tile->z,
+            tile->x,
+            tile->y);
+        // TODO: decompress lz4 tiles
+        if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
+            // Check file info
+            res = f_stat((const TCHAR*)&fn, &t_img_nfo);
+            if(FR_OK == res){
+                // Allocate file size if we need to
+                if(!tile->image->data || tile->image->data_length != t_img_nfo.fsize){
+                    if(tile->image->data) // throw away old memory
+                        RTOS_Free(tile->image->data);
+                    tile->image->data_length = 0; // reset length
+                    if((tile->image->data = RTOS_Malloc(t_img_nfo.fsize)))
+                        tile->image->data_length = t_img_nfo.fsize;
+                }
+            }else {
+                ESP_LOGI(TAG, "Error from SD card f_stat: %d", res);
+                continue;
+            }
+            // open file and load image data
+            res = f_open(&t_img, fn, FA_READ);
+            ESP_LOGI(TAG, "Load %s to %p", fn, tile->image->data);
+            if (FR_OK == res && tile->image->data != 0) {
+                res = f_read(&t_img,
+                    tile->image->data, t_img_nfo.fsize,
+                    (UINT*)&br); 
+                if (FR_OK == res) {
+                    tile->image->loaded = LOADED;
+                }
+                else {
+                    ESP_LOGI(TAG, "Error from SD card f_read: %d", res);
+                }
+                f_close(&t_img);
+            } else {
+                ESP_LOGI(TAG, "Error from SD card f_open: %d", res);
+                tile->image->loaded = NOT_FOUND;
+            }
+            xSemaphoreGive(sd_semaphore);
+        } else {
+            ESP_LOGI(TAG, "load timeout!");
+        }
+
+        if (tile->image->loaded == ERROR) {
+            tile->label->text = "Error";
+        }
+        if (tile->image->loaded == NOT_FOUND) {
+            tile->label->text = "Not Found";
+        }
+    }
+
+    return PM_OK;
+}
+
 error_code_t check_if_map_tile_is_loaded(const display_t* dsp, void* image)
 {
     image_t* img = (image_t*)image;

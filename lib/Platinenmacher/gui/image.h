@@ -24,6 +24,7 @@ enum LoadStatus
 typedef struct
 {
 	uint8_t *data;
+	size_t data_length; /// Length of image data.
 	rect_t box;
 
 	void *child;  /// Pointer to child element.

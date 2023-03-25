@@ -68,6 +68,8 @@ error_code_t map_run_on_waypoints(void (*function)(waypoint_t *wp));
 error_code_t map_render(const display_t* dsp, void* component);
 error_code_t map_tile_render(const display_t* dsp, void* component);
 
+void map_tile_attach_onBeforeRender_callback_to_tiles(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component));
+void map_tile_attach_onAfterRender_callback_to_tiles(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component));
 void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component));
 void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component));
 

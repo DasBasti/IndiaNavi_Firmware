@@ -58,6 +58,8 @@ map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint
             uint32_t idx = (x * height) + y;
             map->tiles[idx] = tile_create((x * tile_size) + left, (y * tile_size) + top, tile_size);
             map->tiles[idx]->image->parent = map->tiles[idx];
+            map->tiles[idx]->image->box.height = tile_size;
+            map->tiles[idx]->image->box.width = tile_size;
             map->tiles[idx]->x = x;
             map->tiles[idx]->y = y;
         }
@@ -66,7 +68,7 @@ map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint
 
 error_code_t map_update_zoom_level(map_t* map, uint8_t level)
 {
-    if(map)
+    if (map)
         map->tile_zoom = level;
     return PM_OK;
 }
@@ -82,6 +84,22 @@ map_tile_t* map_get_tile(map_t* map, uint8_t x, uint8_t y)
         return NULL;
 
     return map->tiles[x * map->height + y];
+}
+
+static inline void update_map_tile_if_coords_change(map_tile_t* t, uint32_t x, uint32_t y, uint32_t z)
+{
+    if (t->x != x) {
+        t->image->loaded = NOT_LOADED;
+        t->x = x;
+    }
+    if (t->y != y) {
+        t->image->loaded = NOT_LOADED;
+        t->y = y;
+    }
+    if (t->z != z) {
+        t->image->loaded = NOT_LOADED;
+        t->z = z;
+    }
 }
 
 error_code_t map_update_position(map_t* map, map_position_t* pos)
@@ -105,27 +123,35 @@ error_code_t map_update_position(map_t* map, map_position_t* pos)
     for (uint8_t i = 0; i < map->width; i++) {
         for (uint8_t j = 0; j < map->height; j++) {
             uint16_t idx = i * map->height + j;
-            map->tiles[idx]->x = x - 1 + i;
-            map->tiles[idx]->y = y - 1 + j;
-            map->tiles[idx]->z = map->tile_zoom;
+            update_map_tile_if_coords_change(map->tiles[idx], x - 1 + i, y - 1 + j, map->tile_zoom);
         }
     }
 
     return PM_OK;
 }
 
-void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
+void map_tile_attach_onBeforeRender_callback_to_tiles(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onBeforeRender = cb;
     }
 }
 
-void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
+void map_tile_attach_onAfterRender_callback_to_tiles(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
 {
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map->tiles[i]->image->onAfterRender = cb;
     }
+}
+
+void map_tile_attach_onBeforeRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
+{
+    map->onBeforeRender = cb;
+}
+
+void map_tile_attach_onAfterRender_callback(map_t* map, error_code_t (*cb)(const display_t* dsp, void* component))
+{
+    map->onAfterRender = cb;
 }
 
 error_code_t map_tile_render(const display_t* dsp, void* component)
@@ -142,9 +168,13 @@ error_code_t map_render(const display_t* dsp, void* component)
 {
     // Render map at position box
     map_t* map = (map_t*)component;
+    if (map->onBeforeRender)
+        map->onBeforeRender(dsp, map);
     for (uint32_t i = 0; i < map->tile_count; i++) {
         map_tile_render(dsp, map->tiles[i]);
     }
+    if (map->onAfterRender)
+        map->onAfterRender(dsp, map);
     return PM_OK;
 }
 
@@ -156,7 +186,7 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
     _yf = flat2tile(wp_t->lat, map->tile_zoom);
     wp_t->tile_y = floor(_yf);
 
-    //TODO: merge this calculation with the active calculation
+    // TODO: merge this calculation with the active calculation
     for (uint32_t i = 0; i < map->tile_count; i++) {
         if (map->tiles[i]->x == wp_t->tile_x && map->tiles[i]->y == wp_t->tile_y) {
 
