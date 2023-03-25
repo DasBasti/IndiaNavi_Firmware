@@ -685,7 +685,7 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t* config)
         .parity = config->uart.parity,
         .stop_bits = config->uart.stop_bits,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_REF_TICK,
+        .source_clk = UART_SCLK_APB,
     };
     if (uart_driver_install(esp_gps->uart_port, CONFIG_NMEA_PARSER_RING_BUFFER_SIZE, 0,
             config->uart.event_queue_size, &esp_gps->event_queue, 0)
