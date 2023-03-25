@@ -66,8 +66,8 @@ map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint
 
 error_code_t map_update_zoom_level(map_t* map, uint8_t level)
 {
-    // TODO: mechanism to check wheter the zoom level is available
-    map->tile_zoom = level;
+    if(map)
+        map->tile_zoom = level;
     return PM_OK;
 }
 
