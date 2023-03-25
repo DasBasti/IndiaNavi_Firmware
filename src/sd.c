@@ -31,6 +31,7 @@ sdmmc_card_t* card;
 
 static const char* TAG = "SD";
 
+#ifdef ESP_S3
 static const sdmmc_slot_config_t slot_config = {
     .clk = SD_SPI_CLK, 
     .cmd = SD_SPI_nCS, 
@@ -47,6 +48,9 @@ static const sdmmc_slot_config_t slot_config = {
     .width   = 4, 
     .flags = 0, 
 };
+#else
+static const sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+#endif // ESP_S3
 static const sdmmc_host_t host = {
     .flags = SDMMC_HOST_FLAG_4BIT,
     .slot = SDMMC_HOST_SLOT_1,
