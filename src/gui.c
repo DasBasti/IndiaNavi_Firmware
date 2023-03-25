@@ -51,6 +51,16 @@ label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
 map_position_t* map_position;
+
+acep_5in65_dev_t eink_dev = {
+    .clk = EINK_SPI_CLK,
+    .mosi = EINK_SPI_MOSI,
+    .select = EINK_SPI_nCS,
+    .dc = EINK_DC,
+    .busy = EINK_BUSY,
+    .host = SPI3_HOST,
+};
+
 /**
  * Add render function to pipeline
  *
@@ -294,7 +304,7 @@ void StartGuiTask(void const* argument)
     vTaskDelay(10);
     ESP_LOGI(TAG, "init E-Ink Display");
     do {
-        eink = ACEP_5IN65_Init(DISPLAY_ROTATE_90);
+        eink = ACEP_5IN65_Init(&eink_dev, DISPLAY_ROTATE_90);
         if (!eink) {
             ESP_LOGE(TAG, "E-Ink Display not initialized! retry...");
             reg->disable(reg);

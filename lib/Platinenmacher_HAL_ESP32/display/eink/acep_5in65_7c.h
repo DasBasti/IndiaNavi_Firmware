@@ -16,13 +16,16 @@
 #define ACEP_5IN65_WIDTH 600
 #define ACEP_5IN65_HEIGHT 448
 
-#define EINK_DC 25
-#define EINK_CS 5
-#define EINK_BUSY 39
+typedef struct {
+    uint8_t dc;
+    uint8_t select;
+    uint8_t clk;
+    uint8_t mosi;
+    uint8_t busy;
+    spi_host_device_t host;
+} acep_5in65_dev_t;
 
-#define EINK_SPI_HOST HSPI_HOST
-
-display_t *ACEP_5IN65_Init(display_rotation_t rotation);
+display_t *ACEP_5IN65_Init(acep_5in65_dev_t* dev, display_rotation_t rotation);
 error_code_t ACEP_5IN65_Write(const display_t *dsp, int16_t x, int16_t y, uint8_t color);
 uint8_t ACEP_5IN65_Decompress_Pixel(rect_t *size, int16_t x, int16_t y, const uint8_t *data);
 

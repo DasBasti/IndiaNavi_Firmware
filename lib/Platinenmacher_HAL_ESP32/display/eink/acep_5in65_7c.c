@@ -16,6 +16,7 @@ const char *TAG = "eink";
 uint8_t fb[FB_SIZE] = {0};
 // SPI handle
 spi_device_handle_t spi;
+acep_5in65_dev_t * dev;
 
 static error_code_t ACEP_5IN65_Display(uint8_t *image);
 
@@ -121,17 +122,17 @@ static void ACEP_5IN65_SendData(uint8_t Data)
 }
 #if 0
 static void ACEP_5IN65_SendDataStream(uint8_t *Data, uint32_t length) {
-	gpio_set_level(EINK_DC, 1);
-	gpio_set_level(EINK_CS, 0);
+	gpio_set_level(dev->dc, 1);
+	gpio_set_level(dev->select, 0);
 	spi_device_polling_transmit(spi, Data, length, 10);
-	gpio_set_level(EINK_CS, 1);
+	gpio_set_level(dev->select, 1);
 }
 #endif
 
 static error_code_t ACEP_5IN65_BusyHigh(void) // If BUSYN=0 then waiting
 {
 	uint8_t timeout = 0;
-	while (!(gpio_get_level(EINK_BUSY)))
+	while (!(gpio_get_level(dev->busy)))
 	{
 		vTaskDelay(100);
 		if (timeout++ == 60)
@@ -145,7 +146,7 @@ static error_code_t ACEP_5IN65_BusyHigh(void) // If BUSYN=0 then waiting
 static error_code_t ACEP_5IN65_BusyLow(void) // If BUSYN=1 then waiting
 {
 	uint8_t timeout = 0;
-	while (gpio_get_level(EINK_BUSY))
+	while (gpio_get_level(dev->busy))
 	{
 		vTaskDelay(100);
 		if (timeout++ == 60)
@@ -161,35 +162,37 @@ static error_code_t ACEP_5IN65_BusyLow(void) // If BUSYN=1 then waiting
 void ACEP_5IN65_pre_transfer_callback(spi_transaction_t *t)
 {
 	int dc = (int)t->user;
-	gpio_set_level(EINK_DC, dc);
+	gpio_set_level(dev->dc, dc);
 }
 
 /*
  * Initialize display and the e-Paper registers
  */
-display_t *ACEP_5IN65_Init(display_rotation_t rotation)
+display_t *ACEP_5IN65_Init(acep_5in65_dev_t* eink_dev, display_rotation_t rotation)
 {
 	esp_err_t ret;
+	dev = eink_dev;
 	spi_bus_config_t buscfg = {
 		.miso_io_num = -1,
-		.mosi_io_num = 17,
-		.sclk_io_num = 18,
+		.mosi_io_num = dev->mosi,
+		.sclk_io_num = dev->clk,
 		.quadwp_io_num = -1,
 		.quadhd_io_num = -1,
-		.max_transfer_sz = 8};
+		.max_transfer_sz = 8
+		};
 	spi_device_interface_config_t devcfg = {
 		.clock_speed_hz = 1 * 1000 * 1000,			//Clock out at 1 MHz
 		.mode = 0,									//SPI mode 0
-		.spics_io_num = 5,							//CS pin
+		.spics_io_num = dev->select,							//CS pin
 		.queue_size = 1,							//We want to be able to queue 7 transactions at a time
 		.pre_cb = ACEP_5IN65_pre_transfer_callback, //Specify pre-transfer callback to handle D/C line
 	};
 	//Initialize the SPI bus
-	ret = spi_bus_initialize(EINK_SPI_HOST, &buscfg, 0);
+	ret = spi_bus_initialize(dev->host, &buscfg, 0);
 	if (ret != ESP_OK)
 		goto spi_bus_initialize_failed;
 	//Attach the LCD to the SPI bus
-	ret = spi_bus_add_device(EINK_SPI_HOST, &devcfg, &spi);
+	ret = spi_bus_add_device(dev->host, &devcfg, &spi);
 	if (ret != ESP_OK)
 		goto spi_bus_add_device_failed;
 
@@ -210,13 +213,13 @@ display_t *ACEP_5IN65_Init(display_rotation_t rotation)
 	disp->write_pixel = ACEP_5IN65_Write;
 	disp->decompress = ACEP_5IN65_Decompress_Pixel;
 
-	gpio_set_direction(EINK_DC, GPIO_MODE_OUTPUT);
-	gpio_set_pull_mode(EINK_DC, GPIO_PULLUP_ENABLE);
-	gpio_set_direction(EINK_CS, GPIO_MODE_OUTPUT);
-	gpio_set_direction(EINK_BUSY, GPIO_MODE_INPUT);
-	gpio_set_pull_mode(EINK_BUSY, GPIO_PULLUP_ENABLE);
-	gpio_set_level(EINK_DC, 0);
-	gpio_set_level(EINK_CS, 0);
+	gpio_set_direction(dev->dc, GPIO_MODE_OUTPUT);
+	gpio_set_pull_mode(dev->dc, GPIO_PULLUP_ENABLE);
+	gpio_set_direction(dev->select, GPIO_MODE_OUTPUT);
+	gpio_set_direction(dev->busy, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(dev->busy, GPIO_PULLUP_ENABLE);
+	gpio_set_level(dev->dc, 0);
+	gpio_set_level(dev->select, 0);
 
 	ret = spi_device_acquire_bus(spi, portMAX_DELAY);
 	ESP_ERROR_CHECK(ret);
@@ -267,7 +270,7 @@ display_busyhigh_timeout:
 	RTOS_Free(disp);
 	spi_bus_remove_device(spi);
 spi_bus_add_device_failed:
-	spi_bus_free(EINK_SPI_HOST);
+	spi_bus_free(dev->host);
 spi_bus_initialize_failed:
 	return NULL;
 }
