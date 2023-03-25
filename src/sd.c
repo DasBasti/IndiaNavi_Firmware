@@ -31,11 +31,26 @@ sdmmc_card_t* card;
 
 static const char* TAG = "SD";
 
-static const sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+static const sdmmc_slot_config_t slot_config = {
+    .clk = SD_SPI_CLK, 
+    .cmd = SD_SPI_nCS, 
+    .d0 = SD_SPI_D0, 
+    .d1 = SD_SPI_D1, 
+    .d2 = SD_SPI_D2, 
+    .d3 = SD_SPI_D3,
+    .d4 = GPIO_NUM_NC, 
+    .d5 = GPIO_NUM_NC, 
+    .d6 = GPIO_NUM_NC, 
+    .d7 = GPIO_NUM_NC, 
+    .cd = SD_CARD_nDET, 
+    .wp = SDMMC_SLOT_NO_WP, 
+    .width   = 4, 
+    .flags = 0, 
+};
 static const sdmmc_host_t host = {
     .flags = SDMMC_HOST_FLAG_4BIT,
     .slot = SDMMC_HOST_SLOT_1,
-    .max_freq_khz = SDMMC_FREQ_HIGHSPEED,
+    .max_freq_khz = SDMMC_FREQ_DEFAULT,
     .io_voltage = 3.3f,
     .init = &sdmmc_host_init,
     .set_bus_width = &sdmmc_host_set_bus_width,
