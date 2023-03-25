@@ -236,9 +236,10 @@ void map_screen_create(const display_t* display)
     scaleBox->alignHorizontal = CENTER;
     add_to_render_pipeline(label_render, scaleBox, RL_TOP);
 
-    map_copyright = label_create("(c) OpenStreetMap contributors", &f8x8, 0, dsp->size.height - 10 - 45, 0, 0);
+    map_copyright = label_create("By theBrutzler & Platinenmacher 2023", &f8x8, 0, dsp->size.height - 10 - 45, 0, 0);
     label_shrink_to_text(map_copyright);
     map_copyright->box.left = dsp->size.width - map_copyright->box.width;
+    map_copyright->onBeforeRender = map_render_copyright;
     add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);

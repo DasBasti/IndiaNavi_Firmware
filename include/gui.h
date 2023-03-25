@@ -88,5 +88,6 @@ void map_screen_create(const display_t* display);
 error_code_t load_map_tile_on_demand(const display_t* dsp, void* image);
 error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* image);
 error_code_t check_if_map_tile_is_loaded(const display_t* dsp, void* image);
+error_code_t map_render_copyright(const display_t* dsp, void* label);
 
 #endif /* INC_GUI_H_ */
