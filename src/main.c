@@ -100,11 +100,11 @@ int readBatteryPercent()
         .bitwidth = ADC_BITWIDTH_DEFAULT,
         .atten = ADC_ATTEN_DB_11,
     };
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_6, &config));
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_7, &config));
-    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_6, &batteryVoltage));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VBAT_ADC, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VIN_ADC, &config));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, VBAT_ADC, &batteryVoltage));
     ESP_LOGI(TAG, "Battery Voltage: %d", batteryVoltage);
-    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_7, &chargerVoltage));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, VIN_ADC, &chargerVoltage));
     ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
 
     ESP_ERROR_CHECK(adc_oneshot_del_unit(adc1_handle));
@@ -245,7 +245,8 @@ void app_main()
             cnt = 0;
         }
 
-        current_battery_level = readBatteryPercent();
+        // FIXME: ADC crashes while running in this loop. Works fine outside of loop readBatteryPercent();
+        current_battery_level = 0;
         if (battery_label) {
             image_t* bat_icon = battery_label->child;
             ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
@@ -274,7 +275,7 @@ void app_main()
             if (event_num == BTN) {
                 ESP_LOGI(TAG, "button gedrückt!");
                 if (!xSemaphoreGetMutexHolder(gui_semaphore))
-                    toggleZoom();
+                    //toggleZoom();
                 gpio_isr_handler_add(BTN, handleButtonPress, (void*)BTN);
             }
 #ifdef WITH_ACC
