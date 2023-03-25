@@ -78,6 +78,9 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
 
 error_code_t render_position_marker(const display_t* dsp, void* comp)
 {
+    if (!map_position)
+        return UNAVAILABLE;
+
     label_t* label = (label_t*)comp;
     uint8_t hdop = floor(map_position->hdop / 2);
     hdop += 8;
@@ -111,8 +114,8 @@ void find_closest_waypoint(waypoint_t* wp)
 {
     // ignore inactive waypoints
     if (wp->active) {
-        int32_t dlat = abs((wp->lat - map_position->latitude) * 1000000);
-        int32_t dlon = abs((wp->lon - map_position->longitude) * 1000000);
+        int32_t dlat = abs((int)((wp->lat - map_position->latitude) * 1000000));
+        int32_t dlon = abs((int)((wp->lon - map_position->longitude) * 1000000));
         if (dlat < dlat_min && dlon < dlon_min) {
             dlat_min = dlat;
             dlon_min = dlon;
@@ -158,7 +161,7 @@ void populate_height_data_prepare_waypoints(waypoint_t* wp)
 {
     height_graph_data[wp->num].value = wp->ele;
     if (wp->next) {
-        uint32_t diff = abs(wp->ele - wp->next->ele);
+        uint32_t diff = abs((int)(wp->ele - wp->next->ele));
         height_graph_data[wp->num].color = BLUE;
         if (diff >= 10)
             height_graph_data[wp->num].color = RED;
