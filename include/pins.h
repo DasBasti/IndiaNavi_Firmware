@@ -60,8 +60,8 @@
 #define EINK_VCC_nEN 26
 #define EINK_BUSY 39
 
-#define VBAT_ADC 34
-#define VIN_ADC 35
+#define VBAT_ADC 6
+#define VIN_ADC 7
 
 #define SD_VCC_nEN 16
 #define SD_SPI_D0 2
