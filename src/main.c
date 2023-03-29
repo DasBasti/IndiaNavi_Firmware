@@ -246,7 +246,7 @@ void app_main()
         }
 
         // FIXME: ADC crashes while running in this loop. Works fine outside of loop readBatteryPercent();
-        current_battery_level = 0;
+        current_battery_level = 75;
         if (battery_label) {
             image_t* bat_icon = battery_label->child;
             ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
