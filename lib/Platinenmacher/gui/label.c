@@ -1,7 +1,7 @@
 /*
- * Map component for loading tile images according to a position
+ * Label component for putting text on the screen
  *
- * Copyright (c) 2022, Bastian Neumann <info@platinenmacher.tech>
+ * Copyright (c) 2023, Bastian Neumann <info@platinenmacher.tech>
  *
  * SPDX-License-Identifier: MIT
  */
