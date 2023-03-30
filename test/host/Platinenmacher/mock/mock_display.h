@@ -1,7 +1,7 @@
 /*
  * Mockups for testing the display and rendering
  *
- * Copyright (c) 2022, Bastian Neumann <info@platinenmacher.tech>
+ * Copyright (c) 2023, Bastian Neumann <info@platinenmacher.tech>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -11,14 +11,14 @@
 
 #include "display.h"
 
-error_code_t write_pixel(const display_t* dsp, uint16_t x, uint16_t y,
+error_code_t write_pixel(const display_t* dsp, int16_t x, int16_t y,
     uint8_t color)
 {
     dsp->fb[((y * dsp->size.width) + x)] = color;
     return PM_OK;
 }
 
-uint8_t decompress(rect_t* size, uint16_t x, uint16_t y, const uint8_t* data)
+uint8_t decompress(rect_t* size, int16_t x, int16_t y, const uint8_t* data)
 {
 
     return data[x * size->width + y];
