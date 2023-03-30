@@ -244,7 +244,7 @@ void map_screen_create(const display_t* display)
 
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
 #ifdef ESP_S3
-    map_tile_attach_onBeforeRender_callback(map, load_map_tiles_to_permanent_memory);
+    map_attach_onBeforeRender_callback(map, load_map_tiles_to_permanent_memory);
     //map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
 #else
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
