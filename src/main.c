@@ -13,11 +13,13 @@
 #include <freertos/task.h>
 
 #include <driver/gpio.h>
+#include <driver/rtc_io.h>
 #include <esp_adc/adc_oneshot.h>
 #include <esp_event.h>
 #include <esp_log.h>
 #include <esp_netif.h>
 #include <esp_ota_ops.h>
+#include <esp_sleep.h>
 #include <esp_system.h>
 #include <esp_timer.h>
 #include <nvs.h>
@@ -160,8 +162,19 @@ static void IRAM_ATTR handleButtonPress(void* arg)
     }
 }
 
-void enter_deep_sleep(){
+void enter_deep_sleep()
+{
+    const gpio_config_t config = {
+        .pin_bit_mask = BIT(BTN),
+        .mode = GPIO_MODE_INPUT,
+    };
+    ESP_ERROR_CHECK(gpio_config(&config));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup(BTN, BTN_LEVEL));
+    rtc_gpio_pullup_en(BTN);
+    rtc_gpio_pulldown_dis(BTN);
 
+    ESP_LOGI(TAG, "enter deep sleep now...");
+    esp_deep_sleep_start();
 }
 
 void app_main()
@@ -169,6 +182,10 @@ void app_main()
     uint16_t cnt = 300;
     uint32_t event_num;
     gpio_t* led = gpio_create(OUTPUT, 0, LED);
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+        rtc_gpio_deinit(BTN);
+            ESP_LOGI(TAG, "Wake up from deep sleep. Reset Button GPIO");
+    }
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {

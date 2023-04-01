@@ -35,7 +35,9 @@ typedef enum {
     TASK_EVENT_ENABLE_DISPLAY,
     TASK_EVENT_DISABLE_DISPLAY,
     TASK_EVENT_ENABLE_WIFI,
-    TASK_EVENT_DISABLE_WIFI
+    TASK_EVENT_DISABLE_WIFI,
+    TASK_EVENT_BUTTON_PRESS,
+    TASK_EVENT_BUTTON_PRESS_LONG,
 } task_events_e;
 
 typedef struct
@@ -71,6 +73,7 @@ void gps_stop_parser();
 
 // From main.c
 void toggleZoom();
+void enter_deep_sleep();
 
 // From gui.c
 void trigger_rendering();
@@ -81,5 +84,6 @@ esp_err_t startDownloadFile(void* handler, const char* url);
 
 // From map_loader.c
 void maploader_screen_element(const display_t* dsp);
+
 
 #endif /* INC_TASKS_H_ */
