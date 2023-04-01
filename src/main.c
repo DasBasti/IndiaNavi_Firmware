@@ -70,6 +70,7 @@ gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
 int32_t current_battery_level;
 int32_t is_charging;
+adc_oneshot_unit_handle_t adc1_handle;
 
 static void print_sha256(const uint8_t* image_hash, const char* label)
 {
@@ -90,24 +91,11 @@ int readBatteryPercent()
 {
     int batteryVoltage;
     int chargerVoltage;
-    adc_oneshot_unit_handle_t adc1_handle;
-    adc_oneshot_unit_init_cfg_t init_config1 = {
-        .unit_id = ADC_UNIT_1,
-        .ulp_mode = ADC_ULP_MODE_DISABLE,
-    };
-    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
-    adc_oneshot_chan_cfg_t config = {
-        .bitwidth = ADC_BITWIDTH_DEFAULT,
-        .atten = ADC_ATTEN_DB_11,
-    };
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VBAT_ADC, &config));
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VIN_ADC, &config));
+
     ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, VBAT_ADC, &batteryVoltage));
     ESP_LOGI(TAG, "Battery Voltage: %d", batteryVoltage);
     ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, VIN_ADC, &chargerVoltage));
     ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
-
-    ESP_ERROR_CHECK(adc_oneshot_del_unit(adc1_handle));
 
     is_charging = (chargerVoltage - 5 > batteryVoltage);
 
@@ -205,6 +193,18 @@ void app_main()
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
 #endif
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = ADC_ATTEN_DB_11,
+    };
+
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VBAT_ADC, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VIN_ADC, &config));
 
     // inital battery level read
     current_battery_level = readBatteryPercent();
@@ -243,13 +243,12 @@ void app_main()
         if (++cnt >= 300) {
             ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
             cnt = 0;
+            current_battery_level = 75;// readBatteryPercent(); // ADC crashes running this in the loop
+            ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
         }
 
-        // FIXME: ADC crashes while running in this loop. Works fine outside of loop readBatteryPercent();
-        current_battery_level = 75;
         if (battery_label) {
             image_t* bat_icon = battery_label->child;
-            ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
             if (current_battery_level > 80)
                 bat_icon->data = bat_100;
             else if (current_battery_level > 50)
