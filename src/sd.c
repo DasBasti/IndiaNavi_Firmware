@@ -240,13 +240,13 @@ void StartSDTask(void const* argument)
     reg_gpio->onValue = GPIO_RESET;
     regulator_t* reg = regulator_gpio_create(reg_gpio);
     reg->disable(reg);
-    vTaskDelay(100);
+    vTaskDelay(pdMS_TO_TICKS(100));
     reg->enable(reg);
 
     gpio_t* dc_dt = gpio_create(INPUT, 0, SD_CARD_nDET);
 
     /* initialize SD card */
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     for (;;) {
         if (!gpio_read(dc_dt)) {
@@ -275,13 +275,13 @@ void StartSDTask(void const* argument)
                 esp_vfs_fat_sdmmc_unmount();
                 // show on gui
                 trigger_rendering();
-                vTaskDelay(1000);
+                vTaskDelay(pdMS_TO_TICKS(1000));
             }
         }
 
         if (sd_indicator_label)
             sd_indicator_label->onBeforeRender = statusRender;
 
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
