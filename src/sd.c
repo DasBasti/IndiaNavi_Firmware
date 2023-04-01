@@ -244,7 +244,6 @@ void StartSDTask(void const* argument)
     reg->enable(reg);
 
     gpio_t* dc_dt = gpio_create(INPUT, 0, SD_CARD_nDET);
-    gpio_set_pull_mode(SD_CARD_nDET, GPIO_PULLUP_ENABLE);
 
     /* initialize SD card */
     vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -276,6 +275,7 @@ void StartSDTask(void const* argument)
                 esp_vfs_fat_sdmmc_unmount();
                 // show on gui
                 trigger_rendering();
+                vTaskDelay(1000);
             }
         }
 
