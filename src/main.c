@@ -19,6 +19,7 @@
 #include <esp_netif.h>
 #include <esp_ota_ops.h>
 #include <esp_system.h>
+#include <esp_timer.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 
@@ -131,22 +132,36 @@ static void get_sha256_of_partitions(void)
     print_sha256(sha_256, "SHA-256 for current firmware: ");
 }
 
+static volatile int64_t button_press_time = 0;
 static void IRAM_ATTR handleButtonPress(void* arg)
 {
     uint32_t gpio_num = UINT32_MAX;
-    if (gpio_get_level(BTN) == BTN_LEVEL) {
-        gpio_num = BTN;
-        xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
-    }
 #ifdef WITH_ACC
     if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL) {
         gpio_num = I2C_INT;
         xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
+        gpio_isr_handler_remove(I2C_INT);
     }
 #endif
-    // deactivate isr handler until reinitialized by queue handling
-    if (gpio_num != UINT32_MAX)
-        gpio_isr_handler_remove(gpio_num);
+    if (gpio_get_level(BTN) == BTN_LEVEL) {
+        button_press_time = esp_timer_get_time();
+        gpio_set_intr_type(BTN, GPIO_INTR_POSEDGE);
+    } else {
+        gpio_set_intr_type(BTN, GPIO_INTR_NEGEDGE);
+        int64_t button_delay = esp_timer_get_time() - button_press_time;
+        if (button_delay < 500)
+            return; // bounce effect
+        if (button_delay > 5000000)
+            gpio_num = TASK_EVENT_BUTTON_PRESS_LONG;
+        else
+            gpio_num = TASK_EVENT_BUTTON_PRESS;
+        gpio_isr_handler_remove(BTN);
+        xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
+    }
+}
+
+void enter_deep_sleep(){
+
 }
 
 void app_main()
@@ -243,7 +258,7 @@ void app_main()
         if (++cnt >= 300) {
             ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
             cnt = 0;
-            current_battery_level = 75;// readBatteryPercent(); // ADC crashes running this in the loop
+            current_battery_level = 75; // readBatteryPercent(); // ADC crashes running this in the loop
             ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
         }
 
@@ -268,42 +283,35 @@ void app_main()
             }
             label_shrink_to_text(battery_label);
         }
-        // Delay for LED blinking. LED blinks faster if ISRs are handled
+
         if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
-            // ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
-            if (event_num == BTN) {
-                ESP_LOGI(TAG, "button gedrückt!");
-                if (!xSemaphoreGetMutexHolder(gui_semaphore))
-                    //toggleZoom();
+            if (event_num == TASK_EVENT_BUTTON_PRESS_LONG) {
+                gui_set_app_mode(APP_MODE_TURN_OFF);
+            } else if (event_num == TASK_EVENT_BUTTON_PRESS) {
+                toggleZoom();
                 gpio_isr_handler_add(BTN, handleButtonPress, (void*)BTN);
             }
 #ifdef WITH_ACC
-            if (event_num == I2C_INT) {
+            else if (event_num == I2C_INT) {
                 ESP_LOGI(TAG, "Acc");
                 // gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
             }
 #endif
-            if (event_num == TASK_EVENT_ENABLE_GPS) {
+            else if (event_num == TASK_EVENT_ENABLE_GPS) {
                 xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
-            }
-            if (event_num == TASK_EVENT_DISABLE_GPS) {
+            } else if (event_num == TASK_EVENT_DISABLE_GPS) {
                 vTaskDelete(gpsTask_h);
-            }
-            if (event_num == TASK_EVENT_ENABLE_DISPLAY) {
+            } else if (event_num == TASK_EVENT_ENABLE_DISPLAY) {
                 xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
-            }
-            if (event_num == TASK_EVENT_DISABLE_DISPLAY) {
+            } else if (event_num == TASK_EVENT_DISABLE_DISPLAY) {
                 vTaskDelete(guiTask_h);
-            }
-            if (event_num == TASK_EVENT_ENABLE_WIFI) {
+            } else if (event_num == TASK_EVENT_ENABLE_WIFI) {
                 xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
-            }
-            if (event_num == TASK_EVENT_DISABLE_WIFI) {
+            } else if (event_num == TASK_EVENT_DISABLE_WIFI) {
                 vTaskDelete(wifiTask_h);
             }
         }
         gpio_write(led, GPIO_RESET);
-        vTaskDelay(pdTICKS_TO_MS(100));
     }
 }
 
