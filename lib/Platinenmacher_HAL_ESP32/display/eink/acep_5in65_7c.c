@@ -134,7 +134,7 @@ static error_code_t ACEP_5IN65_BusyHigh(void) // If BUSYN=0 then waiting
 	uint8_t timeout = 0;
 	while (!(gpio_get_level(dev->busy)))
 	{
-		vTaskDelay(100);
+		vTaskDelay(pdMS_TO_TICKS(1000));
 		if (timeout++ == 60)
 		{
 			return TIMEOUT;
@@ -148,7 +148,7 @@ static error_code_t ACEP_5IN65_BusyLow(void) // If BUSYN=1 then waiting
 	uint8_t timeout = 0;
 	while (gpio_get_level(dev->busy))
 	{
-		vTaskDelay(100);
+		vTaskDelay(pdMS_TO_TICKS(1000));
 		if (timeout++ == 60)
 		{
 			return TIMEOUT;
