@@ -229,6 +229,7 @@ void app_main()
     ESP_LOGI(TAG, "start");
 
     xTaskCreate(&StartPowerTask, "power", taskPowerStackSize, NULL, tskIDLE_PRIORITY, &powerTask_h);
+    vTaskDelay(pdMS_TO_TICKS(100));
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
     xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
 #ifndef JTAG
@@ -384,6 +385,7 @@ __weak void StartMapDownloaderTask(void* argument)
  */
 __weak void StartPowerTask(void* argument)
 {
+    TickType_t delay_time = 10;
     adc_oneshot_unit_handle_t adc1_handle;
     adc_oneshot_unit_init_cfg_t init_config1 = {
         .unit_id = ADC_UNIT_1,
@@ -400,6 +402,10 @@ __weak void StartPowerTask(void* argument)
 
     for (;;) {
         current_battery_level = readBatteryPercent(adc1_handle);
-        vTaskDelay(pdMS_TO_TICKS(60000));
+        if(is_charging)
+            delay_time = 1000;
+        else
+            delay_time = 60000;
+        vTaskDelay(pdMS_TO_TICKS(delay_time));
     }
 }
