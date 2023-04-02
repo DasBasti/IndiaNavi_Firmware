@@ -89,7 +89,9 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         break;
     case GPS_UNKNOWN:
         /* print unknown statements */
-        ESP_LOGW(TAG, "Unknown statement:%s", (char*)event_data);
+        char message_buf[255];
+        strncpy(message_buf, (char*)event_data, 255);
+        ESP_LOGW(TAG, "Unknown statement:%s", message_buf);
         break;
     default:
         break;
@@ -120,7 +122,8 @@ void StartGpsTask(void const* argument)
     ESP_LOGI(TAG, "init regulator\n\r");
     reg = regulator_gpio_create(reg_gpio);
 
-    /* initialize GPS module */
+    /* L96 module can be restarted by driving the RESET to a low level voltage for at least 10ms and then releasing it.*/
+    vTaskDelay(pdMS_TO_TICKS(100));
     reg->enable(reg);
 
     /* delay to avoid race condition. this is bad! */
@@ -169,8 +172,8 @@ void StartGpsTask(void const* argument)
     /* register event handler for NMEA parser library */
     nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
     // send initial commands to GPS module
-    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO, sizeof(L96_SEARCH_GPS_GLONASS_GALILEO)));
-    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_FULL_ON, sizeof(L96_ENTER_FULL_ON)));
+    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO));
+    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_GLP));
 
     for (;;) {
         //struct tm timeinfo;
