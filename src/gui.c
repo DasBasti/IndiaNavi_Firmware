@@ -252,6 +252,7 @@ void app_screen(const display_t* dsp)
         break;
     case APP_START_SCREEN_TRANSITION:
         /* free start screen and fall throught to map screen generation*/
+        free_all_render_pipelines();
         start_screen_free();
         gui_set_app_mode(APP_MODE_GPS_CREATE);
         __attribute__((fallthrough));
@@ -260,10 +261,13 @@ void app_screen(const display_t* dsp)
         gui_set_app_mode(APP_MODE_RUNNING);
         break;
     case APP_MODE_TURN_OFF:
+        free_all_render_pipelines();
         off_screen_create(dsp);
+        ESP_LOGI(TAG, "off screen prepared");
         gui_set_app_mode(APP_MODE_OFF);
         break;
     case APP_MODE_OFF:
+        ESP_LOGI(TAG, "off screen executed");
         enter_deep_sleep();
     case APP_MODE_RUNNING:
     default:
