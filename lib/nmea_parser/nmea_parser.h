@@ -230,14 +230,13 @@ extern "C"
  * 
  * @param nmea_hdl handle of NMEA parser
  * @param cmd command string to send
- * @param length of the comamnd sequence
  * @return esp_err_t
  *  - EPS_OK: Success
  *  - ESP_ERR_NO_MEM: TX buffer not big enough for command sequence
  *  - ESP_ERR_INVALID_STATE: Parser Task not initialized or not running
  *  - Others: Fail
  */
-   esp_err_t nmea_send_command(nmea_parser_handle_t nmea_hdl, char *cmd, uint16_t length);
+   esp_err_t nmea_send_command(nmea_parser_handle_t nmea_hdl, char *cmd);
 
 #ifdef __cplusplus
 }

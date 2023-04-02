@@ -657,7 +657,7 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t* config)
         goto err_buffer;
     }
 #if CONFIG_NMEA_STATEMENT_GSA
-        esp_gps->all_statements
+    esp_gps->all_statements
         |= (1 << STATEMENT_GSA);
 #endif
 #if CONFIG_NMEA_STATEMENT_GSV
@@ -799,19 +799,19 @@ esp_err_t nmea_parser_remove_handler(nmea_parser_handle_t nmea_hdl, esp_event_ha
 
 /**
  * @brief Send String cmd to GPS module
- * 
+ *
  * @param nmea_hdl handle of NMEA parser
  * @param cmd command string to send
- * @param length of the comamnd sequence
  * @return esp_err_t
  *  - EPS_OK: Success
  *  - ESP_ERR_NO_MEM: TX buffer not big enough for command sequence
  *  - ESP_ERR_INVALID_STATE: Parser Task not initialized or not running
  *  - Others: Fail
  */
-esp_err_t nmea_send_command(nmea_parser_handle_t nmea_hdl, char* cmd, uint16_t length)
+esp_err_t nmea_send_command(nmea_parser_handle_t nmea_hdl, char* cmd)
 {
     esp_gps_t* esp_gps = (esp_gps_t*)nmea_hdl;
+    size_t length = strlen(cmd);
     // break if parser task is not running
     if (!esp_gps->tsk_hdl)
         return ESP_ERR_INVALID_STATE;
