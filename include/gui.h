@@ -27,6 +27,8 @@ typedef enum {
     APP_MODE_GPS_CREATE,
     APP_MODE_DOWNLOAD,
     APP_MODE_CONWAY,
+    APP_MODE_TURN_OFF,
+    APP_MODE_OFF,
     APP_MODE_RUNNING,
 } app_mode_t;
 
@@ -83,6 +85,7 @@ void test_screen_create(const display_t* display);
 void start_screen_free();
 void map_screen_create(const display_t* display);
 void conway_screen_create(const display_t* display);
+void off_screen_create(const display_t* display);
 
 /**
  * Callbacks for loading map tiles 
