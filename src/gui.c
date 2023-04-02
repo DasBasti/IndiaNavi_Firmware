@@ -259,6 +259,12 @@ void app_screen(const display_t* dsp)
         map_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
         break;
+    case APP_MODE_TURN_OFF:
+        off_screen_create(dsp);
+        gui_set_app_mode(APP_MODE_OFF);
+        break;
+    case APP_MODE_OFF:
+        enter_deep_sleep();
     case APP_MODE_RUNNING:
     default:
         break;
