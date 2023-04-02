@@ -1,7 +1,7 @@
 /*
  * Main Task for Wander Navi Application
  *
- * Copyright (c) 2022, Bastian Neumann <info@platinenmacher.tech>
+ * Copyright (c) 2023, Bastian Neumann <info@platinenmacher.tech>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -38,6 +38,7 @@ static const char* TAG = "MAIN";
 extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
 #define taskGenericStackSize 1024 * 2
+#define taskPowerStackSize 1024 * 6
 #define taskGPSStackSize 1024 * 6
 #define taskGUIStackSize 1024 * 10
 #define taskSDStackSize 1024 * 8
@@ -71,9 +72,8 @@ uint32_t ledDelay = 100;
 
 gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
-int32_t current_battery_level;
+int32_t current_battery_level = 0;
 int32_t is_charging;
-adc_oneshot_unit_handle_t adc1_handle;
 
 static void print_sha256(const uint8_t* image_hash, const char* label)
 {
@@ -90,14 +90,14 @@ static void print_sha256(const uint8_t* image_hash, const char* label)
  * @param none
  * @retval int: battery voltage in mV
  */
-int readBatteryPercent()
+int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
 {
     int batteryVoltage;
     int chargerVoltage;
 
-    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, VBAT_ADC, &batteryVoltage));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, VBAT_ADC, &batteryVoltage));
     ESP_LOGI(TAG, "Battery Voltage: %d", batteryVoltage);
-    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, VIN_ADC, &chargerVoltage));
+    ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, VIN_ADC, &chargerVoltage));
     ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
 
     is_charging = (chargerVoltage - 5 > batteryVoltage);
@@ -225,24 +225,10 @@ void app_main()
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
 #endif
-    adc_oneshot_unit_init_cfg_t init_config1 = {
-        .unit_id = ADC_UNIT_1,
-        .ulp_mode = ADC_ULP_MODE_DISABLE,
-    };
-    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
-    adc_oneshot_chan_cfg_t config = {
-        .bitwidth = ADC_BITWIDTH_DEFAULT,
-        .atten = ADC_ATTEN_DB_11,
-    };
-
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VBAT_ADC, &config));
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VIN_ADC, &config));
-
-    // inital battery level read
-    current_battery_level = readBatteryPercent();
 
     ESP_LOGI(TAG, "start");
 
+    xTaskCreate(&StartPowerTask, "power", taskPowerStackSize, NULL, tskIDLE_PRIORITY, &powerTask_h);
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
     xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
 #ifndef JTAG
@@ -275,7 +261,6 @@ void app_main()
         if (++cnt >= 300) {
             ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
             cnt = 0;
-            current_battery_level = 75; // readBatteryPercent(); // ADC crashes running this in the loop
             ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
         }
 
@@ -357,18 +342,6 @@ __weak void StartGuiTask(void* argument)
 }
 
 /**
- * @brief Function implementing the powerTask thread.
- * @param argument: Not used
- * @retval None
- */
-__weak void StartPowerTask(void* argument)
-{
-    for (;;) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-}
-
-/**
  * @brief Function implementing the SDTask thread.
  * @param argument: Not used
  * @retval None
@@ -401,5 +374,32 @@ __weak void StartMapDownloaderTask(void* argument)
 {
     for (;;) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+/**
+ * @brief Function implementing the powerTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+__weak void StartPowerTask(void* argument)
+{
+    adc_oneshot_unit_handle_t adc1_handle;
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = ADC_ATTEN_DB_11,
+    };
+
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VBAT_ADC, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VIN_ADC, &config));
+
+    for (;;) {
+        current_battery_level = readBatteryPercent(adc1_handle);
+        vTaskDelay(pdMS_TO_TICKS(60000));
     }
 }
