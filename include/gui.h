@@ -77,6 +77,7 @@ render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, vo
     void* comp,
     enum RenderLayer layer);
 render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void* component));
+void set_post_rendering_hook(void (*cb)(void));
 
 void gui_set_app_mode(app_mode_t mode);
 

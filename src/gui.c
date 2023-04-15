@@ -50,6 +50,8 @@ label_t* wifi_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
+void (*_post_render_hook)(void);
+
 map_position_t* map_position;
 
 acep_5in65_dev_t eink_dev = {
@@ -238,6 +240,24 @@ void gui_set_app_mode(app_mode_t mode)
 }
 
 /**
+ * Run after rendering and displaying is finished
+ */
+void run_post_render_hook()
+{
+    if (_post_render_hook)
+        _post_render_hook();
+    _post_render_hook = 0;
+}
+
+/**
+ * Set post rendering hook
+ */
+void set_post_rendering_hook(void (*cb)(void))
+{
+    _post_render_hook = cb;
+}
+
+/**
  * Display App
  */
 void app_screen(const display_t* dsp)
@@ -264,12 +284,10 @@ void app_screen(const display_t* dsp)
     case APP_MODE_TURN_OFF:
         free_all_render_pipelines();
         off_screen_create(dsp);
-        ESP_LOGI(TAG, "off screen prepared");
-        gui_set_app_mode(APP_MODE_OFF);
-        break;
-    case APP_MODE_OFF:
-        ESP_LOGI(TAG, "off screen executed");
-        enter_deep_sleep();
+        set_post_rendering_hook(enter_deep_sleep);
+        ESP_LOGI(TAG, "Starting Power Down Mode");
+        gui_set_app_mode(APP_MODE_RUNNING);
+        __attribute__((fallthrough));
     case APP_MODE_RUNNING:
     default:
         break;
@@ -357,6 +375,7 @@ void StartGuiTask(void const* argument)
                 display_commit_fb(eink);
                 // vTaskPrioritySet(NULL, 5);
                 ESP_LOGI(TAG, "Refresh finished.");
+                run_post_render_hook(eink);
                 xSemaphoreGive(gui_semaphore);
             } else {
                 ESP_LOGI(TAG, "Render Mutex locked.");
