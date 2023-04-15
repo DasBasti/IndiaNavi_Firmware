@@ -98,6 +98,7 @@ void free_render_pipeline(enum RenderLayer layer)
         r = r->next;
         RTOS_Free(rn);
     }
+    render_pipeline[layer] = 0;
 }
 
 void free_all_render_pipelines()
