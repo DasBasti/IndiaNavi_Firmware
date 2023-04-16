@@ -24,6 +24,10 @@
 
 #include "icons_32/icons_32.h"
 
+#ifndef INITIAL_APP_MODE
+#    define INITIAL_APP_MODE APP_MODE_TURN_OFF
+#endif
+
 const uint16_t margin_top = 5;
 const uint16_t margin_bottom = 5;
 const uint16_t margin_vertical = 10;
@@ -41,7 +45,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_TURN_OFF;
+app_mode_t _app_mode = INITIAL_APP_MODE;
 font_t f8x8, f8x16;
 label_t* clock_label;
 label_t* battery_label;
