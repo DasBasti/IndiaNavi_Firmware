@@ -286,7 +286,8 @@ void toggleZoom()
     zoom_level_selected = !zoom_level_selected;
     ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
-    map_update_position(map, map_position);
+    if(map_position->fix != GPS_FIX_INVALID)
+        map_update_position(map, map_position);
 
     scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
     scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
