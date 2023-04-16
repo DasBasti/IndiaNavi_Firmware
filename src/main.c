@@ -65,7 +65,6 @@ TaskHandle_t sdTask_h;
 TaskHandle_t wifiTask_h;
 TaskHandle_t mapLoaderTask_h;
 
-// File loading queue
 QueueHandle_t eventQueueHandle = NULL;
 
 uint32_t ledDelay = 100;
@@ -74,6 +73,8 @@ gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
 int32_t current_battery_level = 0;
 int32_t is_charging;
+
+esp_timer_handle_t button_timer;
 
 static void print_sha256(const uint8_t* image_hash, const char* label)
 {
@@ -134,32 +135,29 @@ static void get_sha256_of_partitions(void)
     print_sha256(sha_256, "SHA-256 for current firmware: ");
 }
 
-static volatile int64_t button_press_time = 0;
 static void IRAM_ATTR handleButtonPress(void* arg)
 {
     uint32_t gpio_num = UINT32_MAX;
 #ifdef WITH_ACC
     if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL) {
         gpio_num = I2C_INT;
-        xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
-        gpio_isr_handler_remove(I2C_INT);
     }
 #endif
     if (gpio_get_level(BTN) == BTN_LEVEL) {
-        button_press_time = esp_timer_get_time();
-        gpio_set_intr_type(BTN, GPIO_INTR_POSEDGE);
+        gpio_num = TASK_EVENT_BUTTON_DOWN;
     } else {
-        gpio_set_intr_type(BTN, GPIO_INTR_NEGEDGE);
-        int64_t button_delay = esp_timer_get_time() - button_press_time;
-        if (button_delay < 500)
-            return; // bounce effect
-        if (button_delay > 5000000)
-            gpio_num = TASK_EVENT_BUTTON_PRESS_LONG;
-        else
-            gpio_num = TASK_EVENT_BUTTON_PRESS;
-        gpio_isr_handler_remove(BTN);
-        xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
+        gpio_num = TASK_EVENT_BUTTON_UP;
     }
+    xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
+}
+
+/**
+ * Remove ISR trigger from Button and change application to shut down
+ */
+void button_timer_trigger(void* arg)
+{
+    gpio_isr_handler_remove(BTN);
+    gui_set_app_mode(APP_MODE_TURN_OFF);
 }
 
 void enter_deep_sleep()
@@ -206,13 +204,13 @@ void app_main()
     sd_semaphore = xSemaphoreCreateMutex();
     eventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
 
-    /* Set Button IO to input, with PUI and falling edge IRQ */
+    /* Set Button IO to input, with PUI and any edge IRQ */
     esp_btn.mode = GPIO_MODE_INPUT;
     esp_btn.pull_up_en = true;
     esp_btn.pin_bit_mask = BIT64(BTN);
-    esp_btn.intr_type = GPIO_INTR_NEGEDGE;
+    esp_btn.intr_type = GPIO_INTR_ANYEDGE;
     gpio_config(&esp_btn);
-    gpio_set_intr_type(BTN, GPIO_INTR_NEGEDGE);
+    gpio_set_intr_type(BTN, GPIO_INTR_ANYEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(BTN, handleButtonPress, NULL);
 
@@ -227,6 +225,11 @@ void app_main()
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(I2C_INT, handleButtonPress, NULL);
 #endif
+
+    esp_timer_create_args_t button_timer_args = {
+        .callback = button_timer_trigger,
+    };
+    esp_timer_create(&button_timer_args, &button_timer);
 
     ESP_LOGI(TAG, "start");
 
@@ -290,11 +293,13 @@ void app_main()
         }
 
         if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
-            if (event_num == TASK_EVENT_BUTTON_PRESS_LONG) {
-                gui_set_app_mode(APP_MODE_TURN_OFF);
-            } else if (event_num == TASK_EVENT_BUTTON_PRESS) {
+            if (event_num == TASK_EVENT_BUTTON_DOWN) {
+                ESP_LOGI(TAG, "Button down");
+                esp_timer_start_once(button_timer, 3000000); // 3 Seconds timeout for long press
+            } else if (event_num == TASK_EVENT_BUTTON_UP) {
+                ESP_LOGI(TAG, "Button up");
+                esp_timer_stop(button_timer); // stop long press timer
                 toggleZoom();
-                gpio_isr_handler_add(BTN, handleButtonPress, (void*)BTN);
             }
 #ifdef WITH_ACC
             else if (event_num == I2C_INT) {
