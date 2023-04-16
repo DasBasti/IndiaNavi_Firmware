@@ -41,7 +41,7 @@ render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static uint8_t render_needed = 0;
 
-app_mode_t _app_mode = APP_MODE_GPS_CREATE;
+app_mode_t _app_mode = APP_MODE_TURN_OFF;
 font_t f8x8, f8x16;
 label_t* clock_label;
 label_t* battery_label;

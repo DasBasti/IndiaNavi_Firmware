@@ -184,7 +184,9 @@ void app_main()
     gpio_t* led = gpio_create(OUTPUT, 0, LED);
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
         rtc_gpio_deinit(BTN);
-            ESP_LOGI(TAG, "Wake up from deep sleep. Reset Button GPIO");
+        ESP_LOGI(TAG, "Wake up from deep sleep. Reset Button GPIO");
+        // after deep sleep we want to go into appliaction mode
+        gui_set_app_mode(APP_MODE_GPS_CREATE);
     }
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -402,7 +404,7 @@ __weak void StartPowerTask(void* argument)
 
     for (;;) {
         current_battery_level = readBatteryPercent(adc1_handle);
-        if(is_charging)
+        if (is_charging)
             delay_time = 1000;
         else
             delay_time = 60000;
