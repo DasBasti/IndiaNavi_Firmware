@@ -11,4 +11,6 @@ char *readline(char *source, char *destination);
  */
 void printf_fb(uint8_t *fb, uint32_t width, uint32_t height);
 
+void convert_umlauts_inplace(char* text);
+
 #endif /* PLATINENMACHER_HELPER_H_ */
