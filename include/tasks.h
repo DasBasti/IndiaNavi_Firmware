@@ -69,6 +69,7 @@ void closePhysicalFile(async_file_t* file);
 
 // From gps.c
 void gps_screen_element(const display_t* dsp);
+bool gps_is_position_known();
 void gps_stop_parser();
 
 // From main.c

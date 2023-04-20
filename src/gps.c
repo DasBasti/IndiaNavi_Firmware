@@ -47,6 +47,11 @@ static map_position_t current_position = {
 #endif
 };
 
+bool gps_is_position_known()
+{
+    return current_position.fix != GPS_FIX_INVALID;
+}
+
 /**
  * @brief GPS Event Handler
  *
