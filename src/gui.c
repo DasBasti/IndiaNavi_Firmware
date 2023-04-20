@@ -54,7 +54,8 @@ label_t* wifi_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
-void (*_post_render_hook)(void);
+void (*_post_render_hook)(size_t arg);
+size_t _post_rener_hook_arg;
 
 map_position_t* map_position;
 
@@ -249,15 +250,16 @@ void gui_set_app_mode(app_mode_t mode)
 void run_post_render_hook()
 {
     if (_post_render_hook)
-        _post_render_hook();
+        _post_render_hook(_post_rener_hook_arg);
     _post_render_hook = 0;
 }
 
 /**
  * Set post rendering hook
  */
-void set_post_rendering_hook(void (*cb)(void))
+void set_post_rendering_hook(void (*cb)(size_t arg), size_t arg)
 {
+    _post_rener_hook_arg = arg;
     _post_render_hook = cb;
 }
 
@@ -268,27 +270,30 @@ void app_screen(const display_t* dsp)
 {
     switch (_app_mode) {
     case APP_START_SCREEN:
-        start_screen_create(dsp);
-        gui_set_app_mode(APP_START_SCREEN_TRANSITION);
+        picture_screen_create(dsp);
+        set_post_rendering_hook(gui_set_app_mode, APP_START_SCREEN_TRANSITION);
         break;
     case APP_TEST_SCREEN:
+        create_top_bar(dsp);
         test_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
         break;
     case APP_START_SCREEN_TRANSITION:
+        if(!gps_is_position_known())
+            break;
         /* free start screen and fall throught to map screen generation*/
-        free_all_render_pipelines();
-        start_screen_free();
+        picture_screen_free();
         gui_set_app_mode(APP_MODE_GPS_CREATE);
         __attribute__((fallthrough));
     case APP_MODE_GPS_CREATE:
+        create_top_bar(dsp);
         map_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
         break;
     case APP_MODE_TURN_OFF:
         free_all_render_pipelines();
         off_screen_create(dsp);
-        set_post_rendering_hook(enter_deep_sleep);
+        set_post_rendering_hook(enter_deep_sleep, NULL);
         ESP_LOGI(TAG, "Starting Power Down Mode");
         gui_set_app_mode(APP_MODE_RUNNING);
         __attribute__((fallthrough));
@@ -356,8 +361,6 @@ void StartGuiTask(void const* argument)
     ESP_LOGI(TAG, "Screen clear done");
 #endif
 
-    // TODO: check if we want that here
-    create_top_bar(eink);
     ESP_LOGI(TAG, "App screen init done");
 
     vTaskDelay(100 / portTICK_PERIOD_MS); // ???

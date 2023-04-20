@@ -77,16 +77,18 @@ render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, vo
     void* comp,
     enum RenderLayer layer);
 render_t* add_pre_render_callback(error_code_t (*cb)(const display_t* dsp, void* component));
-void set_post_rendering_hook(void (*cb)(void));
+void set_post_rendering_hook(void (*cb)(size_t arg), size_t arg);
 
 void gui_set_app_mode(app_mode_t mode);
 
-void start_screen_create(const display_t* display);
 void test_screen_create(const display_t* display);
-void start_screen_free();
 void map_screen_create(const display_t* display);
 void conway_screen_create(const display_t* display);
 void off_screen_create(const display_t* display);
+
+void picture_screen_create(const display_t* display);
+void picture_screen_free();
+void picture_set_image_path(const char *path);
 
 /**
  * Callbacks for loading map tiles 
