@@ -190,7 +190,7 @@ void load_waypoint_file(char* filename)
     if (PM_OK == createFileBuffer(&wp_file))
         loadFile(&wp_file);
 
-    if (0 && wp_file.loaded == LOADED) {
+    if (wp_file.loaded == LOADED) {
         gpx_data = gpx_parser(wp_file.dest, map_add_waypoint);
         map_set_first_waypoint(gpx_data->waypoints);
         RTOS_Free(wp_file.dest);
@@ -286,7 +286,7 @@ void toggleZoom()
     zoom_level_selected = !zoom_level_selected;
     ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
-    if(map_position->fix != GPS_FIX_INVALID)
+    if (map_position->fix != GPS_FIX_INVALID)
         map_update_position(map, map_position);
 
     scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
