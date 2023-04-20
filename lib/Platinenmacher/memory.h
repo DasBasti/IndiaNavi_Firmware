@@ -38,7 +38,7 @@ inline static void RTOS_Free(void *pointer)
     if (pointer)
     {
 #ifdef PM_MEMORY_DEBUG
-        ESP_LOGI("MALLOC", "free: 0x%x %d free", (uint32_t)pointer, heap_caps_get_free_size(MALLOC_CAP_8BIT));
+        ESP_LOGI("MALLOC", "free: 0x%p %d free", pointer, heap_caps_get_free_size(MALLOC_CAP_8BIT));
 #endif
         free(pointer);
         //pointer = NULL;
