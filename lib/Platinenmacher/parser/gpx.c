@@ -90,7 +90,7 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
             break;
         case SXML_CHARACTER:
             if (state == TRK_NAME) {
-                gpx->track_name = RTOS_Malloc(sizeof(char) * strlen(buf));
+                gpx->track_name = RTOS_Malloc(sizeof(char) * (strlen(buf)+1));
                 strcpy(gpx->track_name, buf);
 #ifndef TESTING
                 ESP_LOGI("xml_data", "name: %s", buf);
