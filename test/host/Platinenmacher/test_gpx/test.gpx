@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gpx version="1.1" creator="https://www.komoot.de" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>Teststrecke</name>
+    <author>
+      <link href="https://www.komoot.de">
+        <text>komoot</text>
+        <type>text/html</type>
+      </link>
+    </author>
+  </metadata>
+  <trk>
+    <name>Teststrecke</name>
+    <trkseg>
+      <trkpt lat="49.622274" lon="8.587822">
+        <ele>96.014564</ele>
+        <time>2022-10-01T20:42:40.665Z</time>
+      </trkpt>
+      <trkpt lat="49.621956" lon="8.587148">
+        <ele>96.014564</ele>
+        <time>2022-10-01T20:43:35.063Z</time>
+      </trkpt>
+      <trkpt lat="49.622447" lon="8.586590">
+        <ele>95.981221</ele>
+        <time>2022-10-01T20:44:36.537Z</time>
+      </trkpt>
+      <trkpt lat="49.624438" lon="8.584305">
+        <ele>95.780588</ele>
+        <time>2022-10-01T20:48:45.242Z</time>
+      </trkpt>
+   </trkseg>
+  </trk>
+</gpx>
