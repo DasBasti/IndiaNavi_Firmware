@@ -67,8 +67,6 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
                 wp = RTOS_Malloc(sizeof(waypoint_t));
                 if (wp && first_wp == 0)
                     first_wp = wp;
-                if (!wp)
-                    ESP_LOGE("gpx_parser", "No Waypoint allocated");
             } else if (state == TRKPT && strcmp("ele", buf) == 0)
                 state = ELE;
             break;
@@ -114,16 +112,14 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
                 cdata = LON;
             break;
         case SXML_INSTRUCTION:
-            // ESP_LOGI("xml_instruction", "%s", buf);
-            break;
-        case SXML_DOCTYPE:
-            // ESP_LOGI("xml_doctype", "%s", buf);
+            ESP_LOGI("xml_instruction", "%s", buf);
             break;
         case SXML_COMMENT:
-            // ESP_LOGI("xml_starttag", "%s", buf);
+            ESP_LOGI("xml_comment", "%s", buf);
             break;
-        default:
-            break;
+        default: /* LCOV_EXCL_START */
+            assert("case unhandled" && 0);
+            break;/* LCOV_EXCL_STOP */
         }
 #ifndef TESTING
         vPortYield();
@@ -144,7 +140,8 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
     sxml_init(&parser);
     size_t data_len = strlen(gpx_file_data);
 
-    for (;;) {
+    size_t parser_running=1;
+    while (parser_running) {
         sxmlerr_t err = sxml_parse(&parser, gpx_file_data, data_len, tokens, COUNT(tokens));
         if (parser.ntokens)
             process_tokens(gpx_file_data, tokens, &parser);
@@ -153,49 +150,45 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
             break;
 
         switch (err) {
-        case SXML_ERROR_TOKENSFULL: {
+        case SXML_ERROR_TOKENSFULL: 
             /*
              Need to give parser more space for tokens to continue parsing.
              We choose here to reuse the existing token table once tokens have been processed.
             */
             parser.ntokens = 0;
             break;
-        }
 
-        case SXML_ERROR_BUFFERDRY: {
+        case SXML_ERROR_BUFFERDRY: 
             parser.ntokens = 0;
-
-            ESP_LOGE(__func__, "bufferdry but why?");
-
+            /*
+             If position reaches data_len we do not have enough data. This should currently 
+             not happen since we use a buffer big enough for the whole file.
+             If the file is not complete, this is triggered though.
+            */
+            if(parser.bufferpos == data_len)
+                parser_running = 0;
+            
             /* Parser will now have to read from beginning of buffer to contiue */
             parser.bufferpos = 0;
             break;
-        }
 
-        case SXML_ERROR_XMLINVALID: {
-
-            /* Example of some simple error reporting */
-            // lineno+= count_lines (buffer, parser.bufferpos);
-            // fprintf(stderr, "Error while parsing line\n");
-
-            /* Print out contents of line containing the error */
-            // sprintf (fmt, "%%.%ds", MIN (bufferlen - parser.bufferpos, 72));
-            //  fprintf (stderr, fmt, buffer + parser.bufferpos);
-#ifndef TESTING
-            LOGI("xml_error", "%.30s [%d]", gpx_file_data + parser.bufferpos, parser.bufferpos);
-#endif
-            // abort();
+        case SXML_ERROR_XMLINVALID: 
+            /*
+             An error occoured and we break parsing.
+            */
+            ESP_LOGI("xml_error", "%.30s [%d]", gpx_file_data + parser.bufferpos, parser.bufferpos);
+            parser_running = 0;
             break;
-        }
 
-        default:
+        default: /* LCOV_EXCL_START */
             assert(0);
-            break;
+            break; /* LCOV_EXCL_STOP */
         }
 #ifndef TESTING
         vPortYield();
 #endif
     }
+    
     gpx->waypoints_num = waypoint_num;
     gpx->waypoints = first_wp;
     return gpx;
