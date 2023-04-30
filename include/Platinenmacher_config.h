@@ -12,12 +12,18 @@
 #define __weak __attribute__((weak))
 
 /* Power management */
+#ifdef LINUX
+#else
 #include "hw/gpio.h"
 #include "hw/regulator_gpio.h"
+#endif
 
 /* WaveShare ACep 7 color ePaper display */
 #include "display.h"
+#ifdef LINUX
+#else
 #include "display/eink/acep_5in65_7c.h"
+#endif
 
 /* GUI drawing */
 #include "font.h"

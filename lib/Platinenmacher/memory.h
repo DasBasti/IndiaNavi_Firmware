@@ -8,7 +8,7 @@
 #ifndef PLATINENMACHER_MEMORY_H_
 #define PLATINENMACHER_MEMORY_H_
 
-#ifdef TESTING
+#if defined(TESTING) || defined(LINUX)
 #include <stdlib.h>
 #else
 #include "rtos.h"

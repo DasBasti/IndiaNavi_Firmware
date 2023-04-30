@@ -12,14 +12,12 @@
 
 #include "parser/gpx.h"
 
-#include "nmea_parser.h"
 
+#include "gps.h"
 #include "gui.h"
 #include "tasks.h"
 
 #include "icons_32/icons_32.h"
-
-#include <esp_timer.h>
 
 static const display_t* dsp;
 
@@ -40,7 +38,7 @@ char* zoom_level_scaleBox_text[] = { "100m", "500m" };
 graph_point_t* height_graph_data;
 float height_min = __FLT_MAX__, height_max = 0;
 
-#define INFOBOX_STRLEN (dsp->size.width / f8x8.width)
+#define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
 
 static const char* TAG = "map_screen";
 
@@ -64,14 +62,10 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
         if (map_position->longitude < 0)
             lon = 'W';
 
-        xSemaphoreTake(print_semaphore, portMAX_DELAY);
-        snprintf(infoBox->text, (INFOBOX_STRLEN), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
+        save_snprintf(infoBox->text, (INFOBOX_STRLEN), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
             map_position->latitude, lat, map_position->longitude, lon, map_position->altitude, map_position->hdop);
-        xSemaphoreGive(print_semaphore);
     } else {
-        xSemaphoreTake(print_semaphore, portMAX_DELAY);
-        snprintf(infoBox->text, (INFOBOX_STRLEN), "No GPS Signal found!");
-        xSemaphoreGive(print_semaphore);
+        save_snprintf(infoBox->text, (INFOBOX_STRLEN), "No GPS Signal found!");
     }
     return PM_OK;
 }
@@ -97,9 +91,7 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
 
 error_code_t updateSatsInView(const display_t* dsp, void* comp)
 {
-    xSemaphoreTake(print_semaphore, portMAX_DELAY);
-    sprintf(gps_indicator_label->text, "%d", map_position->satellites_in_view);
-    xSemaphoreGive(print_semaphore);
+    save_sprintf(gps_indicator_label->text, "%d", map_position->satellites_in_view);
     if (gps_indicator_label) {
         image_t* icon = gps_indicator_label->child;
         if (map_position->fix != GPS_FIX_INVALID)
@@ -182,6 +174,7 @@ void populate_height_data_prepare_waypoints(waypoint_t* wp)
 
 void load_waypoint_file(char* filename)
 {
+    #if !defined(TESTING) && !defined(LINUX)
     uint64_t start = esp_timer_get_time();
 
     async_file_t wp_file;
@@ -204,6 +197,8 @@ void load_waypoint_file(char* filename)
     }
 
     ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
+    #else
+    #endif
 }
 
 void map_screen_create(const display_t* display)

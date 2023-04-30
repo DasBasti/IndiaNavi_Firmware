@@ -10,7 +10,7 @@
 
 #include "sxml.h"
 
-#ifdef TESTING
+#if defined(TESTING) || defined(LINUX)
 #    include <assert.h>
 #    include <stdlib.h>
 #    ifndef atoff
@@ -121,7 +121,7 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
             assert("case unhandled" && 0);
             break;/* LCOV_EXCL_STOP */
         }
-#ifndef TESTING
+#if !defined(TESTING) && !defined(LINUX)
         vPortYield();
 #endif
     }
@@ -184,7 +184,7 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
             assert(0);
             break; /* LCOV_EXCL_STOP */
         }
-#ifndef TESTING
+#if !defined(TESTING) && !defined(LINUX)
         vPortYield();
 #endif
     }
