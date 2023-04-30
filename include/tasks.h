@@ -8,10 +8,24 @@
 #ifndef INC_TASKS_H_
 #define INC_TASKS_H_
 
-#include "gui.h"
-#include <freertos/semphr.h>
+#include <stdbool.h>
 
-#include <ff.h>
+#include "gui.h"
+#ifdef LINUX
+typedef struct
+{
+    char* filename;
+    char* dest;
+    uint8_t loaded;
+    void* file;
+} async_file_t;
+
+#    define save_sprintf(dest, size, format, ...) sprintf(dest, size, format, ##__VA_ARGS__)
+#    define save_snprintf(dest, size, format, ...) snprintf(dest, size, format, ##__VA_ARGS__)
+#else
+#    include <freertos/semphr.h>
+
+#    include <ff.h>
 
 //Create semphore
 extern SemaphoreHandle_t print_semaphore;
@@ -54,6 +68,7 @@ typedef struct
         sprintf(dest, format, ##__VA_ARGS__);           \
         xSemaphoreGive(print_semaphore);                \
     } while (0);
+#endif
 
 // From sd.c
 error_code_t loadTile(map_tile_t* tile);
@@ -81,7 +96,6 @@ void trigger_rendering();
 
 // From wifi.c
 bool isConnected();
-esp_err_t startDownloadFile(void* handler, const char* url);
 
 // From map_loader.c
 void maploader_screen_element(const display_t* dsp);
