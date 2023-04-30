@@ -134,6 +134,7 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
 gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp))
 {
     add_waypoint = add_waypoint_cb;
+    waypoint_num = 0; // reset waypoints
     gpx = RTOS_Malloc(sizeof(gpx_t));
     /* Output token table */
     sxmltok_t tokens[128];
