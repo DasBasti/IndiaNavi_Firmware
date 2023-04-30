@@ -67,10 +67,8 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
                 wp = RTOS_Malloc(sizeof(waypoint_t));
                 if (wp && first_wp == 0)
                     first_wp = wp;
-#ifndef TESTING
                 if (!wp)
                     ESP_LOGE("gpx_parser", "No Waypoint allocated");
-#endif
             } else if (state == TRKPT && strcmp("ele", buf) == 0)
                 state = ELE;
             break;
@@ -90,11 +88,9 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
             break;
         case SXML_CHARACTER:
             if (state == TRK_NAME) {
-                gpx->track_name = RTOS_Malloc(sizeof(char) * (strlen(buf)+1));
+                gpx->track_name = RTOS_Malloc(sizeof(char) * (strlen(buf) + 1));
                 strcpy(gpx->track_name, buf);
-#ifndef TESTING
                 ESP_LOGI("xml_data", "name: %s", buf);
-#endif
             } else if (state == ELE) {
                 if (wp)
                     wp->ele = atoff(buf);
@@ -149,6 +145,9 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
 
     for (;;) {
         sxmlerr_t err = sxml_parse(&parser, gpx_file_data, data_len, tokens, COUNT(tokens));
+        if (parser.ntokens)
+            process_tokens(gpx_file_data, tokens, &parser);
+
         if (err == SXML_SUCCESS)
             break;
 
@@ -157,22 +156,12 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
             /*
              Need to give parser more space for tokens to continue parsing.
              We choose here to reuse the existing token table once tokens have been processed.
-
-             Example of some processing of the token data.
-             Instead you might be interested in creating your own DOM structure
-             or other processing of XML data useful to your application.
             */
-            process_tokens(gpx_file_data, tokens, &parser);
-
-            /* Parser can now safely reuse all of the token table */
             parser.ntokens = 0;
             break;
         }
 
         case SXML_ERROR_BUFFERDRY: {
-            /* Need to processs existing tokens before buffer is overwritten with new data */
-            process_tokens(gpx_file_data, tokens, &parser);
-
             parser.ntokens = 0;
 
             ESP_LOGE(__func__, "bufferdry but why?");
@@ -192,7 +181,7 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
             // sprintf (fmt, "%%.%ds", MIN (bufferlen - parser.bufferpos, 72));
             //  fprintf (stderr, fmt, buffer + parser.bufferpos);
 #ifndef TESTING
-            ESP_LOGI("xml_error", "%.30s [%d]", gpx_file_data + parser.bufferpos, parser.bufferpos);
+            LOGI("xml_error", "%.30s [%d]", gpx_file_data + parser.bufferpos, parser.bufferpos);
 #endif
             // abort();
             break;
