@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <stdint.h>
 uint8_t norden[] = {
     0x77,
     0x77,
