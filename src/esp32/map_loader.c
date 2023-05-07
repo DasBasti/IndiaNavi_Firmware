@@ -35,6 +35,7 @@ static const char* TAG = "DL";
 static async_file_t* downloadfile;
 label_t* download_status;
 char* download_status_text = "Downloader active";
+esp_err_t startDownloadFile(void* handler, const char* url);
 
 static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
 {
