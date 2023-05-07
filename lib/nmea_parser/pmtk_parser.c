@@ -1,3 +1,11 @@
+/*
+ * Parser for PMTK responses
+ *
+ * Copyright (c) 2023, Bastian Neumann <info@platinenmacher.tech>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #include "pmtk_parser.h"
 #include <string.h>
 
