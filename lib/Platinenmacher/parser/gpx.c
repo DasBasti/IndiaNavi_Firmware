@@ -117,6 +117,9 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
         case SXML_COMMENT:
             ESP_LOGI("xml_comment", "%s", buf);
             break;
+        case SXML_DOCTYPE:
+            ESP_LOGI("xml_doctype", "%s", buf);
+            break;
         default: /* LCOV_EXCL_START */
             assert("case unhandled" && 0);
             break;/* LCOV_EXCL_STOP */
