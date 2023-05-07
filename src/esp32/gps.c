@@ -18,6 +18,8 @@
 
 #include "l96.h"
 #include "nmea_parser.h"
+#include "pmtk_parser.h"
+#include "pq_parser.h"
 
 #include <math.h>
 #include <string.h>
@@ -170,7 +172,8 @@ void StartGpsTask(void const* argument)
             .parity = UART_PARITY_DISABLE,
             .stop_bits = UART_STOP_BITS_1,
             .event_queue_size = 64,
-        }
+        },
+        .plugins = { { .detect = pmtk_detect, .parse = pmtk_parse }, { .detect = pq_detect, .parse = pq_parse } }
     };
     /* init NMEA parser library */
     nmea_hdl = nmea_parser_init(&config);
@@ -181,7 +184,7 @@ void StartGpsTask(void const* argument)
     ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_GLP));
 
     for (;;) {
-        //struct tm timeinfo;
+        // struct tm timeinfo;
         struct timeval tv;
         gettimeofday(&tv, NULL);
         struct tm* timeinfo = localtime(&tv.tv_sec);

@@ -22,44 +22,12 @@
 #include <string.h>
 
 /**
- * @brief NMEA Parser runtime buffer size
- *
- */
-#define NMEA_PARSER_RUNTIME_BUFFER_SIZE (CONFIG_NMEA_PARSER_RING_BUFFER_SIZE / 2)
-#define NMEA_MAX_STATEMENT_ITEM_LENGTH (16)
-#define NMEA_EVENT_LOOP_QUEUE_SIZE (16)
-
-/**
  * @brief Define of NMEA Parser Event base
  *
  */
 ESP_EVENT_DEFINE_BASE(ESP_NMEA_EVENT);
 
 static const char* GPS_TAG = "nmea_parser";
-
-/**
- * @brief GPS parser library runtime structure
- *
- */
-typedef struct
-{
-    uint8_t item_pos;                              /*!< Current position in item */
-    uint8_t item_num;                              /*!< Current item number */
-    uint8_t asterisk;                              /*!< Asterisk detected flag */
-    uint8_t crc;                                   /*!< Calculated CRC value */
-    uint8_t parsed_statement;                      /*!< OR'd of statements that have been parsed */
-    uint8_t sat_num;                               /*!< Satellite number */
-    uint8_t sat_count;                             /*!< Satellite count */
-    uint8_t cur_statement;                         /*!< Current statement ID */
-    uint32_t all_statements;                       /*!< All statements mask */
-    char item_str[NMEA_MAX_STATEMENT_ITEM_LENGTH]; /*!< Current item */
-    gps_t parent;                                  /*!< Parent class */
-    uart_port_t uart_port;                         /*!< Uart port number */
-    uint8_t* buffer;                               /*!< Runtime buffer */
-    esp_event_loop_handle_t event_loop_hdl;        /*!< Event loop handle */
-    TaskHandle_t tsk_hdl;                          /*!< NMEA Parser task handle */
-    QueueHandle_t event_queue;                     /*!< UART event queue handle */
-} esp_gps_t;
 
 /**
  * @brief parse latitude or longitude
@@ -347,10 +315,10 @@ static void parse_vtg(esp_gps_t* esp_gps)
         esp_gps->parent.variation = strtof(esp_gps->item_str, NULL);
         break;
     case 5:                                                              /* Process ground speed in unit m/s */
-        esp_gps->parent.speed = strtof(esp_gps->item_str, NULL) * 1.852; //knots to m/s
+        esp_gps->parent.speed = strtof(esp_gps->item_str, NULL) * 1.852; // knots to m/s
         break;
     case 7:                                                            /* Process ground speed in unit m/s */
-        esp_gps->parent.speed = strtof(esp_gps->item_str, NULL) / 3.6; //km/h to m/s
+        esp_gps->parent.speed = strtof(esp_gps->item_str, NULL) / 3.6; // km/h to m/s
         break;
     default:
         break;
@@ -403,6 +371,12 @@ static esp_err_t parse_item(esp_gps_t* esp_gps)
 #endif
         else {
             esp_gps->cur_statement = STATEMENT_UNKNOWN;
+            for (uint8_t i = 0; i < GPS_MAX_PARSER_PLUGINS; i++)
+                if (esp_gps->plugins != NULL && esp_gps->plugins[i].detect) {
+                    if (ESP_OK == esp_gps->plugins[i].detect(esp_gps)) {
+                        esp_gps->cur_statement = STATEMENT_PLUGIN + i;
+                    }
+                }
         }
         goto out;
     }
@@ -440,6 +414,9 @@ static esp_err_t parse_item(esp_gps_t* esp_gps)
         parse_vtg(esp_gps);
     }
 #endif
+    else if (esp_gps->cur_statement >= STATEMENT_PLUGIN) {
+        err = esp_gps->plugins[esp_gps->cur_statement - STATEMENT_PLUGIN].parse(esp_gps);
+    }
     else {
         err = ESP_FAIL;
     }
@@ -717,6 +694,9 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t* config)
         ESP_LOGE(GPS_TAG, "create event loop faild");
         goto err_eloop;
     }
+    /* Set plugins */
+    esp_gps->plugins = config->plugins;
+
     /* Create NMEA Parser task */
     BaseType_t err = xTaskCreate(
         nmea_parser_task_entry,
