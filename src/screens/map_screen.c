@@ -12,11 +12,11 @@
 
 #include "parser/gpx.h"
 
-
 #include "gps.h"
 #include "gui.h"
 #include "tasks.h"
 
+#include "esp_timer.h"
 #include "icons_32/icons_32.h"
 
 static const display_t* dsp;
@@ -174,7 +174,7 @@ void populate_height_data_prepare_waypoints(waypoint_t* wp)
 
 void load_waypoint_file(char* filename)
 {
-    #if !defined(TESTING) && !defined(LINUX)
+#if !defined(TESTING) && !defined(LINUX)
     uint64_t start = esp_timer_get_time();
 
     async_file_t wp_file;
@@ -197,8 +197,8 @@ void load_waypoint_file(char* filename)
     }
 
     ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
-    #else
-    #endif
+#else
+#endif
 }
 
 void map_screen_create(const display_t* display)
