@@ -32,7 +32,7 @@ jobs:
         pip install platformio
 
     - name: Run PlatformIO build on embedded platforms
-      run: platformio run -e esp32dev_debug -e esp32dev_release -e indianavi_s3_n16r8_debug -e indianavi_s3_n16r8_release
+      run: platformio run -e esp32dev_debug -e esp32dev_release -e indianavi_s3_n16r8_debug -e indianavi_s3_n16r8_release -e linux_native
 
     - id: hash
       uses: pr-mpt/actions-commit-hash@v1
@@ -83,4 +83,12 @@ jobs:
       with:
         name: s3_firmware_debug.elf
         path: .pio/build/indianavi_s3_n16r8_debug/firmware.elf
+        retention-days: 5   
+
+    - name: Upload linux binary file
+      if: success()
+      uses: actions/upload-artifact@v2
+      with:
+        name: indianavi
+        path: .pio/build/linux_native/program
         retention-days: 5   
