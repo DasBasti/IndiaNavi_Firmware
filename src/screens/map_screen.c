@@ -16,7 +16,10 @@
 #include "gui.h"
 #include "tasks.h"
 
+#if !defined(TESTING) && !defined(LINUX)
 #include "esp_timer.h"
+#endif 
+
 #include "icons_32/icons_32.h"
 
 static const display_t* dsp;
