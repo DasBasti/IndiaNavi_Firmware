@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<indianavi xmlns="https://platinenmacher.tech/indianavi/config.xsd"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <id>MeinIndiaNavi</id>
+    <wifi ssid="Zuck" psk="12348765" />
+    <ota>http://d14kkt1uzwasu0.cloudfront.net/firmware_latest.bin</ota>
+    <timezone>CET-1CEST,M3.5.0/2,M10.5.0/3</timezone>
+    <gui>
+        <screens>
+            <screen id="splash" module="picture" img="splash.raw" />
+            <screen id="off" module="picture" img="splash.raw" />
+            <screen id="empty" module="picture" img="empty.raw" />
+            <screen id="search" module="picture" img="lost.raw" />
+            <screen id="map" module="map" zoom_min="14" zoom_max="16" track="track.gpx" />
+        </screens>
+    </gui>
+</indianavi>

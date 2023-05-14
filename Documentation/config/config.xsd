@@ -1,0 +1,47 @@
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" targetNamespace="https://platinenmacher.tech/indianavi/config.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="indianavi">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element type="xs:string" name="id"/>
+        <xs:element name="wifi">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute type="xs:string" name="ssid"/>
+                <xs:attribute type="xs:int" name="psk"/>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+        <xs:element type="xs:anyURI" name="ota"/>
+        <xs:element type="xs:string" name="timezone"/>
+        <xs:element name="gui">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="screens">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="screen" maxOccurs="unbounded" minOccurs="0">
+                      <xs:complexType>
+                        <xs:simpleContent>
+                          <xs:extension base="xs:string">
+                            <xs:attribute type="xs:string" name="id" use="required"/>
+                            <xs:attribute type="xs:string" name="module" use="required"/>
+                            <xs:attribute type="xs:string" name="img" use="optional"/>
+                            <xs:attribute type="xs:byte" name="zoom_min" use="optional"/>
+                            <xs:attribute type="xs:byte" name="zoom_max" use="optional"/>
+                            <xs:attribute type="xs:string" name="track" use="optional"/>
+                          </xs:extension>
+                        </xs:simpleContent>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
