@@ -231,8 +231,17 @@ void app_main()
     };
     esp_timer_create(&button_timer_args, &button_timer);
 
-    ESP_LOGI(TAG, "start");
-
+    ESP_LOGI(TAG, "load configuration file");
+    async_file_t conf_file;
+    conf_file.filename = "config.xml";
+    conf_file.loaded = 0;
+    if (PM_OK == createFileBuffer(&conf_file))
+        loadFile(&conf_file);
+    if (conf_file.loaded == LOADED) {
+        config_parser(conf_file.dest);
+    } else {
+        ESP_LOGI(TAG, "Can't load config.xml");
+    }
     xTaskCreate(&StartPowerTask, "power", taskPowerStackSize, NULL, tskIDLE_PRIORITY, &powerTask_h);
     vTaskDelay(pdMS_TO_TICKS(100));
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);

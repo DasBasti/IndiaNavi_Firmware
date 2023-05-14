@@ -40,5 +40,6 @@ extern font_t f8x8, f8x16;
 
 /* Command processor */
 #include "parser/command.h"
+#include "parser/config.h"
 
 #endif /* __PLATINENMACHER_CONFIG_H__ */
