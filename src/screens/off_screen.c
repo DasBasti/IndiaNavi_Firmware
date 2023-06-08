@@ -9,9 +9,14 @@
 #include "gui.h"
 #include "tasks.h"
 
+#include <esp_mac.h>
+#include <qrcodegen.h>
+
 static const display_t* dsp;
 static char* infoText;
 static label_t* infoBox;
+static uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
+static uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
 
 error_code_t render_arrow(const display_t* dsp, void*)
 {
@@ -24,8 +29,21 @@ error_code_t render_arrow(const display_t* dsp, void*)
     display_line_draw(dsp, startx + 6, starty + 4, startx + 12, starty + 0, BLACK);
 
     // button Box
-    display_rect_draw(dsp, startx+2, starty+8, 12, 18, BLACK);
-    display_rect_fill(dsp, startx+5, starty+12, 6, 10, RED);
+    display_rect_draw(dsp, startx + 2, starty + 8, 12, 18, BLACK);
+    display_rect_fill(dsp, startx + 5, starty + 12, 6, 10, RED);
+    return PM_OK;
+}
+
+// Prints the given QR Code to the console.
+static error_code_t render_qr(const display_t* dsp, void* comp)
+{
+    uint8_t* qrcode = (uint8_t*)comp;
+    int size = qrcodegen_getSize(qrcode);
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            display_rect_fill(dsp, 3 * x, 3 * y, 3, 3, (qrcodegen_getModule(qrcode, x, y) ? BLACK : WHITE));
+        }
+    }
     return PM_OK;
 }
 
@@ -86,6 +104,19 @@ void off_screen_create(const display_t* display)
     add_to_render_pipeline(label_render, push_button, RL_GUI_ELEMENTS);
 
     add_to_render_pipeline(render_arrow, NULL, RL_GUI_ELEMENTS);
+
+    uint8_t derived_mac_addr[6] = { 0 };
+    ESP_ERROR_CHECK(esp_read_mac(derived_mac_addr, ESP_MAC_WIFI_STA));
+    char url[61] = { 0 };
+    snprintf(url, sizeof(url), "https://platinenmacher.tech/navi/?device=%x%x%x%x%x%x",
+        derived_mac_addr[0], derived_mac_addr[1], derived_mac_addr[2],
+        derived_mac_addr[3], derived_mac_addr[4], derived_mac_addr[5]);
+    ESP_ERROR_CHECK(qrcodegen_encodeText(url, tempBuffer, qrcode, qrcodegen_Ecc_LOW,
+                        qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true)
+            ? ESP_OK
+            : ESP_FAIL);
+
+    add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
 }
 
 void off_screen_free()
