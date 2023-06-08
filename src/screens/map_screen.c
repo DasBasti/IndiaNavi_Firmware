@@ -227,7 +227,6 @@ void map_screen_create(const display_t* display)
     scaleBox = label_create("100m", &f8x8, 10, dsp->size.height - 15 - 45, 63, 13);
     scaleBox->borderWidth = 1;
     scaleBox->borderLines = LEFT_SOLID | RIGHT_SOLID | BOTTOM_SOLID;
-    // scaleBox->backgroundColor = WHITE;
     scaleBox->borderColor = BLACK;
     scaleBox->textColor = BLACK;
     scaleBox->alignVertical = BOTTOM;
@@ -243,7 +242,6 @@ void map_screen_create(const display_t* display)
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
 #ifdef ESP_S3
     map_attach_onBeforeRender_callback(map, load_map_tiles_to_permanent_memory);
-    // map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
 #else
     map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
     map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
