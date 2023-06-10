@@ -41,7 +41,7 @@ static error_code_t render_qr(const display_t* dsp, void* comp)
     int size = qrcodegen_getSize(qrcode);
     for (int y = 0; y < size; y++) {
         for (int x = 0; x < size; x++) {
-            display_rect_fill(dsp, 3 * x, 3 * y, 3, 3, (qrcodegen_getModule(qrcode, x, y) ? BLACK : WHITE));
+            display_rect_fill(dsp, (3 * x)+5, (3 * y)+380, 3, 3, (qrcodegen_getModule(qrcode, x, y) ? BLACK : WHITE));
         }
     }
     return PM_OK;
@@ -117,6 +117,11 @@ void off_screen_create(const display_t* display)
             : ESP_FAIL);
 
     add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
+    label_t *qr_label = label_create("Scan for Track", &f8x8, 5, 365,
+        dsp->size.width - 1, 13);
+    qr_label->alignVertical = MIDDLE;
+    add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
+
 }
 
 void off_screen_free()
