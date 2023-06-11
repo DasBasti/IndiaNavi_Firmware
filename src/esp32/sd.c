@@ -33,20 +33,20 @@ static const char* TAG = "SD";
 
 #ifdef ESP_S3
 static const sdmmc_slot_config_t slot_config = {
-    .clk = SD_SPI_CLK, 
-    .cmd = SD_SPI_nCS, 
-    .d0 = SD_SPI_D0, 
-    .d1 = SD_SPI_D1, 
-    .d2 = SD_SPI_D2, 
+    .clk = SD_SPI_CLK,
+    .cmd = SD_SPI_nCS,
+    .d0 = SD_SPI_D0,
+    .d1 = SD_SPI_D1,
+    .d2 = SD_SPI_D2,
     .d3 = SD_SPI_D3,
-    .d4 = GPIO_NUM_NC, 
-    .d5 = GPIO_NUM_NC, 
-    .d6 = GPIO_NUM_NC, 
-    .d7 = GPIO_NUM_NC, 
-    .cd = SD_CARD_nDET, 
-    .wp = SDMMC_SLOT_NO_WP, 
-    .width   = 4, 
-    .flags = 0, 
+    .d4 = GPIO_NUM_NC,
+    .d5 = GPIO_NUM_NC,
+    .d6 = GPIO_NUM_NC,
+    .d7 = GPIO_NUM_NC,
+    .cd = SD_CARD_nDET,
+    .wp = SDMMC_SLOT_NO_WP,
+    .width = 4,
+    .flags = 0,
 };
 #else
 static const sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
@@ -78,7 +78,7 @@ error_code_t statusRender(const display_t* dsp, void* comp)
 {
     image_t* icon = sd_indicator_label->child;
     if (sd_status == PM_OK)
-        icon->data = SD; // show SD card symbol
+        icon->data = SD;   // show SD card symbol
     else
         icon->data = noSD; // show SD card symbol
 
@@ -232,6 +232,7 @@ void closePhysicalFile(async_file_t* file)
 
 void StartSDTask(void const* argument)
 {
+    sd_semaphore = xSemaphoreCreateMutex();
     xSemaphoreTake(sd_semaphore, portMAX_DELAY); // block SD mutex
     ESP_LOGI(TAG, "init gpio %d", SD_VCC_nEN);
 

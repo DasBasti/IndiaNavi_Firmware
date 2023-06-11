@@ -95,13 +95,22 @@ int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
 {
     int batteryVoltage;
     int chargerVoltage;
+    task_events_e chargingTrigger = TASK_EVENT_NO_EVENT;
 
     ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, VBAT_ADC, &batteryVoltage));
     ESP_LOGI(TAG, "Battery Voltage: %d", batteryVoltage);
     ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, VIN_ADC, &chargerVoltage));
     ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
 
-    is_charging = (chargerVoltage - 5 > batteryVoltage);
+    if (chargerVoltage - 5 > batteryVoltage && !is_charging) {
+        chargingTrigger = TASK_EVENT_START_CHARGING;
+        xQueueSend(eventQueueHandle, &chargingTrigger, NULL);
+        is_charging = true;
+    } else if (chargerVoltage - 5 < batteryVoltage && is_charging) {
+        chargingTrigger = TASK_EVENT_STOP_CHARGING;
+        xQueueSend(eventQueueHandle, &chargingTrigger, NULL);
+        is_charging = false;
+    }
 
     const int min = 1550;
     const int max = 2330;
@@ -201,7 +210,6 @@ void app_main()
     ESP_LOGI(TAG, "Initial Heap Free: %lu Byte", xPortGetFreeHeapSize());
     print_semaphore = xSemaphoreCreateMutex();
     gui_semaphore = xSemaphoreCreateMutex();
-    sd_semaphore = xSemaphoreCreateMutex();
     eventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
 
     /* Set Button IO to input, with PUI and any edge IRQ */
@@ -230,6 +238,13 @@ void app_main()
         .callback = button_timer_trigger,
     };
     esp_timer_create(&button_timer_args, &button_timer);
+
+#ifndef JTAG
+    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 1, &sdTask_h);
+    while (!sd_semaphore) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+#endif
 
     ESP_LOGI(TAG, "load configuration file");
     async_file_t conf_file;
