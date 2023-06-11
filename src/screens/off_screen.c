@@ -13,6 +13,8 @@
 #include <esp_random.h>
 #include <qrcodegen.h>
 
+#define RANDOM_IMG_NUM 11
+
 static const display_t* dsp;
 static char* infoText;
 static label_t* infoBox;
@@ -55,8 +57,8 @@ void off_screen_create(const display_t* display)
     FILINFO t_img_nfo;
     uint8_t* splash_image_data = NULL;
     FRESULT res = FR_NOT_READY;
-    char fn[13];
-    snprintf(fn, sizeof(fn), "//art%u.raw", (uint8_t)(esp_random() % 8) + 1);
+    char fn[14];
+    snprintf(fn, sizeof(fn), "//art%u.raw", (uint8_t)(esp_random() % RANDOM_IMG_NUM) + 1);
 
     dsp = display;
     infoText = RTOS_Malloc(dsp->size.width / f8x8.width);
@@ -121,7 +123,7 @@ void off_screen_create(const display_t* display)
             : ESP_FAIL);
 
     add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
-    label_t* qr_label = label_create("Scan me", &f8x8, 5, 380-8,
+    label_t* qr_label = label_create("Scan me", &f8x8, 5, 380-13,
         qrcodegen_getSize(qrcode)*3, 13);
     qr_label->alignVertical = MIDDLE;
     qr_label->alignHorizontal = CENTER;
