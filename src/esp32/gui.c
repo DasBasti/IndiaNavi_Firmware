@@ -354,12 +354,6 @@ void StartGuiTask(void const* argument)
 
     ESP_LOGI(TAG, "App screen init");
 
-#ifndef DEBUG
-    ESP_LOGI(TAG, "Screen clear");
-    display_fill(eink, WHITE);
-    display_commit_fb(eink);
-    ESP_LOGI(TAG, "Screen clear done");
-#endif
 
     ESP_LOGI(TAG, "App screen init done");
 
