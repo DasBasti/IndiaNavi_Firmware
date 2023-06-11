@@ -42,7 +42,7 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 #define taskGPSStackSize 1024 * 7
 #define taskGUIStackSize 1024 * 10
 #define taskSDStackSize 1024 * 8
-#define taskWifiStackSize 1024 * 5
+#define taskWifiStackSize 1024 * 8
 #define taskDownloaderStackSize 1024 * 8
 
 void StartGpsTask(void* argument);
@@ -247,6 +247,7 @@ void app_main()
 #endif
 
     ESP_LOGI(TAG, "load configuration file");
+#if 0
     async_file_t conf_file;
     conf_file.filename = "config.xml";
     conf_file.loaded = 0;
@@ -257,13 +258,11 @@ void app_main()
     } else {
         ESP_LOGI(TAG, "Can't load config.xml");
     }
+#endif
     xTaskCreate(&StartPowerTask, "power", taskPowerStackSize, NULL, tskIDLE_PRIORITY, &powerTask_h);
     vTaskDelay(pdMS_TO_TICKS(100));
     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
     xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
-#ifndef JTAG
-    xTaskCreate(&StartSDTask, "sd", taskSDStackSize, NULL, 1, &sdTask_h);
-#endif
     // xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
 
     /*

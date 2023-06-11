@@ -88,10 +88,10 @@ error_code_t statusRender(const display_t* dsp, void* comp)
 /*
  * Wait for initialization of SD semaphore
  */
-error_code_t waitForSDInit(){
+error_code_t waitForSDInit()
+{
     size_t count = 0;
-    while (!sd_semaphore)
-    {
+    while (!sd_semaphore) {
         vTaskDelay(1);
         if (count++ > 1000)
             return PM_FAIL;
@@ -118,18 +118,22 @@ error_code_t loadFile(async_file_t* file)
                     file->dest, fno.fsize, (UINT*)&br);
                 if (FR_OK == res) {
                     file->loaded = LOADED;
+                } else {
+                    ESP_LOGE(TAG, "cannot read %s", file->filename);
                 }
                 f_close(&t_file);
             } else {
-                ESP_LOGI(TAG, "%s not found.", file->filename);
+                ESP_LOGE(TAG, "cannot open %s", file->filename);
             }
+        } else {
+            ESP_LOGE(TAG, "cannot stat %s", file->filename);
         }
         xSemaphoreGive(sd_semaphore);
     } else {
         ESP_LOGE(TAG, "sd semapore not available");
     }
 
-    if (file->loaded == 1)
+    if (file->loaded == LOADED)
         return PM_OK;
     return PM_FAIL;
 }

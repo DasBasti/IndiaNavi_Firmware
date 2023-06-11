@@ -1,7 +1,7 @@
 /*
  * WiFi Task managing WiFi connection
  *
- * running if WiFi connection is available 
+ * running if WiFi connection is available
  * else wait for wifi available
  *
  *  Created on: Juni 1, 2021
@@ -68,16 +68,16 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
 void start_mdns_service()
 {
-    //initialize mDNS service
+    // initialize mDNS service
     esp_err_t err = mdns_init();
     if (err) {
         printf("MDNS Init failed: %d\n", err);
         return;
     }
 
-    //set hostname
+    // set hostname
     mdns_hostname_set("indianavi");
-    //set default instance
+    // set default instance
     mdns_instance_name_set("India Navi");
 }
 
@@ -99,11 +99,11 @@ bool isConnected()
 
 /**
  * Downlaod from a URL using the given handler function
- * 
+ *
  * @param
  * handler  The handler function for processing HTTP events.
  * url      The location to get the data from.
- * 
+ *
  * @return
  *  - ESP_OK on successful
  *  - ESP_FAIL on error
@@ -133,21 +133,19 @@ esp_err_t startDownloadFile(void* handler, const char* url)
 void StartWiFiTask(void const* argument)
 {
     ESP_LOGI(TAG, "Start");
-
+    waitForSDInit();
+    ESP_LOGI(TAG, "Load credentials");
     async_file_t* creds = &AFILE;
     creds->filename = "//WIFI";
     creds->dest = wifi_file;
     creds->loaded = false;
     ESP_ERROR_CHECK(loadFile(creds));
-    while (!creds->loaded) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
 
     esp_netif_create_default_wifi_sta();
 
-    //wifi_config.sta.threshold.authmode = WIFI_AUTH_WEP;
-    //wifi_config.sta.pmf_cfg.capable = true;
-    //wifi_config.sta.pmf_cfg.required = false;
+    // wifi_config.sta.threshold.authmode = WIFI_AUTH_WEP;
+    // wifi_config.sta.pmf_cfg.capable = true;
+    // wifi_config.sta.pmf_cfg.required = false;
 
     char* next = readline(wifi_file, (char*)wifi_config.sta.ssid);
     readline(next, (char*)wifi_config.sta.password);
@@ -179,7 +177,7 @@ void StartWiFiTask(void const* argument)
         _is_connected = false;
 
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-         * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) 
+         * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above)
          */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
@@ -188,7 +186,7 @@ void StartWiFiTask(void const* argument)
             portMAX_DELAY);
 
         /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-         * happened. 
+         * happened.
          */
         if (bits & WIFI_CONNECTED_BIT) {
             ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
@@ -208,7 +206,7 @@ void StartWiFiTask(void const* argument)
         ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
         vEventGroupDelete(s_wifi_event_group);
 
-        //gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
+        // gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
 
         while (isConnected()) {
             if (wifi_indicator_label) {
@@ -235,7 +233,7 @@ void StartWiFiTask(void const* argument)
                 xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
                 vTaskSuspend(NULL);
             }*/
-                //icon->data = WIFI_0;
+                // icon->data = WIFI_0;
                 trigger_rendering();
             }
             vTaskDelay(1000 / portTICK_PERIOD_MS);
