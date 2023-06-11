@@ -100,8 +100,10 @@ void off_screen_create(const display_t* display)
 
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 
-    label_t* push_button = label_create("Device is sleeping push button to start", &f8x16, 0, 16, dsp->size.width - 24, 16);
+    label_t* push_button = label_create("Device is sleeping push button to start   ", &f8x16, 0, 0, dsp->size.width, 32);
     push_button->alignHorizontal = RIGHT;
+    push_button->alignVertical = BOTTOM;
+    push_button->backgroundColor = WHITE;
 
     add_to_render_pipeline(label_render, push_button, RL_GUI_ELEMENTS);
 
@@ -119,9 +121,11 @@ void off_screen_create(const display_t* display)
             : ESP_FAIL);
 
     add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
-    label_t* qr_label = label_create("Scan for Track", &f8x8, 5, 365,
-        dsp->size.width - 1, 13);
+    label_t* qr_label = label_create("Scan me", &f8x8, 5, 380-8,
+        qrcodegen_getSize(qrcode)*3, 13);
     qr_label->alignVertical = MIDDLE;
+    qr_label->alignHorizontal = CENTER;
+    qr_label->backgroundColor = WHITE;
     add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
 }
 
