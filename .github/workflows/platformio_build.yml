@@ -7,7 +7,7 @@ jobs:
   platformio_run:
     strategy:
       matrix:
-        target: [esp32dev_debug, esp32dev_release, indianavi_s3_n16r8_debug, indianavi_s3_n16r8_release, linux_native]
+        target: [indianavi_s3_n16r8_debug, indianavi_s3_n16r8_release, linux_native]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -15,7 +15,9 @@ jobs:
         submodules: true
 
     - name: Set up Python
-      uses: actions/setup-python@v2.2.1
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10' 
 
     - uses: actions/cache@v3
       with:
@@ -25,7 +27,7 @@ jobs:
           ${{ runner.os }}-pip-platformio-${{ matrix.target }}
 
     - name: Cache PlatformIO
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
@@ -39,11 +41,11 @@ jobs:
       run: platformio run -e ${{ matrix.target }}
 
     - id: hash
-      uses: pr-mpt/actions-commit-hash@v1
+      uses: pr-mpt/actions-commit-hash@v2
       
     - name: Upload debug.bin file
       if: (success() and ${{ matrix.target }}!= "linux_native")
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: firmware_${{ matrix.target }}.bin
         path: .pio/build/${{ matrix.target }}/firmware.bin
@@ -51,7 +53,7 @@ jobs:
 
     - name: Upload linux binary file
       if: (success() and ${{ matrix.target }} == "linux_native"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: indianavi
         path: .pio/build/${{ matrix.target }}/program

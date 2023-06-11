@@ -43,6 +43,7 @@ extern TaskHandle_t wifiTask_h;
 extern TaskHandle_t mapLoaderTask_h;
 
 typedef enum {
+    TASK_EVENT_NO_EVENT = 0,
     TASK_EVENT_ENTER_LOW_POWER = 50,
     TASK_EVENT_ENABLE_GPS,
     TASK_EVENT_DISABLE_GPS,
@@ -52,6 +53,8 @@ typedef enum {
     TASK_EVENT_DISABLE_WIFI,
     TASK_EVENT_BUTTON_DOWN,
     TASK_EVENT_BUTTON_UP,
+    TASK_EVENT_START_CHARGING,
+    TASK_EVENT_STOP_CHARGING,
 } task_events_e;
 
 typedef struct

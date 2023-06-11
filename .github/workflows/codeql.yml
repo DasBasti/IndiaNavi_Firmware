@@ -17,8 +17,7 @@ on:
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ "main" ]
-  schedule:
-    - cron: '43 14 * * 5'
+
 
 jobs:
   analyze:
@@ -33,6 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         language: [ 'cpp', 'python' ]
+        target: [indianavi_s3_n16r8_debug, indianavi_s3_n16r8_release, linux_native]
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
         # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
 
@@ -81,7 +81,7 @@ jobs:
         pip install platformio
 
     - name: Run PlatformIO build on embedded platforms
-      run: platformio run -e esp32dev_debug -e esp32dev_release
+      run: platformio run -e ${{ matrix.target }}
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
