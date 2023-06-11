@@ -13,7 +13,7 @@
 #include <esp_random.h>
 #include <qrcodegen.h>
 
-#define RANDOM_IMG_NUM 11
+#define RANDOM_IMG_NUM 14
 
 static const display_t* dsp;
 static char* infoText;
@@ -93,8 +93,8 @@ void off_screen_create(const display_t* display)
 
     add_to_render_pipeline(image_render, splash, RL_MAP);
 
-    infoBox = label_create(infoText, &f8x8, 0, dsp->size.height - 14,
-        dsp->size.width - 1, 13);
+    infoBox = label_create(infoText, &f8x8, 0, dsp->size.height - 13,
+        dsp->size.width, 13);
     infoBox->borderWidth = 1;
     infoBox->borderLines = ALL_SOLID;
     infoBox->alignVertical = MIDDLE;
@@ -122,13 +122,13 @@ void off_screen_create(const display_t* display)
             ? ESP_OK
             : ESP_FAIL);
 
-    add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
-    label_t* qr_label = label_create("Scan me", &f8x8, 5, 495-13,
-        qrcodegen_getSize(qrcode)*3, 13);
-    qr_label->alignVertical = MIDDLE;
+    label_t* qr_label = label_create("Scan me", &f8x8, 2, 495-13,
+        qrcodegen_getSize(qrcode)*3+6, 13+qrcodegen_getSize(qrcode)*3+3);
+    qr_label->alignVertical = TOP;
     qr_label->alignHorizontal = CENTER;
     qr_label->backgroundColor = WHITE;
     add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
+    add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
 }
 
 void off_screen_free()
