@@ -48,6 +48,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
         tile->y);
     ESP_LOGI(TAG, "Load %s  to %p", fn, tile->image->data);
 
+    waitForSDInit();
     if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
 
         res = f_open(&t_img, fn, FA_READ);
@@ -113,13 +114,14 @@ error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map
             tile->x,
             tile->y);
         // TODO: decompress lz4 tiles
+        waitForSDInit();
         if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
             // Check file info
             res = f_stat((const TCHAR*)&fn, &t_img_nfo);
             if (FR_OK == res) {
                 // Allocate file size if we need to
                 if (!tile->image->data || tile->image->data_length != t_img_nfo.fsize) {
-                    if (tile->image->data) // throw away old memory
+                    if (tile->image->data)        // throw away old memory
                         RTOS_Free(tile->image->data);
                     tile->image->data_length = 0; // reset length
                     if ((tile->image->data = RTOS_Malloc(t_img_nfo.fsize)))

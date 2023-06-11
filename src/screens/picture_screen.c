@@ -29,6 +29,7 @@ void picture_screen_create(const display_t* display)
     dsp = display;
 
     /* Create splash screen image component from splash.raw on SD card*/
+    waitForSDInit();
     if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
         // Check file info
         res = f_stat((const TCHAR*)fn, &t_img_nfo);

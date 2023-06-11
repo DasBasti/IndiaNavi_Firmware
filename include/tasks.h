@@ -82,6 +82,7 @@ typedef struct
 #endif
 
 // From sd.c
+error_code_t waitForSDInit();
 error_code_t loadTile(map_tile_t* tile);
 error_code_t loadFile(async_file_t* file);
 error_code_t fileExists(async_file_t* file);

@@ -133,8 +133,8 @@ void StartGpsTask(void const* argument)
     vTaskDelay(pdMS_TO_TICKS(100));
     reg->enable(reg);
 
-    /* delay to avoid race condition. this is bad! */
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Wait for SD-Card");
+    waitForSDInit();
     ESP_LOGI(TAG, "Load timezone information");
     async_file_t* tz_file = &AFILE;
     tz_file->filename = "//TIMEZONE";

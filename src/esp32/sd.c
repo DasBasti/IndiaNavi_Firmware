@@ -86,6 +86,19 @@ error_code_t statusRender(const display_t* dsp, void* comp)
 }
 
 /*
+ * Wait for initialization of SD semaphore
+ */
+error_code_t waitForSDInit(){
+    size_t count = 0;
+    while (!sd_semaphore)
+    {
+        vTaskDelay(1);
+        if (count++ > 1000)
+            return PM_FAIL;
+    }
+    return PM_OK;
+}
+/*
  * Queue arbitrary file reads.
  */
 error_code_t loadFile(async_file_t* file)
@@ -95,6 +108,7 @@ error_code_t loadFile(async_file_t* file)
     FILINFO fno;
     uint32_t br;
     ESP_LOGI(TAG, "Load %s ", file->filename);
+    waitForSDInit();
     if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
         res = f_stat(file->filename, &fno);
         if (FR_OK == res) {
@@ -233,6 +247,7 @@ void closePhysicalFile(async_file_t* file)
 void StartSDTask(void const* argument)
 {
     sd_semaphore = xSemaphoreCreateMutex();
+    ESP_LOGI(TAG, "init semaphore");
     xSemaphoreTake(sd_semaphore, portMAX_DELAY); // block SD mutex
     ESP_LOGI(TAG, "init gpio %d", SD_VCC_nEN);
 
