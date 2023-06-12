@@ -30,6 +30,8 @@ static int s_max_retry_num = 10;
 static const char* TAG = "WIFI";
 static async_file_t AFILE;
 
+static esp_netif_t *wifi_netif = 0;
+
 static bool _is_connected = false;
 
 /* FreeRTOS event group to signal when we are connected*/
@@ -141,11 +143,8 @@ void StartWiFiTask(void const* argument)
     creds->loaded = false;
     ESP_ERROR_CHECK(loadFile(creds));
 
-    esp_netif_create_default_wifi_sta();
-
-    // wifi_config.sta.threshold.authmode = WIFI_AUTH_WEP;
-    // wifi_config.sta.pmf_cfg.capable = true;
-    // wifi_config.sta.pmf_cfg.required = false;
+    if(!wifi_netif)
+        wifi_netif = esp_netif_create_default_wifi_sta();
 
     char* next = readline(wifi_file, (char*)wifi_config.sta.ssid);
     readline(next, (char*)wifi_config.sta.password);
