@@ -1,32 +1,28 @@
-name: Deploy Firmware images 
+name: Deploy Firmware images to S3
 on:
   workflow_run:
-    workflows: ['Build']
+    workflows: ['Build IndiaNavi Firmware with platformio']
     types:
       - completed
   
 jobs:
-  download_binareis_and_upload_to_s3:
+  download_binaries_and_upload_to_s3:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [indianavi_s3_n16r8_debug, indianavi_s3_n16r8_release]
     steps:
     - uses: actions/download-artifact@v3
       with:
-        name: firmware_debug.bin
-    - uses: actions/download-artifact@v3
-      with:
-        name: firmware_.bin
+        name: firmware_${{ matrix.target }}.bin 
     - name: make deploy folder
       if: success()
       run: |
         mkdir deploy
-        cp firmware.bin ./deploy/firmware_latest.bin
-        cp firmware_debug.bin ./deploy/firmware_latest_debug.bin
-        sha256sum firmware.bin | cut -d' ' -f1 > ./deploy/firmware_latest.sha
-        sha256sum firmware_debug.bin | cut -d' ' -f1 > ./deploy/firmware_latest_debug.sha
-        cp firmware.bin ./deploy/firmware_$(git describe --abbrev=7 --always).bin
-        cp firmware_debug.bin ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.bin
-        sha256sum firmware.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always).sha
-        sha256sum firmware_debug.bin | cut -d' ' -f1 > ./deploy/firmware_$(git describe --abbrev=7 --always)_debug.sha
+        cp firmware_${{ matrix.target }}.bin  ./deploy/firmware_${{ matrix.target }}_latest.bin
+        sha256sum firmware_${{ matrix.target }}_release.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_latest.sha
+        cp firmware_${{ matrix.target }}.bin  ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
+        sha256sum firmware_${{ matrix.target }}.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).sha
 
     - name: Deploy to S3
       uses: jakejarvis/s3-sync-action@master
