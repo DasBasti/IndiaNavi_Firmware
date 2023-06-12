@@ -20,6 +20,7 @@ static char* infoText;
 static label_t* infoBox;
 static uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
 static uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
+static char* messages[] = { "Device is sleeping push button to start   ", "Device is charging push button to start   " };
 
 error_code_t render_arrow(const display_t* dsp, void*)
 {
@@ -47,6 +48,14 @@ static error_code_t render_qr(const display_t* dsp, void* comp)
             display_rect_fill(dsp, (3 * x) + 5, (3 * y) + 495, 3, 3, (qrcodegen_getModule(qrcode, x, y) ? BLACK : WHITE));
         }
     }
+    return PM_OK;
+}
+
+// Update string on display
+error_code_t push_button_label_onBeforeRender(const display_t* dsp, void* label)
+{
+    label_t* l = (label_t*)label;
+    l->text = messages[is_charging];
     return PM_OK;
 }
 
@@ -103,9 +112,8 @@ void off_screen_create(const display_t* display)
 
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 
-    char* messages[] = {"Device is sleeping push button to start   ","Device is charging push button to start   "};
-
-    label_t* push_button = label_create(messages[is_charging], &f8x16, 0, 0, dsp->size.width, 32);
+    label_t* push_button = label_create(NULL, &f8x16, 0, 0, dsp->size.width, 32);
+    push_button->onBeforeRender = push_button_label_onBeforeRender;
     push_button->alignHorizontal = RIGHT;
     push_button->alignVertical = BOTTOM;
     push_button->backgroundColor = WHITE;
@@ -125,8 +133,8 @@ void off_screen_create(const display_t* display)
             ? ESP_OK
             : ESP_FAIL);
 
-    label_t* qr_label = label_create("Scan me", &f8x8, 2, 495-13,
-        qrcodegen_getSize(qrcode)*3+6, 13+qrcodegen_getSize(qrcode)*3+3);
+    label_t* qr_label = label_create("Scan me", &f8x8, 2, 495 - 13,
+        qrcodegen_getSize(qrcode) * 3 + 6, 13 + qrcodegen_getSize(qrcode) * 3 + 3);
     qr_label->alignVertical = TOP;
     qr_label->alignHorizontal = CENTER;
     qr_label->backgroundColor = WHITE;

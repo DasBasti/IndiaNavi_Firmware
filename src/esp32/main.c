@@ -104,11 +104,11 @@ int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
 
     if (chargerVoltage - 5 > batteryVoltage && !is_charging) {
         chargingTrigger = TASK_EVENT_START_CHARGING;
-        xQueueSend(eventQueueHandle, &chargingTrigger, NULL);
+        xQueueSend(eventQueueHandle, &chargingTrigger, 0);
         is_charging = true;
     } else if (chargerVoltage - 5 < batteryVoltage && is_charging) {
         chargingTrigger = TASK_EVENT_STOP_CHARGING;
-        xQueueSend(eventQueueHandle, &chargingTrigger, NULL);
+        xQueueSend(eventQueueHandle, &chargingTrigger, 0);
         is_charging = false;
     }
 
@@ -169,10 +169,10 @@ void button_timer_trigger(void* arg)
     gui_set_app_mode(APP_MODE_TURN_OFF);
 }
 
-void enter_deep_sleep_if_not_charging()
+error_code_t enter_deep_sleep_if_not_charging()
 {
     if (is_charging)
-        return;
+        return DEFERRED;
 
     const gpio_config_t config = {
         .pin_bit_mask = BIT(BTN),
@@ -185,6 +185,7 @@ void enter_deep_sleep_if_not_charging()
 
     ESP_LOGI(TAG, "enter deep sleep now...");
     esp_deep_sleep_start();
+    return PM_OK;
 }
 
 void app_main()
@@ -341,9 +342,9 @@ void app_main()
                 xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
             } else if (event_num == TASK_EVENT_DISABLE_DISPLAY) {
                 vTaskDelete(guiTask_h);
-            } else if (event_num == TASK_EVENT_ENABLE_WIFI) {
+            } else if (event_num == TASK_EVENT_ENABLE_WIFI || event_num == TASK_EVENT_START_CHARGING) {
                 xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
-            } else if (event_num == TASK_EVENT_DISABLE_WIFI) {
+            } else if (event_num == TASK_EVENT_DISABLE_WIFI || event_num == TASK_EVENT_STOP_CHARGING) {
                 vTaskDelete(wifiTask_h);
                 trigger_rendering();
             }

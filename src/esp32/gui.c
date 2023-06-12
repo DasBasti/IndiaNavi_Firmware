@@ -54,7 +54,7 @@ label_t* wifi_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
-void (*_post_render_hook)(size_t arg);
+error_code_t (*_post_render_hook)(size_t arg);
 size_t _post_rener_hook_arg;
 
 map_position_t* map_position;
@@ -235,13 +235,14 @@ static error_code_t app_render()
 /**
  * Set App mode
  */
-void gui_set_app_mode(app_mode_t mode)
+error_code_t gui_set_app_mode(app_mode_t mode)
 {
     // If we do not change mode we do not need to rerender
     if (mode == _app_mode)
-        return;
+        return NOT_NEEDED;
     _app_mode = mode;
     render_needed = 1;
+    return PM_OK;
 }
 
 /**
@@ -250,14 +251,14 @@ void gui_set_app_mode(app_mode_t mode)
 void run_post_render_hook()
 {
     if (_post_render_hook)
-        _post_render_hook(_post_rener_hook_arg);
-    _post_render_hook = 0;
+        if(_post_render_hook(_post_rener_hook_arg) == PM_OK)
+            _post_render_hook = 0;
 }
 
 /**
  * Set post rendering hook
  */
-void set_post_rendering_hook(void (*cb)(size_t arg), size_t arg)
+void set_post_rendering_hook(error_code_t (*cb)(size_t arg), size_t arg)
 {
     _post_rener_hook_arg = arg;
     _post_render_hook = cb;
