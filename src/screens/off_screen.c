@@ -103,7 +103,9 @@ void off_screen_create(const display_t* display)
 
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 
-    label_t* push_button = label_create("Device is sleeping push button to start   ", &f8x16, 0, 0, dsp->size.width, 32);
+    char* messages[] = {"Device is sleeping push button to start   ","Device is charging push button to start   "};
+
+    label_t* push_button = label_create(messages[is_charging], &f8x16, 0, 0, dsp->size.width, 32);
     push_button->alignHorizontal = RIGHT;
     push_button->alignVertical = BOTTOM;
     push_button->backgroundColor = WHITE;

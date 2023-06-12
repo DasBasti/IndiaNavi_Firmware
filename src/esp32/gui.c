@@ -293,7 +293,7 @@ void app_screen(const display_t* dsp)
     case APP_MODE_TURN_OFF:
         free_all_render_pipelines();
         off_screen_create(dsp);
-        set_post_rendering_hook(enter_deep_sleep, NULL);
+        set_post_rendering_hook(enter_deep_sleep_if_not_charging, NULL);
         ESP_LOGI(TAG, "Starting Power Down Mode");
         gui_set_app_mode(APP_MODE_RUNNING);
         __attribute__((fallthrough));

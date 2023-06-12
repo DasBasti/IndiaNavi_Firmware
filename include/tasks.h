@@ -101,7 +101,7 @@ void gps_stop_parser();
 
 // From main.c
 void toggleZoom();
-void enter_deep_sleep();
+void enter_deep_sleep_if_not_charging();
 
 // From gui.c
 void trigger_rendering();

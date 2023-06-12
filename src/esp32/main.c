@@ -169,8 +169,11 @@ void button_timer_trigger(void* arg)
     gui_set_app_mode(APP_MODE_TURN_OFF);
 }
 
-void enter_deep_sleep()
+void enter_deep_sleep_if_not_charging()
 {
+    if (is_charging)
+        return;
+
     const gpio_config_t config = {
         .pin_bit_mask = BIT(BTN),
         .mode = GPIO_MODE_INPUT,
@@ -342,6 +345,7 @@ void app_main()
                 xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
             } else if (event_num == TASK_EVENT_DISABLE_WIFI) {
                 vTaskDelete(wifiTask_h);
+                trigger_rendering();
             }
         }
         gpio_write(led, GPIO_RESET);
