@@ -21,19 +21,13 @@ jobs:
         with:
           python-version: '3.10' 
 
-      - uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-platformio
-      - name: Cache PlatformIO
-        uses: actions/cache@v2
+      - name: Set up Cache
+        uses: actions/cache@v3
         with:
           path: |
-            ~/.platformio
-            .pio
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
 
       - name: Install pio and its dependencies
         run: |
