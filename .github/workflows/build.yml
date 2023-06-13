@@ -12,6 +12,7 @@ jobs:
  
   build_and_upload:
     uses: ./.github/workflows/platformio_build.yml
+    secrets: inherit
     
   linting:
     uses: ./.github/workflows/lint.yml
