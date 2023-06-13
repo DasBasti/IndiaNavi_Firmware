@@ -44,17 +44,38 @@ jobs:
       uses: pr-mpt/actions-commit-hash@v2
       
     - name: Upload debug.bin file
-      if: (success() and ${{ matrix.target }}!= "linux_native")
+      if: (success() && !contains(matrix.target, 'linux_native'))
       uses: actions/upload-artifact@v3
       with:
         name: firmware_${{ matrix.target }}.bin
         path: .pio/build/${{ matrix.target }}/firmware.bin
         retention-days: 5   
 
+    - name: make deploy folder
+      if: (success() && !contains(matrix.target, 'linux_native'))
+      run: |
+        mkdir deploy
+        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_latest.bin
+        sha256sum firmware_${{ matrix.target }}_release.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_latest.sha
+        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
+        sha256sum firmware_${{ matrix.target }}.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).sha
+
     - name: Upload linux binary file
-      if: (success() and ${{ matrix.target }} == "linux_native"
+      if: (success() && contains(matrix.target, 'linux_native'))
       uses: actions/upload-artifact@v3
       with:
         name: indianavi
         path: .pio/build/${{ matrix.target }}/program
-        retention-days: 5   
+        retention-days: 5
+    
+    - name: Deploy to S3
+      if: (success() && !contains(matrix.target, 'linux_native'))
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl public-read --delete
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_PRODUCTION_BUCKET_NAME }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        SOURCE_DIR: "./deploy"
