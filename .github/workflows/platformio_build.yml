@@ -67,7 +67,7 @@ jobs:
       if: (success() && !contains(matrix.target, 'linux_native'))
       uses: jakejarvis/s3-sync-action@master
       with:
-        args: --acl public-read --delete
+        args: --acl public-read 
       env:
         AWS_S3_BUCKET: ${{ secrets.AWS_PRODUCTION_BUCKET_NAME }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
