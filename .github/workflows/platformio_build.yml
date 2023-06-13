@@ -51,9 +51,9 @@ jobs:
       run: |
         mkdir deploy
         cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_latest.bin
-        sha256sum firmware_${{ matrix.target }}_release.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_latest.sha
+        sha256sum ./deploy/firmware_${{ matrix.target }}_latest.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_latest.sha
         cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
-        sha256sum firmware_${{ matrix.target }}.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).sha
+        sha256sum ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).sha
 
     - name: Upload linux binary file
       if: (success() && contains(matrix.target, 'linux_native'))
