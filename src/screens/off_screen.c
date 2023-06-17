@@ -9,6 +9,8 @@
 #include "gui.h"
 #include "tasks.h"
 
+#include "icons_32/icons_32.h"
+
 #include <esp_mac.h>
 #include <esp_random.h>
 #include <qrcodegen.h>
@@ -18,6 +20,8 @@
 static const display_t* dsp;
 static char* infoText;
 static label_t* infoBox;
+static image_t* wifi_indicator_image;
+
 static uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
 static uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
 static char* messages[] = { "Device is sleeping push button to start   ", "Device is charging push button to start   " };
@@ -56,6 +60,17 @@ error_code_t push_button_label_onBeforeRender(const display_t* dsp, void* label)
 {
     label_t* l = (label_t*)label;
     l->text = messages[is_charging];
+    return PM_OK;
+}
+
+// Update wifi icon on display
+error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* image)
+{
+    image_t* i = (image_t*)image;
+    
+    i->data = wifi_indicator_image_data;
+    if(!is_charging)
+        i->data = NULL;
     return PM_OK;
 }
 
@@ -140,6 +155,10 @@ void off_screen_create(const display_t* display)
     qr_label->backgroundColor = WHITE;
     add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
     add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
+
+    wifi_indicator_image = image_create(WIFI_0, 3, 0, 32,32);
+    wifi_indicator_image->onBeforeRender = wifi_indicator_image_onBeforeRender;
+    add_to_render_pipeline(image_render, wifi_indicator_image, RL_GUI_ELEMENTS);
 }
 
 void off_screen_free()

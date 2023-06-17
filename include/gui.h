@@ -39,6 +39,8 @@ extern label_t* wifi_indicator_label;
 extern label_t* gps_indicator_label;
 extern label_t* sd_indicator_label;
 
+extern uint8_t* wifi_indicator_image_data;
+
 /* the global position object */
 extern map_position_t* map_position;
 
