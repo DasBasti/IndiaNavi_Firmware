@@ -55,7 +55,7 @@ struct Render {
 
 /**
  * Render layers.
- * 
+ *
  * Each layer pipeline is called after the other until RL_MAX is reaced.
  */
 enum RenderLayer {
@@ -88,10 +88,10 @@ void off_screen_create(const display_t* display);
 
 void picture_screen_create(const display_t* display);
 void picture_screen_free();
-void picture_set_image_path(const char *path);
+void picture_set_image_path(const char* path);
 
 /**
- * Callbacks for loading map tiles 
+ * Callbacks for loading map tiles
  */
 error_code_t load_map_tile_on_demand(const display_t* dsp, void* image);
 error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* image);
