@@ -30,9 +30,11 @@ static int s_max_retry_num = 10;
 static const char* TAG = "WIFI";
 static async_file_t AFILE;
 
-static esp_netif_t *wifi_netif = 0;
+static esp_netif_t* wifi_netif = 0;
 
 static bool _is_connected = false;
+
+uint8_t* wifi_indicator_image_data = WIFI_0;
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -84,6 +86,11 @@ void start_mdns_service()
 }
 
 bool isConnected()
+{
+    return _is_connected;
+}
+
+static error_code_t updateConnectionInfo()
 {
     if (esp_wifi_sta_get_ap_info(&sta_record) != ESP_OK) {
         ESP_LOGE(TAG, "No Station available!");
@@ -143,7 +150,7 @@ void StartWiFiTask(void const* argument)
     creds->loaded = false;
     ESP_ERROR_CHECK(loadFile(creds));
 
-    if(!wifi_netif)
+    if (!wifi_netif)
         wifi_netif = esp_netif_create_default_wifi_sta();
 
     char* next = readline(wifi_file, (char*)wifi_config.sta.ssid);
@@ -205,39 +212,24 @@ void StartWiFiTask(void const* argument)
         ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
         vEventGroupDelete(s_wifi_event_group);
 
-        // gpio_t *OTA_button = gpio_create(INPUT, NULL, 27);
-
-        while (isConnected()) {
-            if (wifi_indicator_label) {
-                image_t* icon = wifi_indicator_label->child;
-                static uint8_t last_rssi_state = 0;
-                if (sta_record.rssi >= -70 && last_rssi_state != 3) {
-                    icon->data = WIFI_3;
-                    last_rssi_state = 3;
-                } else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2) {
-                    icon->data = WIFI_2;
-                    last_rssi_state = 2;
-                } else if (sta_record.rssi < -80 && last_rssi_state != 1) {
-                    icon->data = WIFI_1;
-                    last_rssi_state = 1;
-                }
-                /* poll for OTA Button */
-                /*if (!gpio_read(OTA_button))
-            {
-                vTaskSuspend(gpsTask_h);
-                vTaskSuspend(guiTask_h);
-                //disable power saving mode
-                esp_wifi_set_ps(WIFI_PS_NONE);
-                gps_stop_parser();
-                xTaskCreate(&StartOTATask, "ota", 4096, NULL, 1, NULL);
-                vTaskSuspend(NULL);
-            }*/
-                // icon->data = WIFI_0;
+        while (updateConnectionInfo() == PM_OK) {
+            static uint8_t last_rssi_state = 0;
+            ESP_LOGI(TAG, "ssid is: %d", sta_record.rssi);
+            if (sta_record.rssi >= -70 && last_rssi_state != 3) {
+                wifi_indicator_image_data = WIFI_3;
                 trigger_rendering();
+                last_rssi_state = 3;
+            } else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2) {
+                wifi_indicator_image_data = WIFI_2;
+                trigger_rendering();
+                last_rssi_state = 2;
+            } else if (sta_record.rssi < -80 && last_rssi_state != 1) {
+                wifi_indicator_image_data = WIFI_1;
+                trigger_rendering();
+                last_rssi_state = 1;
             }
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            vTaskDelay(pdMS_TO_TICKS(30000));
         }
         ESP_LOGI(TAG, "Reconnect....");
     }
-    vTaskDelay(30000 / portTICK_PERIOD_MS);
 }
