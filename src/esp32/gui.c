@@ -50,7 +50,6 @@ font_t f8x8, f8x16;
 label_t* clock_label;
 label_t* battery_label;
 label_t* north_indicator_label;
-label_t* wifi_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
@@ -179,10 +178,6 @@ static void create_top_bar(const display_t* dsp)
 
     north_indicator_label = create_icon_with_text(dsp, norden,
         battery_label->box.left + battery_label->box.width + margin_horizontal,
-        margin_top, "", &f8x8);
-
-    wifi_indicator_label = create_icon_with_text(dsp, WIFI_0,
-        north_indicator_label->box.left + north_indicator_label->box.width + margin_horizontal,
         margin_top, "", &f8x8);
 
     char* GPSView = RTOS_Malloc(sizeof(char) * 5);
