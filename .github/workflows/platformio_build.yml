@@ -47,14 +47,36 @@ jobs:
         retention-days: 5   
 
     - name: make deploy folder
-      if: (success() && !contains(matrix.target, 'linux_native'))
       run: |
         mkdir deploy
-        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_latest.bin
-        sha256sum ./deploy/firmware_${{ matrix.target }}_latest.bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_latest.sha
-        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
-        sha256sum ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin  | cut -d' ' -f1 > ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).sha
 
+    - name: copy firmware to deploy folder
+      if: (success() && !contains(matrix.target, 'linux_native'))
+      run: |
+        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_latest.bin
+        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
+
+    - name: create firmware version to deploy
+      if: (success() && !contains(matrix.target, 'linux_native') && startsWith(github.event.ref, 'refs/tags/v'))
+      run: |
+        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_${{github.ref_name}}.bin
+
+    - name: copy linux binary to deploy folder
+      if: (success() && contains(matrix.target, 'linux_native'))
+      run: |
+        cp .pio/build/${{ matrix.target }}/program  ./deploy/${{ matrix.target }}.bin
+        cp .pio/build/${{ matrix.target }}/program  ./deploy/${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
+
+    - name: create version to deploy
+      if: (success() && contains(matrix.target, 'linux_native') && startsWith(github.event.ref, 'refs/tags/v'))
+      run: |
+        cp .pio/build/${{ matrix.target }}/program  ./deploy/${{ matrix.target }}_${{github.ref_name}}.bin
+
+    - name: update version file
+      if: (success())
+      run: |
+        echo ${{github.ref_name}} | tee ./deploy/latest_version
+    
     - name: Upload linux binary file
       if: (success() && contains(matrix.target, 'linux_native'))
       uses: actions/upload-artifact@v3
@@ -63,8 +85,8 @@ jobs:
         path: .pio/build/${{ matrix.target }}/program
         retention-days: 5
     
-    - name: Deploy to S3
-      if: (success() && !contains(matrix.target, 'linux_native'))
+    - name: Deploy tagged version to S3
+      if: (success())
       uses: jakejarvis/s3-sync-action@master
       with:
         args: --acl public-read 
