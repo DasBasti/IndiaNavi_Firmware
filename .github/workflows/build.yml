@@ -4,6 +4,8 @@ on:
     branches: 
       - 'main'
       - 'ci'
+    tags:        
+      - 'v*'
   pull_request:
 
 jobs:
