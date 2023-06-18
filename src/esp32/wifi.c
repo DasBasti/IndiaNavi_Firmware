@@ -229,6 +229,8 @@ void StartWiFiTask(void const* argument)
                 last_rssi_state = 1;
             }
             vTaskDelay(pdMS_TO_TICKS(30000));
+
+            do_background_ota(NULL);
         }
         ESP_LOGI(TAG, "Reconnect....");
     }

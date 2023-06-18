@@ -5,6 +5,7 @@
  * Read one line from string
  */
 char *readline(char *source, char *destination);
+size_t countline(char *source);
 
 /*
  * use Printf to print out a framebuffer with numbers
