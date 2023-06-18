@@ -100,6 +100,8 @@ error_code_t waitForSDInit()
 }
 /*
  * Queue arbitrary file reads.
+ *
+ * Allocates memory if destination buffer is not initialized.
  */
 error_code_t loadFile(async_file_t* file)
 {
@@ -112,6 +114,9 @@ error_code_t loadFile(async_file_t* file)
     if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
         res = f_stat(file->filename, &fno);
         if (FR_OK == res) {
+            if (!file->dest) {
+                file->dest = RTOS_Malloc(fno.fsize);
+            }
             res = f_open(&t_file, file->filename, FA_READ);
             if (FR_OK == res && file->dest != 0) {
                 res = f_read(&t_file,
