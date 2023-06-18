@@ -91,6 +91,7 @@ error_code_t openFileForWriting(async_file_t* file);
 async_file_t* createPhysicalFile();
 error_code_t writeToFile(async_file_t* file, void* in_data, uint32_t count, uint32_t* written);
 error_code_t closeFile(async_file_t* file);
+error_code_t deleteFile(async_file_t* file);
 char* readline(char* c, char* d);
 void closePhysicalFile(async_file_t* file);
 

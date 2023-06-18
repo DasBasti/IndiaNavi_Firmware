@@ -236,6 +236,14 @@ error_code_t closeFile(async_file_t* file)
     return PM_FAIL;
 }
 
+error_code_t deleteFile(async_file_t* file)
+{
+    FRESULT res = f_unlink(file->filename);
+    if (FR_OK == res)
+        return PM_OK;
+    return PM_FAIL;
+}
+
 void closePhysicalFile(async_file_t* file)
 {
     if (file) {
