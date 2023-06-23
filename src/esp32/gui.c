@@ -56,6 +56,8 @@ label_t* sd_indicator_label;
 error_code_t (*_post_render_hook)(size_t arg);
 size_t _post_rener_hook_arg;
 
+void (*free_screen_func)(void);
+
 map_position_t* map_position;
 
 acep_5in65_dev_t eink_dev = {
@@ -246,7 +248,7 @@ error_code_t gui_set_app_mode(app_mode_t mode)
 void run_post_render_hook()
 {
     if (_post_render_hook)
-        if(_post_render_hook(_post_rener_hook_arg) == PM_OK)
+        if (_post_render_hook(_post_rener_hook_arg) == PM_OK)
             _post_render_hook = 0;
 }
 
@@ -257,6 +259,19 @@ void set_post_rendering_hook(error_code_t (*cb)(size_t arg), size_t arg)
 {
     _post_rener_hook_arg = arg;
     _post_render_hook = cb;
+}
+
+void free_screen(void)
+{
+    if (free_screen_func)
+        free_screen_func();
+}
+/**
+ * Set screen free function
+ */
+void set_screen_free_function(void (*free_screen_cb)(void))
+{
+    free_screen_func = free_screen_cb;
 }
 
 /**
@@ -275,10 +290,10 @@ void app_screen(const display_t* dsp)
         gui_set_app_mode(APP_MODE_RUNNING);
         break;
     case APP_START_SCREEN_TRANSITION:
-        if(!gps_is_position_known())
+        if (!gps_is_position_known())
             break;
         /* free start screen and fall throught to map screen generation*/
-        picture_screen_free();
+        free_screen();
         gui_set_app_mode(APP_MODE_GPS_CREATE);
         __attribute__((fallthrough));
     case APP_MODE_GPS_CREATE:
@@ -289,7 +304,7 @@ void app_screen(const display_t* dsp)
     case APP_MODE_TURN_OFF:
         free_all_render_pipelines();
         off_screen_create(dsp);
-        set_post_rendering_hook(enter_deep_sleep_if_not_charging, NULL);
+        set_post_rendering_hook(enter_deep_sleep_if_not_charging, 0);
         ESP_LOGI(TAG, "Starting Power Down Mode");
         gui_set_app_mode(APP_MODE_RUNNING);
         __attribute__((fallthrough));
@@ -349,7 +364,6 @@ void StartGuiTask(void const* argument)
     } while (!eink);
 
     ESP_LOGI(TAG, "App screen init");
-
 
     ESP_LOGI(TAG, "App screen init done");
 

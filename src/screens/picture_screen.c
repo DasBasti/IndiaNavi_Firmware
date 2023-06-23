@@ -11,8 +11,16 @@
 
 static const display_t* dsp;
 static const char* fn = "//lost.raw";
+
 static uint8_t* splash_image_data;
 image_t* splash;
+
+void picture_screen_free()
+{
+    free_all_render_pipelines();
+    RTOS_Free(splash);
+    RTOS_Free(splash_image_data);
+}
 
 void picture_set_image_path(const char *path)
 {
@@ -56,11 +64,6 @@ void picture_screen_create(const display_t* display)
 
     add_to_render_pipeline(image_render, splash, RL_MAP);
 
+    set_screen_free_function(picture_screen_free);
 }
 
-void picture_screen_free()
-{
-    free_all_render_pipelines();
-    RTOS_Free(splash);
-    RTOS_Free(splash_image_data);
-}

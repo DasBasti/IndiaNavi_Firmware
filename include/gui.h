@@ -74,6 +74,8 @@ enum RenderLayer {
 void trigger_rendering();
 void free_render_pipeline(enum RenderLayer layer);
 void free_all_render_pipelines();
+void free_screen(void);
+void set_screen_free_function(void (*free_screen_cb)(void));
 void wait_until_gui_ready();
 render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, void* component),
     void* comp,
@@ -89,7 +91,6 @@ void conway_screen_create(const display_t* display);
 void off_screen_create(const display_t* display);
 
 void picture_screen_create(const display_t* display);
-void picture_screen_free();
 void picture_set_image_path(const char* path);
 
 /**

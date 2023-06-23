@@ -18,12 +18,35 @@
 #define RANDOM_IMG_NUM 14
 
 static const display_t* dsp;
+
+// created components
 static char* infoText;
 static label_t* infoBox;
 static image_t* wifi_indicator_image;
+static label_t* push_button;
+static label_t* qr_label;
 
-static uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
-static uint8_t tempBuffer[qrcodegen_BUFFER_LEN_MAX];
+static uint8_t *qrcode;
+static uint8_t *tempBuffer;
+static uint8_t* splash_image_data = NULL;
+static char *url;
+#define URL_LENGTH 61
+
+void off_screen_free()
+{
+    free_all_render_pipelines();
+    
+    RTOS_Free(infoText);
+    RTOS_Free(infoBox);
+    RTOS_Free(push_button);
+    RTOS_Free(qr_label);
+    RTOS_Free(splash_image_data);
+    RTOS_Free(wifi_indicator_image);
+    RTOS_Free(tempBuffer);
+    RTOS_Free(qrcode);
+    RTOS_Free(url);
+}
+
 static char* messages[] = { "Device is sleeping push button to start   ", "Device is charging push button to start   " };
 
 error_code_t render_arrow(const display_t* dsp, void*)
@@ -67,9 +90,9 @@ error_code_t push_button_label_onBeforeRender(const display_t* dsp, void* label)
 error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* image)
 {
     image_t* i = (image_t*)image;
-    
+
     i->data = wifi_indicator_image_data;
-    if(!is_charging)
+    if (!is_charging)
         i->data = NULL;
     return PM_OK;
 }
@@ -79,7 +102,6 @@ void off_screen_create(const display_t* display)
     FIL t_img;
     uint32_t br;
     FILINFO t_img_nfo;
-    uint8_t* splash_image_data = NULL;
     FRESULT res = FR_NOT_READY;
     char fn[14];
     snprintf(fn, sizeof(fn), "//art%u.raw", (uint8_t)(esp_random() % RANDOM_IMG_NUM) + 1);
@@ -127,7 +149,7 @@ void off_screen_create(const display_t* display)
 
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
 
-    label_t* push_button = label_create(NULL, &f8x16, 0, 0, dsp->size.width, 32);
+    push_button = label_create(NULL, &f8x16, 0, 0, dsp->size.width, 32);
     push_button->onBeforeRender = push_button_label_onBeforeRender;
     push_button->alignHorizontal = RIGHT;
     push_button->alignVertical = BOTTOM;
@@ -139,16 +161,18 @@ void off_screen_create(const display_t* display)
 
     uint8_t derived_mac_addr[6] = { 0 };
     ESP_ERROR_CHECK(esp_read_mac(derived_mac_addr, ESP_MAC_WIFI_STA));
-    char url[61] = { 0 };
-    snprintf(url, sizeof(url), "https://platinenmacher.tech/navi/?device=%x%x%x%x%x%x",
+    url = RTOS_Malloc(URL_LENGTH);
+    snprintf(url, URL_LENGTH, "https://platinenmacher.tech/navi/?device=%x%x%x%x%x%x",
         derived_mac_addr[0], derived_mac_addr[1], derived_mac_addr[2],
         derived_mac_addr[3], derived_mac_addr[4], derived_mac_addr[5]);
+    tempBuffer = RTOS_Malloc(sizeof(tempBuffer) * qrcodegen_BUFFER_LEN_MAX);
+    qrcode = RTOS_Malloc(sizeof(qrcode) * qrcodegen_BUFFER_LEN_MAX);
     ESP_ERROR_CHECK(qrcodegen_encodeText(url, tempBuffer, qrcode, qrcodegen_Ecc_LOW,
                         qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true)
             ? ESP_OK
             : ESP_FAIL);
 
-    label_t* qr_label = label_create("Scan me", &f8x8, 2, 495 - 13,
+    qr_label = label_create("Scan me", &f8x8, 2, 495 - 13,
         qrcodegen_getSize(qrcode) * 3 + 6, 13 + qrcodegen_getSize(qrcode) * 3 + 3);
     qr_label->alignVertical = TOP;
     qr_label->alignHorizontal = CENTER;
@@ -156,14 +180,9 @@ void off_screen_create(const display_t* display)
     add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
     add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
 
-    wifi_indicator_image = image_create(WIFI_0, 3, 0, 32,32);
+    wifi_indicator_image = image_create(WIFI_0, 3, 0, 32, 32);
     wifi_indicator_image->onBeforeRender = wifi_indicator_image_onBeforeRender;
     add_to_render_pipeline(image_render, wifi_indicator_image, RL_GUI_ELEMENTS);
-}
 
-void off_screen_free()
-{
-    free_all_render_pipelines();
-    RTOS_Free(infoText);
-    RTOS_Free(infoBox);
+    set_screen_free_function(off_screen_free);
 }
