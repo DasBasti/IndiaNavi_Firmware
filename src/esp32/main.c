@@ -75,6 +75,8 @@ int32_t current_battery_level = 0;
 int32_t is_charging;
 
 esp_timer_handle_t button_timer;
+void (*_short_press)(void);
+void (*_long_press)(void);
 
 static void print_sha256(const uint8_t* image_hash, const char* label)
 {
@@ -166,7 +168,10 @@ static void IRAM_ATTR handleButtonPress(void* arg)
 void button_timer_trigger(void* arg)
 {
     gpio_isr_handler_remove(BTN);
-    gui_set_app_mode(APP_MODE_TURN_OFF);
+    if (_long_press)
+        _long_press();
+    else
+        gui_set_app_mode(APP_MODE_TURN_OFF);
 }
 
 error_code_t enter_deep_sleep_if_not_charging()
@@ -186,6 +191,16 @@ error_code_t enter_deep_sleep_if_not_charging()
     ESP_LOGI(TAG, "enter deep sleep now...");
     esp_deep_sleep_start();
     return PM_OK;
+}
+
+void set_short_press_event(void (*event)(void))
+{
+    _short_press = event;
+}
+
+void set_long_press_event(void (*event)(void))
+{
+    _long_press = event;
 }
 
 void app_main()
@@ -326,7 +341,8 @@ void app_main()
             } else if (event_num == TASK_EVENT_BUTTON_UP) {
                 ESP_LOGI(TAG, "Button up");
                 esp_timer_stop(button_timer); // stop long press timer
-                toggleZoom();
+                if (_short_press)
+                    _short_press();
             }
 #ifdef WITH_ACC
             else if (event_num == I2C_INT) {

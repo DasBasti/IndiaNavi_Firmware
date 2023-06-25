@@ -101,8 +101,9 @@ bool gps_is_position_known();
 void gps_stop_parser();
 
 // From main.c
-void toggleZoom();
 error_code_t enter_deep_sleep_if_not_charging();
+void set_short_press_event(void (*event)(void));
+void set_long_press_event(void (*event)(void));
 
 // From gui.c
 void trigger_rendering();

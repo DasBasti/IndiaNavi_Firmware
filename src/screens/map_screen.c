@@ -204,6 +204,24 @@ void load_waypoint_file(char* filename)
 #endif
 }
 
+void toggleZoom()
+{
+    if (!map_position || !map || !scaleBox)
+        return;
+
+    ESP_LOGI(TAG, "Zoom level was: %d", zoom_level[zoom_level_selected]);
+    zoom_level_selected = !zoom_level_selected;
+    ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
+    map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+    if (map_position->fix != GPS_FIX_INVALID)
+        map_update_position(map, map_position);
+
+    scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
+    scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
+
+    trigger_rendering();
+}
+
 void map_screen_create(const display_t* display)
 {
     dsp = display;
@@ -240,6 +258,9 @@ void map_screen_create(const display_t* display)
     add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 
     map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+    // attach zoom_level event to short click
+    set_short_press_event(toggleZoom);
+
 #ifdef ESP_S3
     map_attach_onBeforeRender_callback(map, load_map_tiles_to_permanent_memory);
 #else
@@ -271,22 +292,4 @@ void map_screen_create(const display_t* display)
     infoBox->onBeforeRender = updateInfoText;
     infoBox->text = RTOS_Malloc(INFOBOX_STRLEN);
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
-}
-
-void toggleZoom()
-{
-    if (!map_position || !map || !scaleBox)
-        return;
-
-    ESP_LOGI(TAG, "Zoom level was: %d", zoom_level[zoom_level_selected]);
-    zoom_level_selected = !zoom_level_selected;
-    ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
-    map_update_zoom_level(map, zoom_level[zoom_level_selected]);
-    if (map_position->fix != GPS_FIX_INVALID)
-        map_update_position(map, map_position);
-
-    scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
-    scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
-
-    trigger_rendering();
 }
