@@ -83,6 +83,11 @@ error_code_t write_pixel(const display_t* _, int16_t x, int16_t y, uint8_t c)
     XDrawPoint(dsp, win, gc, x, y);
 }
 
+void set_short_press_event(void(*event)(void))
+{
+
+}
+
 /**
  * Add render function to pipeline
  *
