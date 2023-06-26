@@ -2054,7 +2054,7 @@ static mdns_tx_packet_t *_mdns_create_announce_packet(mdns_if_t tcpip_if, mdns_i
     }
     packet->flags = MDNS_FLAGS_QR_AUTHORITATIVE;
 
-    uint8_t i;
+    size_t i;
     for (i = 0; i < len; i++) {
         if (!_mdns_alloc_answer(&packet->answers, MDNS_TYPE_SDPTR, services[i]->service, NULL, false, false)
                 || !_mdns_alloc_answer(&packet->answers, MDNS_TYPE_PTR, services[i]->service, NULL, false, false)
@@ -3260,7 +3260,7 @@ static int _mdns_txt_items_count_get(const uint8_t *data, size_t len)
     }
 
     int num_items = 0;
-    uint16_t i = 0;
+    size_t i = 0;
     size_t partLen = 0;
 
     while (i < len) {
@@ -3301,7 +3301,7 @@ static void _mdns_result_txt_create(const uint8_t *data, size_t len, mdns_txt_it
 {
     *out_txt = NULL;
     *out_count = 0;
-    uint16_t i = 0, y;
+    size_t i = 0, y;
     size_t partLen = 0;
     int num_items = _mdns_txt_items_count_get(data, len);
     if (num_items < 0) {
