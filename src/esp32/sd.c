@@ -176,8 +176,8 @@ error_code_t openFileForWriting(async_file_t* file)
         if (strlen(file->filename) < 2)
             return PM_FAIL;
 
-        char* path = RTOS_Malloc(strlen(file->filename));
-        char* tmp_path = RTOS_Malloc(strlen(file->filename));
+        char* path = RTOS_Malloc(strlen(file->filename)+1);
+        char* tmp_path = RTOS_Malloc(strlen(file->filename)+1);
 
         // 2. skip first // for root
         strcpy(path, file->filename);
