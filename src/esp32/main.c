@@ -208,8 +208,19 @@ void app_main()
     uint16_t cnt = 300;
     uint32_t event_num;
     gpio_t* led = gpio_create(OUTPUT, 0, LED);
+    /* Set Button IO to input, with PUI and any edge IRQ */
+    esp_btn.mode = GPIO_MODE_INPUT;
+    esp_btn.pull_up_en = true;
+    esp_btn.pin_bit_mask = BIT64(BTN);
+    esp_btn.intr_type = GPIO_INTR_ANYEDGE;
+    gpio_config(&esp_btn);
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
         rtc_gpio_deinit(BTN);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        if (gpio_get_level(BTN)) {
+            ESP_LOGI(TAG, "Button Press not long enough for wakeup event. Go back to sleep. %d",gpio_get_level(BTN));
+            enter_deep_sleep_if_not_charging();
+        }
         ESP_LOGI(TAG, "Wake up from deep sleep. Reset Button GPIO");
         // after deep sleep we want to go into appliaction mode
         gui_set_app_mode(APP_MODE_GPS_CREATE);
@@ -231,12 +242,6 @@ void app_main()
     gui_semaphore = xSemaphoreCreateMutex();
     eventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
 
-    /* Set Button IO to input, with PUI and any edge IRQ */
-    esp_btn.mode = GPIO_MODE_INPUT;
-    esp_btn.pull_up_en = true;
-    esp_btn.pin_bit_mask = BIT64(BTN);
-    esp_btn.intr_type = GPIO_INTR_ANYEDGE;
-    gpio_config(&esp_btn);
     gpio_set_intr_type(BTN, GPIO_INTR_ANYEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(BTN, handleButtonPress, NULL);
