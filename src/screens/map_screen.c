@@ -42,7 +42,8 @@ graph_point_t* height_graph_data;
 float height_min = __FLT_MAX__, height_max = 0;
 
 #define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
-
+static const uint8_t offset_x = 159;
+static const uint8_t offset_y = 85;
 static const char* TAG = "map_screen";
 
 /**
@@ -82,11 +83,20 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
     uint8_t hdop = floor(map_position->hdop / 2);
     hdop += 8;
     if (map_position->fix != GPS_FIX_INVALID) {
-        label->box.left = map->box.left + map->pos_x - label->box.width / 2;
-        label->box.top = map->box.top + map->pos_y - label->box.height / 2;
-        display_circle_fill(dsp, label->box.left, label->box.top, 6, BLUE);
-        display_circle_fill(dsp, label->box.left, label->box.top, 2, WHITE);
-        display_circle_draw(dsp, label->box.left, label->box.top, hdop, BLACK);
+        // center marker
+        label->box.left = (dsp->size.width - label->box.width) / 2;
+        label->box.top =  (dsp->size.height - label->box.height) / 2;
+
+        // pan map so position is in the middle
+        map->box.left = (offset_x + map->pos_x);
+        map->box.top = (offset_y + map->pos_y);
+        
+        uint16_t label_left = label->box.left + (label->box.width /2);
+        uint16_t label_top = label->box.top + (label->box.height /2);
+
+        display_circle_fill(dsp, label_left, label_top, 6, BLUE);
+        display_circle_fill(dsp, label_left, label_top, 2, WHITE);
+        display_circle_draw(dsp, label_left, label_top, hdop, BLACK);
         return PM_OK;
     }
     return ABORT;
@@ -228,8 +238,8 @@ void map_screen_create(const display_t* display)
     /* register pre_render callback */
     add_pre_render_callback(map_pre_render_cb);
 
-    /* 3x3 tiles the middle tile is centered */
-    map = map_create(-159, -85, 3, 3, 256, &f8x8);
+    /* 3x3 tiles */
+    map = map_create(-offset_x, -offset_y, 3, 3, 256, &f8x8);
     add_to_render_pipeline(map_render, map, RL_MAP);
 
     /* position marker */
