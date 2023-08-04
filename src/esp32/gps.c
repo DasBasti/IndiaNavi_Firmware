@@ -114,6 +114,11 @@ void gps_stop_parser()
     }
 }
 
+void gps_enter_standby()
+{
+    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_STANDBY));
+}
+
 void StartGpsTask(void const* argument)
 {
     uint8_t minute = 0;

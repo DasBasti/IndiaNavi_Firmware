@@ -305,6 +305,7 @@ void app_screen(const display_t* dsp)
         free_all_render_pipelines();
         off_screen_create(dsp);
         set_post_rendering_hook(enter_deep_sleep_if_not_charging, 0);
+        gps_enter_standby();
         ESP_LOGI(TAG, "Starting Power Down Mode");
         gui_set_app_mode(APP_MODE_RUNNING);
         __attribute__((fallthrough));

@@ -99,6 +99,7 @@ void closePhysicalFile(async_file_t* file);
 void gps_screen_element(const display_t* dsp);
 bool gps_is_position_known();
 void gps_stop_parser();
+void gps_enter_standby();
 
 // From main.c
 error_code_t enter_deep_sleep_if_not_charging();
