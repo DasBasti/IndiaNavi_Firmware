@@ -63,7 +63,7 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         uint16_t new_y = inner_box_top + inner_box_height - (uint16_t)ceilf((val)*y_step); // y values are scaled from min to max
         if (i != 0) {
             display_line_draw(dsp, last_x, last_y, new_x, new_y, graph->data[i].color);
-            display_line_draw(dsp, last_x, last_y - 1, new_x, new_y, graph->data[i].color);
+            display_line_draw(dsp, last_x, last_y - 1, new_x, new_y - 1, graph->data[i].color);
         }
         last_x = new_x;
         last_y = new_y;
