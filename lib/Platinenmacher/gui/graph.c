@@ -55,7 +55,6 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
     float y_step = inner_box_height / (float)(graph->max - graph->min);
     uint16_t last_x = 0, last_y = 0;
 
-    // TODO: there can be more data points than pixel on the screen!
     for (uint16_t i = 0; i < graph->data_len; i++) {
         int32_t val = (uint32_t)(graph->data[i].value) - graph->min;
         if (val < 0)
