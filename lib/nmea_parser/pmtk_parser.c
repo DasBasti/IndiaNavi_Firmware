@@ -14,6 +14,14 @@ typedef struct {
     esp_err_t (*parse_packet_type)(esp_gps_t* esp_gps);
 } message_parser_t;
 
+uint32_t messageNumber;
+char* pmtkSystemMessages[] = {
+    "Unknown",
+    "Startup",
+    "Notification for host aiding EPO",
+    "Notification for the transisiton to normal mode done successfully",
+};
+
 esp_err_t parse_packet_type_353(esp_gps_t* esp_gps)
 {
     switch (esp_gps->item_num) {
@@ -53,14 +61,23 @@ esp_err_t parse_packet_type_353(esp_gps_t* esp_gps)
     return ESP_OK;
 }
 
+esp_err_t parse_packet_type_161(esp_gps_t* esp_gps)
+{
+    ESP_LOGI(__func__, "PMTK_CMD_STANDBY_MODE: %s", esp_gps->item_str);
+    return ESP_OK;
+}
+
 static message_parser_t message_parser[] = {
+    { .packet_type = 161,
+        .parse_packet_type = parse_packet_type_161 },
     { .packet_type = 353,
         .parse_packet_type = parse_packet_type_353 },
 };
 
 esp_err_t pmtk_detect(esp_gps_t* esp_gps)
 {
-    if (strstr(esp_gps->item_str, "PMTK001")) {
+    if (strstr(esp_gps->item_str, "PMTK")) {
+        messageNumber = atoi(esp_gps->item_str + 5);
         return ESP_OK;
     }
     return ESP_ERR_NOT_SUPPORTED;
@@ -81,32 +98,46 @@ esp_err_t pmtk_parse(esp_gps_t* esp_gps)
 
    */
     static int message_id;
-    switch (esp_gps->item_num) {
-    case 1: /* Process message */
-        message_id = atoi(esp_gps->item_str);
-        for (int i = 0; i < sizeof(message_parser); i++)
-            if (message_parser[i].packet_type == message_id) {
-                if (message_parser[i].parse_packet_type)
-                    return ESP_OK;
-            }
-        return ESP_ERR_NOT_SUPPORTED;
-        break;
-    case 2: /* Process flag */
-        int flag = atoi(esp_gps->item_str);
-        switch (flag) {
-        case 0:
-            return ESP_ERR_INVALID_ARG;
-        case 1:
+    switch (messageNumber) {
+    case 1:
+        switch (esp_gps->item_num) {
+        case 1: /* Process message */
+            message_id = atoi(esp_gps->item_str);
+            for (int i = 0; i < sizeof(message_parser); i++)
+                if (message_parser[i].packet_type == message_id) {
+                    if (message_parser[i].parse_packet_type)
+                        return ESP_OK;
+                }
             return ESP_ERR_NOT_SUPPORTED;
-        case 2:
-            return ESP_FAIL;
-        case 3:
-            return ESP_OK;
+            break;
+        case 2: /* Process flag */
+            int flag = atoi(esp_gps->item_str);
+            switch (flag) {
+            case 0:
+                return ESP_ERR_INVALID_ARG;
+            case 1:
+                return ESP_ERR_NOT_SUPPORTED;
+            case 2:
+                return ESP_FAIL;
+            case 3:
+                return ESP_OK;
+            }
+            break;
+        default:
+            if (message_id)
+                return message_parser[message_id].parse_packet_type(esp_gps);
+            break;
         }
         break;
-    default:
-        if (message_id)
-            return message_parser[message_id].parse_packet_type(esp_gps);
+    case 10:
+        /* PMTK_SYS_MSG */
+        int systemMessage = atoi(esp_gps->item_str);
+        ESP_LOGI(__func__, "PMTK_SYS_MSG: %s", pmtkSystemMessages[systemMessage]);
+        break;
+    case 11:
+        /* PMTK_TXT_MSG */
+        ESP_LOGI(__func__, "PMTK_TXT_MSG: %s", esp_gps->item_str);
+        messageNumber = 0;
         break;
     }
     return ESP_OK;
