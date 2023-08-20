@@ -124,6 +124,12 @@ error_code_t map_update_position(map_t* map, map_position_t* pos)
         for (uint8_t j = 0; j < map->height; j++) {
             uint16_t idx = i * map->height + j;
             update_map_tile_if_coords_change(map->tiles[idx], x - 1 + i, y - 1 + j, map->tile_zoom);
+            map->tiles[idx]->image->box.left = (i * 256) + map->box.left;
+            map->tiles[idx]->image->box.top = (j * 256) + map->box.top;
+            map->tiles[idx]->label->box.left = (i * 256) + map->box.left;
+            map->tiles[idx]->label->box.top = (j * 256) + map->box.top;
+            ESP_LOGI(__func__, "Tile %d/%d @ %d/%d", i,j,(i * 256) + map->box.left,(j * 256) + map->box.top);
+
         }
     }
 
