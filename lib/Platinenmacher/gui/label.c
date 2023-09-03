@@ -68,7 +68,7 @@ error_code_t label_render(const display_t* dsp, void* component)
         label->textPosition.top = (label->box.height - font_text_pixel_height(label->font, label->text)) - 1;
     }
 
-    if (font_strlen(label->text))
+    if (label->text && font_strlen(label->text))
         display_text_draw(dsp, label->font,
             label->box.left + label->textPosition.left,
             label->box.top + label->textPosition.top, label->text,
@@ -173,6 +173,9 @@ error_code_t label_render(const display_t* dsp, void* component)
  */
 error_code_t label_shrink_to_text(label_t* label)
 {
+    if(!label->text)
+        return PM_FAIL;
+        
     label->box.width = font_text_pixel_width(label->font, label->text);
     label->box.height = font_text_pixel_height(label->font, label->text);
     if (label->child) {
