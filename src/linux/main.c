@@ -39,7 +39,8 @@ uint8_t zoom = 0;
 
 extern error_code_t statusRender(const display_t* dsp, void* comp);
 extern void toggleZoom();
-extern void set_path_prefix(char* prefix);
+extern void set_path_prefix(char *prefix);
+
 
 render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
@@ -82,9 +83,9 @@ error_code_t write_pixel(const display_t* _, int16_t x, int16_t y, uint8_t c)
     x *= 2;
     y *= 2;
     XPutPixel(frame, x, y, color[c].pixel);
-    XPutPixel(frame, x + 1, y, color[c].pixel);
-    XPutPixel(frame, x + 1, y + 1, color[c].pixel);
-    XPutPixel(frame, x, y + 1, color[c].pixel);
+    XPutPixel(frame, x+1, y, color[c].pixel);
+    XPutPixel(frame, x+1, y+1, color[c].pixel);
+    XPutPixel(frame, x, y+1, color[c].pixel);
     return PM_OK;
 
     XSetForeground(dsp, gc, color[c].pixel);
@@ -347,7 +348,7 @@ int main(int argc, char* argv[])
     screen = DefaultScreen(dsp);
 
     win = XCreateSimpleWindow(dsp, RootWindow(dsp, screen),
-        100, 100, ACEP_5IN65_HEIGHT * 2, ACEP_5IN65_WIDTH * 2,
+        100, 100, ACEP_5IN65_HEIGHT*2, ACEP_5IN65_WIDTH*2,
         0, BlackPixel(dsp, screen), WhitePixel(dsp, screen));
 
     XSelectInput(dsp, win, ExposureMask | KeyPressMask);
@@ -355,10 +356,10 @@ int main(int argc, char* argv[])
 
     XSizeHints sizehints;
     sizehints.flags = PMinSize | PMaxSize;
-    sizehints.min_width = ACEP_5IN65_HEIGHT * 2;
-    sizehints.max_width = ACEP_5IN65_HEIGHT * 2;
-    sizehints.min_height = ACEP_5IN65_WIDTH * 2;
-    sizehints.max_height = ACEP_5IN65_WIDTH * 2;
+    sizehints.min_width = ACEP_5IN65_HEIGHT*2;
+    sizehints.max_width = ACEP_5IN65_HEIGHT*2;
+    sizehints.min_height = ACEP_5IN65_WIDTH*2;
+    sizehints.max_height = ACEP_5IN65_WIDTH*2;
     XSetWMNormalHints(dsp, win, &sizehints);
 
     XMapWindow(dsp, win);
@@ -405,8 +406,8 @@ int main(int argc, char* argv[])
     eink->decompress = Decompress_Pixel;
 
     /* create an image where the eink screne is rendered into*/
-    char* data = (char*)malloc(ACEP_5IN65_HEIGHT * 2 * ACEP_5IN65_WIDTH * 2 * 4);
-    frame = XCreateImage(dsp, DefaultVisual(dsp, screen), DefaultDepth(dsp, screen), ZPixmap, 0, data, ACEP_5IN65_HEIGHT * 2, ACEP_5IN65_WIDTH * 2, 32, 0);
+    char* data = (char*)malloc(ACEP_5IN65_HEIGHT*2 * ACEP_5IN65_WIDTH*2 * 4);
+    frame = XCreateImage(dsp, DefaultVisual(dsp, screen), DefaultDepth(dsp, screen), ZPixmap, 0, data, ACEP_5IN65_HEIGHT*2, ACEP_5IN65_WIDTH*2, 32, 0);
 
     font_load_from_array(&f8x8, font8x8, font8x8_name);
     font_load_from_array(&f8x16, font8x16, font8x16_name);
@@ -424,7 +425,7 @@ int main(int argc, char* argv[])
         current_position.longitude = atof(argv[2]);
     }
 
-    if (argc == 4) {
+    if(argc == 4) {
         set_path_prefix(argv[3]);
     }
 
@@ -433,7 +434,7 @@ int main(int argc, char* argv[])
         if (evt.xany.window == win) {
             if (evt.type == Expose) {
                 render();
-                XPutImage(dsp, win, gc, frame, 0, 0, 0, 0, ACEP_5IN65_HEIGHT * 2, ACEP_5IN65_WIDTH * 2);
+                XPutImage(dsp, win, gc, frame, 0, 0, 0, 0, ACEP_5IN65_HEIGHT*2, ACEP_5IN65_WIDTH*2);
                 if (argc > 1 && strcmp(argv[1], "--screenshot") == 0) {
                     save_ximage_pnm(frame, "frame.pnm", 3);
                     exit(0);
@@ -446,16 +447,16 @@ int main(int argc, char* argv[])
                 // right - 114
                 switch (evt.xkey.keycode) {
                 case 113:
-                    map_position->longitude -= 0.001;
+                    map_position->longitude -= 0.0002;
                     break;
                 case 116:
-                    map_position->latitude -= 0.001;
+                    map_position->latitude -= 0.0002;
                     break;
                 case 111:
-                    map_position->latitude += 0.001;
+                    map_position->latitude += 0.0002;
                     break;
                 case 114:
-                    map_position->longitude += 0.001;
+                    map_position->longitude += 0.0002;
                     break;
                 case 65: // spacebar
                     save_ximage_pnm(frame, "frame.pnm", 3);
@@ -468,7 +469,7 @@ int main(int argc, char* argv[])
                     printf("Unknown button: %d\n", evt.xkey.keycode);
                 }
                 render();
-                XPutImage(dsp, win, gc, frame, 0, 0, 0, 0, ACEP_5IN65_HEIGHT * 2, ACEP_5IN65_WIDTH * 2);
+                XPutImage(dsp, win, gc, frame, 0, 0, 0, 0, ACEP_5IN65_HEIGHT*2, ACEP_5IN65_WIDTH*2);
             }
         }
     }
