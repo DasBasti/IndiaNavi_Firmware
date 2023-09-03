@@ -46,9 +46,11 @@ uint32_t font_strlen(const char *c) {
  *
  * Calculates pixels of width of rendered text with given font.
  *
- * @return number of pixels
+ * @return number of pixels or 0 if no text or no font
  */
 uint32_t font_text_pixel_width(font_t *font, const char *text) {
+	if(!text)
+		return 0;
 	if(font)
 		return font->width * font_strlen(text);
 	
