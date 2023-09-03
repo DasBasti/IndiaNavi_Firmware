@@ -62,6 +62,9 @@ map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint
             map->tiles[idx]->image->box.width = tile_size;
             map->tiles[idx]->x = x;
             map->tiles[idx]->y = y;
+            map->tiles[idx]->label->borderWidth = 1;
+            map->tiles[idx]->label->borderColor = RED;
+            map->tiles[idx]->label->borderLines = ALL_SOLID;
         }
     return map;
 }
@@ -117,8 +120,8 @@ error_code_t map_update_position(map_t* map, map_position_t* pos)
         y = (uint16_t)floor(yf);
     }
     // get offset to tile corner of tile with position
-    map->pos_x = floor((xf - x) * 256) + 256; // offset to tile 1
-    map->pos_y = floor((yf - y) * 256) + 256; // offset to tile 1
+    map->pos_x = floor((xf - x) * 256); // offset to tile
+    map->pos_y = floor((yf - y) * 256); // offset to tile
 
     for (uint8_t i = 0; i < map->width; i++) {
         for (uint8_t j = 0; j < map->height; j++) {
@@ -164,6 +167,8 @@ error_code_t map_tile_render(const display_t* dsp, void* component)
 {
     map_tile_t* tile = (map_tile_t*)component;
     if (tile->image && image_render(dsp, tile->image) == PM_OK) {
+        if(tile->label)
+            label_render(dsp, tile->label);
         return PM_OK;
     }
 
