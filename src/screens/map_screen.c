@@ -83,14 +83,9 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
     uint8_t hdop = floor(map_position->hdop / 2);
     hdop += 8;
     if (map_position->fix != GPS_FIX_INVALID) {
-        // center marker
-        label->box.left = (dsp->size.width - label->box.width) / 2;
-        label->box.top =  (dsp->size.height - label->box.height) / 2;
+        label->box.left = -offset_x + map->pos_x - label->box.width / 2 + 256;
+        label->box.top = -offset_y + map->pos_y - label->box.height / 2 + 256;
 
-        // pan map so position is in the middle
-        map->box.left = (offset_x + map->pos_x);
-        map->box.top = (offset_y + map->pos_y);
-        
         uint16_t label_left = label->box.left + (label->box.width /2);
         uint16_t label_top = label->box.top + (label->box.height /2);
 
