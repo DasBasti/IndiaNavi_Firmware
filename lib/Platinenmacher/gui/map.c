@@ -62,9 +62,6 @@ map_t* map_create(int16_t left, int16_t top, uint8_t width, uint8_t height, uint
             map->tiles[idx]->image->box.width = tile_size;
             map->tiles[idx]->x = x;
             map->tiles[idx]->y = y;
-            map->tiles[idx]->label->borderWidth = 1;
-            map->tiles[idx]->label->borderColor = RED;
-            map->tiles[idx]->label->borderLines = ALL_SOLID;
         }
     return map;
 }
