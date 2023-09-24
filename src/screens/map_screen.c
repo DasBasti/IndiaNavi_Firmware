@@ -19,6 +19,10 @@
 
 #include "icons_32/icons_32.h"
 
+#if !defined(TESTING) && !defined(LINUX)
+    #include "esp_timer.h"
+#endif
+
 static const display_t* dsp;
 
 static map_t* map;
