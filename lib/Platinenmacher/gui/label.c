@@ -10,6 +10,8 @@
 #include "display.h"
 #include "image.h"
 
+#include "helper.h"
+
 /*
  * Create a label and returns a pointer to the label_t
  */
@@ -68,12 +70,13 @@ error_code_t label_render(const display_t* dsp, void* component)
         label->textPosition.top = (label->box.height - font_text_pixel_height(label->font, label->text)) - 1;
     }
 
-    if (label->text && font_strlen(label->text))
+    if (label->text && font_strlen(label->text)){
+        convert_umlauts_inplace(label->text);
         display_text_draw(dsp, label->font,
             label->box.left + label->textPosition.left,
             label->box.top + label->textPosition.top, label->text,
             label->textColor);
-
+    }
     if (label->borderWidth) {
         uint16_t width = label->box.width - 1;
         uint16_t height = label->box.height - 1;

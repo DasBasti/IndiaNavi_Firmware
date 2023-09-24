@@ -1,6 +1,6 @@
 #include "strings.h"
 /**
- * modify text and replace umlauts with dual char ü -> oe
+ * modify text and replace umlauts with dual char ü -> ue
  * 
  * This is extremely hacky :/
  */

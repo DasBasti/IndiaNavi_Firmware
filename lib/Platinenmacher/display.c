@@ -348,8 +348,6 @@ error_code_t display_text_draw(const display_t* dsp, font_t* font, int16_t x,
     uint16_t line = 0;
     uint16_t column = 0;
 
-    convert_umlauts_inplace(text);
-
     while (text[i]) { // for every character in char array until \0 is encountered
         if (text[i] == '\n') {
             line++;
