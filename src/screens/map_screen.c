@@ -72,10 +72,8 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
             lon = 'W';
 
         save_snprintf(infoBox->text, (INFOBOX_STRLEN), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
-        save_snprintf(infoBox->text, (INFOBOX_STRLEN), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
             map_position->latitude, lat, map_position->longitude, lon, map_position->altitude, map_position->hdop);
     } else {
-        save_snprintf(infoBox->text, (INFOBOX_STRLEN), "No GPS Signal found!");
         save_snprintf(infoBox->text, (INFOBOX_STRLEN), "No GPS Signal found!");
     }
     return PM_OK;

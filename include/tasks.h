@@ -79,15 +79,6 @@ typedef struct
     } while (0);
 #endif
 
-#define save_snprintf(dest, num, format, ...)                 \
-    do {                                                \
-        xSemaphoreTake(print_semaphore, portMAX_DELAY); \
-        snprintf(dest, num, format, ##__VA_ARGS__);           \
-        xSemaphoreGive(print_semaphore);                \
-    } while (0);
-
-#endif
-
 // From sd.c
 error_code_t waitForSDInit();
 error_code_t loadTile(map_tile_t* tile);
