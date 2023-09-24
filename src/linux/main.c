@@ -439,6 +439,9 @@ int main(int argc, char* argv[])
                 case 65: // spacebar
                     save_ximage_pnm(frame, "frame.pnm", 3);
                     break;
+                case 33: // 'p'
+                    printf("load power off screen / image");
+                    break;
                 default:
                     printf("Unknown button: %d\n", evt.xkey.keycode);
                 }
