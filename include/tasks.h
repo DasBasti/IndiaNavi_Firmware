@@ -71,6 +71,13 @@ typedef struct
         sprintf(dest, format, ##__VA_ARGS__);           \
         xSemaphoreGive(print_semaphore);                \
     } while (0);
+#define save_snprintf(dest, size, format, ...)                 \
+    do {                                                \
+        xSemaphoreTake(print_semaphore, portMAX_DELAY); \
+        snprintf(dest, size, format, ##__VA_ARGS__);           \
+        xSemaphoreGive(print_semaphore);                \
+    } while (0);
+#endif
 
 #define save_snprintf(dest, num, format, ...)                 \
     do {                                                \

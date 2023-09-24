@@ -12,6 +12,7 @@
 
 #include "parser/gpx.h"
 
+
 #include "gps.h"
 #include "gui.h"
 #include "tasks.h"
@@ -21,6 +22,10 @@
 #endif 
 
 #include "icons_32/icons_32.h"
+
+#if !defined(TESTING) && !defined(LINUX)
+    #include "esp_timer.h"
+#endif
 
 static const display_t* dsp;
 
@@ -67,8 +72,10 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
             lon = 'W';
 
         save_snprintf(infoBox->text, (INFOBOX_STRLEN), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
+        save_snprintf(infoBox->text, (INFOBOX_STRLEN), "GPS: %f%c %f%c %.02fm (HDOP:%.01f)",
             map_position->latitude, lat, map_position->longitude, lon, map_position->altitude, map_position->hdop);
     } else {
+        save_snprintf(infoBox->text, (INFOBOX_STRLEN), "No GPS Signal found!");
         save_snprintf(infoBox->text, (INFOBOX_STRLEN), "No GPS Signal found!");
     }
     return PM_OK;
@@ -182,7 +189,7 @@ void populate_height_data_prepare_waypoints(waypoint_t* wp)
 
 void load_waypoint_file(char* filename)
 {
-#if !defined(TESTING) && !defined(LINUX)
+    #if !defined(TESTING) && !defined(LINUX)
     uint64_t start = esp_timer_get_time();
 
     async_file_t wp_file;
