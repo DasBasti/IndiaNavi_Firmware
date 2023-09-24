@@ -237,7 +237,7 @@ void app_main()
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    ESP_LOGI(TAG, "Initial Heap Free: %lu Byte", xPortGetFreeHeapSize());
+    ESP_LOGI(TAG, "Initial Heap Free: %zu Byte", xPortGetFreeHeapSize());
     print_semaphore = xSemaphoreCreateMutex();
     gui_semaphore = xSemaphoreCreateMutex();
     eventQueueHandle = xQueueCreate(6, sizeof(uint32_t));
@@ -312,7 +312,7 @@ void app_main()
 #endif
         gpio_write(led, GPIO_SET);
         if (++cnt >= 300) {
-            ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
+            ESP_LOGI(TAG, "Heap Free: %zu Byte", xPortGetFreeHeapSize());
             cnt = 0;
             ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
         }

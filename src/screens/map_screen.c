@@ -209,7 +209,7 @@ void load_waypoint_file(char* filename)
         ESP_LOGI(TAG, "Load waypoint information failed. Took: %lu ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     }
 
-    ESP_LOGI(TAG, "Heap Free: %lu Byte", xPortGetFreeHeapSize());
+    ESP_LOGI(TAG, "Heap Free: %zu Byte", xPortGetFreeHeapSize());
 #else
 #endif
 }
