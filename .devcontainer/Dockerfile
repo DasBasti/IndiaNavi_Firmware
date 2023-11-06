@@ -5,5 +5,5 @@ WORKDIR /home/
 COPY . .
 
 RUN apt update
-RUN apt install python3
+RUN apt install -y python3
 
