@@ -97,6 +97,13 @@ error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* ima
     return PM_OK;
 }
 
+void turn_to_on()
+{
+    gui_set_app_mode(APP_MODE_GPS_CREATE);
+    vTaskDelete(wifiTask_h);
+    trigger_rendering();
+}
+
 void off_screen_create(const display_t* display)
 {
     FIL t_img;
@@ -185,4 +192,5 @@ void off_screen_create(const display_t* display)
     add_to_render_pipeline(image_render, wifi_indicator_image, RL_GUI_ELEMENTS);
 
     set_screen_free_function(off_screen_free);
+    set_short_press_event(turn_to_on);
 }
