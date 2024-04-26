@@ -38,7 +38,7 @@ jobs:
         run: platformio test -e native
 
       - name: Report code coverage
-        uses: zgosalvez/github-actions-report-lcov@v1
+        uses: zgosalvez/github-actions-report-lcov@v3
         with:
           coverage-files: ./filtered_lcov.info
           minimum-coverage: 90
