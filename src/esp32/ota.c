@@ -66,7 +66,10 @@ error_code_t do_background_ota(void* pvParameter)
     ESP_LOGI(TAG, "Starting OTA...");
 
     ESP_ERROR_CHECK(esp_tls_init_global_ca_store());
-    ESP_ERROR_CHECK(esp_tls_set_global_ca_store((const unsigned char*)server_cert_pem_start, server_cert_pem_end - server_cert_pem_start));
+    if (esp_tls_set_global_ca_store((const unsigned char*)server_cert_pem_start, server_cert_pem_end - server_cert_pem_start) != ESP_OK) {
+        ESP_LOGE(TAG, "Server certificate not found");
+        return PM_FAIL;
+    }
 
     esp_http_client_config_t http_config = {
         .url = FIRMWARE_UPGRADE_URL,
