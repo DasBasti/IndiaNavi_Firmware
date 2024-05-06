@@ -70,10 +70,12 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
         goto freeImageMemory;
     }
 
-    if (img->loaded == LOADED)
-        return PM_OK;
-
     label_t* l = (label_t*)img->child;
+    if (img->loaded == LOADED) {
+        l->text = "";
+        return PM_OK;
+    }
+
     if (img->loaded == ERROR) {
         l->text = "Error";
         goto freeImageMemory;
