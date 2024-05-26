@@ -9,7 +9,7 @@
 #include "gui.h"
 #include "tasks.h"
 
-#include "icons_32/icons_32.h"
+#include <icons_32.h>
 
 #include <esp_mac.h>
 #include <esp_random.h>

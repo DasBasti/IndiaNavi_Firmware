@@ -4,7 +4,7 @@
 
 #include "gui.h"
 
-#include "icons_32/icons_32.h"
+#include <icons_32.h>
 
 uint8_t sd_status = PM_OK;
 

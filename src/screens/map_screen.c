@@ -19,9 +19,9 @@
 
 #if !defined(TESTING) && !defined(LINUX)
 #include "esp_timer.h"
-#endif 
+#endif
 
-#include "icons_32/icons_32.h"
+#include <icons_32.h>
 
 #if !defined(TESTING) && !defined(LINUX)
     #include "esp_timer.h"
