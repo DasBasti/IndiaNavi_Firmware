@@ -142,6 +142,7 @@ error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map
                     (UINT*)&br);
                 if (FR_OK == res) {
                     tile->image->loaded = LOADED;
+                    tile->label->text = "";
                 } else {
                     ESP_LOGI(TAG, "Error from SD card f_read: %d", res);
                 }
