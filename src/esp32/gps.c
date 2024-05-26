@@ -24,9 +24,9 @@
 #include <math.h>
 #include <string.h>
 
-#include "icons_32/icons_32.h"
 #include <driver/uart.h>
 #include <esp_log.h>
+#include <icons_32.h>
 
 static const char* TAG = "GPS";
 char timeString[20];

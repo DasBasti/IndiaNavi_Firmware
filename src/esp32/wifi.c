@@ -21,8 +21,8 @@
 #include <mdns.h>
 
 #include "gui.h"
-#include "icons_32/icons_32.h"
 #include "tasks.h"
+#include <icons_32.h>
 char wifi_file[32 + 1 + 64];
 wifi_config_t wifi_config;
 static int s_retry_num = 0;

@@ -18,7 +18,7 @@ GC gc;
 #include "fonts/font8x8.h"
 #include "gui/image.h"
 #include "gui/label.h"
-#include "icons_32/icons_32.h"
+#include <icons_32.h>
 
 #include "gui.h"
 

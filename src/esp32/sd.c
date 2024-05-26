@@ -22,9 +22,9 @@
 
 #include "gui.h"
 #include "helper.h"
-#include "icons_32/icons_32.h"
 #include "pins.h"
 #include "tasks.h"
+#include <icons_32.h>
 
 uint8_t sd_status = UNAVAILABLE;
 char fn[30];

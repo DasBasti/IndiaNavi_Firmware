@@ -31,7 +31,7 @@
 #include "pins.h"
 #include "tasks.h"
 
-#include "icons_32/icons_32.h"
+#include <icons_32.h>
 
 static const char* TAG = "MAIN";
 #define HASH_LEN 32

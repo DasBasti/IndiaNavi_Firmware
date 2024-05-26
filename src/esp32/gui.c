@@ -22,7 +22,7 @@
 
 #include <driver/gpio.h>
 
-#include "icons_32/icons_32.h"
+#include <icons_32.h>
 
 #ifndef INITIAL_APP_MODE
 #    define INITIAL_APP_MODE APP_MODE_TURN_OFF
