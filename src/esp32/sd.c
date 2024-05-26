@@ -155,15 +155,17 @@ error_code_t createFileBuffer(async_file_t* file)
 
 error_code_t openFileForWriting(async_file_t* file)
 {
+    if (!file->file)
+        file->file = RTOS_Malloc(sizeof(FIL));
     // try to open file
-    FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
+    FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_OPEN_APPEND);
     if (FR_NO_PATH == res) {
         // 1. try to create path to file if a path is given
         if (strlen(file->filename) < 2)
             return PM_FAIL;
 
-        char* path = RTOS_Malloc(strlen(file->filename)+1);
-        char* tmp_path = RTOS_Malloc(strlen(file->filename)+1);
+        char* path = RTOS_Malloc(strlen(file->filename) + 1);
+        char* tmp_path = RTOS_Malloc(strlen(file->filename) + 1);
 
         // 2. skip first // for root
         strcpy(path, file->filename);
@@ -209,7 +211,7 @@ async_file_t* createPhysicalFile()
 error_code_t writeToFile(async_file_t* file, void* in_data, uint32_t count, uint32_t* written)
 {
     FRESULT res = f_write(file->file, in_data, count, (UINT*)written);
-    if (FR_OK == res)
+    if (FR_OK == res && FR_OK == f_sync(file->file))
         return PM_OK;
     return PM_FAIL;
 }
