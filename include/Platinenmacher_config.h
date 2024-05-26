@@ -34,6 +34,9 @@ extern font_t f8x8, f8x16;
 #include "gui/label.h"
 #include "gui/map.h"
 #include "gui/waypoint.h"
+
+#define BATLEVEL_IMAGES_DEFAULT
+#include "gui/battery_indicator.h"
 /* SD Card */
 //#include "hw/gpio.h"
 //#include "storage/sdcard/sd_spi.h"

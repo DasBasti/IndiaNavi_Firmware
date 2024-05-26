@@ -33,11 +33,12 @@ typedef enum {
 } app_mode_t;
 
 extern label_t* clock_label;
-extern label_t* battery_label;
 extern label_t* north_indicator_label;
 extern label_t* wifi_indicator_label;
 extern label_t* gps_indicator_label;
 extern label_t* sd_indicator_label;
+
+extern battery_indicator_t* battery_indicator;
 
 extern uint8_t* wifi_indicator_image_data;
 

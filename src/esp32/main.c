@@ -108,10 +108,14 @@ int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
         chargingTrigger = TASK_EVENT_START_CHARGING;
         xQueueSend(eventQueueHandle, &chargingTrigger, 0);
         is_charging = true;
+        if (battery_indicator)
+            battery_indicator->charging = true;
     } else if (chargerVoltage - 5 < batteryVoltage && is_charging) {
         chargingTrigger = TASK_EVENT_STOP_CHARGING;
         xQueueSend(eventQueueHandle, &chargingTrigger, 0);
         is_charging = false;
+        if (battery_indicator)
+            battery_indicator->charging = true;
     }
 
     const int min = 1550;
@@ -317,28 +321,6 @@ void app_main()
             ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
         }
 
-        if (battery_label) {
-            image_t* bat_icon = battery_label->child;
-            if (current_battery_level > 80)
-                bat_icon->data = bat_100;
-            else if (current_battery_level > 50)
-                bat_icon->data = bat_80;
-            else if (current_battery_level > 30)
-                bat_icon->data = bat_50;
-            else if (current_battery_level > 10)
-                bat_icon->data = bat_30;
-            else if (current_battery_level > 1)
-                bat_icon->data = bat_10;
-            else if (current_battery_level == 0)
-                bat_icon->data = bat_0;
-            if (!is_charging) {
-                save_sprintf(battery_label->text, "%3ld%%", current_battery_level);
-            } else {
-                save_sprintf(battery_label->text, "CHRG");
-            }
-            label_shrink_to_text(battery_label);
-        }
-
         if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
             if (event_num == TASK_EVENT_BUTTON_DOWN) {
                 ESP_LOGI(TAG, "Button down");
@@ -458,6 +440,9 @@ __weak void StartPowerTask(void* argument)
 
     for (;;) {
         current_battery_level = readBatteryPercent(adc1_handle);
+        if (battery_indicator) {
+            battery_indicator_set_level(battery_indicator, current_battery_level);
+        }
         if (is_charging)
             delay_time = 1000;
         else
