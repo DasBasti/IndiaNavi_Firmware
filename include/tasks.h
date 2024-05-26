@@ -27,7 +27,7 @@ typedef struct
 
 #    include <ff.h>
 
-//Create semphore
+// Create semphore
 extern SemaphoreHandle_t print_semaphore;
 extern SemaphoreHandle_t gui_semaphore;
 extern SemaphoreHandle_t sd_semaphore;
@@ -65,18 +65,24 @@ typedef struct
     FIL* file;
 } async_file_t;
 
-#define save_sprintf(dest, format, ...)                 \
-    do {                                                \
-        xSemaphoreTake(print_semaphore, portMAX_DELAY); \
-        sprintf(dest, format, ##__VA_ARGS__);           \
-        xSemaphoreGive(print_semaphore);                \
-    } while (0);
-#define save_snprintf(dest, size, format, ...)                 \
-    do {                                                \
-        xSemaphoreTake(print_semaphore, portMAX_DELAY); \
-        snprintf(dest, size, format, ##__VA_ARGS__);           \
-        xSemaphoreGive(print_semaphore);                \
-    } while (0);
+#    define save_sprintf(dest, format, ...)                 \
+        do {                                                \
+            xSemaphoreTake(print_semaphore, portMAX_DELAY); \
+            sprintf(dest, format, ##__VA_ARGS__);           \
+            xSemaphoreGive(print_semaphore);                \
+        } while (0);
+#    define save_snprintf(dest, size, format, ...)          \
+        do {                                                \
+            xSemaphoreTake(print_semaphore, portMAX_DELAY); \
+            snprintf(dest, size, format, ##__VA_ARGS__);    \
+            xSemaphoreGive(print_semaphore);                \
+        } while (0);
+#    define save_vsnprintf(dest, size, format, args)        \
+        do {                                                \
+            xSemaphoreTake(print_semaphore, portMAX_DELAY); \
+            vsnprintf(dest, size, format, args);            \
+            xSemaphoreGive(print_semaphore);                \
+        } while (0);
 #endif
 
 // From sd.c
@@ -114,6 +120,5 @@ bool isConnected();
 void maploader_screen_element(const display_t* dsp);
 
 error_code_t do_background_ota(void* pvParameter);
-
 
 #endif /* INC_TASKS_H_ */

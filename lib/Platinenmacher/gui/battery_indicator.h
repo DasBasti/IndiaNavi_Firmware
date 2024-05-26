@@ -14,10 +14,12 @@
 
 #include <icons_32.h>
 
+#define BATTERY_CHARGE_STRBUF 5
+
 typedef struct {
     image_t image;
     label_t label;
-    char label_text[10];
+    char label_text[BATTERY_CHARGE_STRBUF];
     uint8_t level;
     bool charging;
     size_t num_levels;

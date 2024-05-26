@@ -48,7 +48,7 @@ static uint8_t render_needed = 0;
 app_mode_t _app_mode = INITIAL_APP_MODE;
 font_t f8x8, f8x16;
 label_t* clock_label;
-label_t* battery_label;
+battery_indicator_t* battery_indicator;
 label_t* north_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
@@ -160,6 +160,15 @@ error_code_t updateTimeText(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
+static int sprint_battery_percent(char* buffer, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    save_vsnprintf(buffer, BATTERY_CHARGE_STRBUF, format, args);
+    va_end(args);
+    return 0;
+}
+
 static void create_top_bar(const display_t* dsp)
 {
     label_t* sb = label_create("", &f8x8, 0, 0, dsp->size.width,
@@ -173,13 +182,16 @@ static void create_top_bar(const display_t* dsp)
     sb->backgroundColor = WHITE;
     add_to_render_pipeline(label_render, sb, RL_GUI_BACKGROUND);
 
-    battery_label = create_icon_with_text(dsp, bat_100,
-        sb->box.left + margin_left, margin_top, RTOS_Malloc(4), &f8x8);
-    save_sprintf(battery_label->text, "...%%");
-    label_shrink_to_text(battery_label);
+    battery_indicator = create_battery_indicator(sb->box.left + margin_left, margin_top, current_battery_level, is_charging, &f8x8, batlevels, batlevel_images, batlevel_num);
+    battery_indicator->save_printf = sprint_battery_percent;
+    save_sprintf(battery_indicator->label_text, "...%%");
+    label_shrink_to_text(&battery_indicator->label);
+    add_to_render_pipeline(label_render, &battery_indicator->label, RL_GUI_ELEMENTS);
+    // render image after Label is rendered
+    add_to_render_pipeline(image_render, &battery_indicator->image, RL_GUI_ELEMENTS);
 
     north_indicator_label = create_icon_with_text(dsp, norden,
-        battery_label->box.left + battery_label->box.width + margin_horizontal,
+        battery_indicator->label.box.left + battery_indicator->label.box.width + margin_horizontal,
         margin_top, "", &f8x8);
 
     char* GPSView = RTOS_Malloc(sizeof(char) * 5);
