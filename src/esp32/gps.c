@@ -6,6 +6,7 @@
  */
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
@@ -33,9 +34,32 @@ char timeString[20];
 
 nmea_parser_handle_t nmea_hdl;
 static async_file_t AFILE;
+static async_file_t BFILE;
 char timezone_file[100];
 uint8_t hour;
 uint32_t gps_ticks = 0;
+
+QueueHandle_t gpstrack_queue;
+
+static char gpx_header[] = "<?xml version=\"1.0\" encoding=\"UTF-8\"  standalone=\"yes\"?>\n"
+                           "<gpx version=\"1.1\" creator=\"IndiaNavi\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\" xmlns:oa=\"http://www.outdooractive.com/GPX/Extensions/1\">\n"
+                           "<metadata>\n"
+                           "<name>WanderNavi IndiaNavi</name>\n"
+                           "<link href=\"https://platinenmacher.tech\"/>\n"
+                           "<time>%s</time>\n"
+                           "<extensions><oa:oaCategory>hikingTourTrail</oa:oaCategory></extensions>\n"
+                           "</metadata>\n"
+                           "<trk>\n"
+                           "<name>IndiaNavi GPS Log</name>\n"
+                           "<type>hikingTourTrail</type>\n"
+                           "<trkseg>\n";
+
+static char* gpx_footer = "</trkseg></trk></gpx>\n";
+
+typedef struct {
+    map_position_t position;
+    time_t timestamp;
+} log_position_t;
 
 static map_position_t current_position = {
 #ifdef NO_GPS
@@ -79,20 +103,23 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         current_position.fix = _gps->fix;
         current_position.satellites_in_use = _gps->sats_in_use;
         current_position.satellites_in_view = _gps->sats_in_view;
-        if (hour != _gps->tim.hour) {
-            hour = _gps->tim.hour;
-            struct tm t = { 0 };               // Initalize to all 0's
-            t.tm_year = _gps->date.year + 100; // This is year+100, so 121 = 2021
-            t.tm_mon = _gps->date.month - 1;
-            t.tm_mday = _gps->date.day;
-            t.tm_hour = _gps->tim.hour + 1;
-            t.tm_min = _gps->tim.minute;
-            t.tm_sec = _gps->tim.second;
 
-            struct timeval tv = { mktime(&t), 0 }; // epoch time (seconds)
-            settimeofday(&tv, NULL);
-        }
+        struct tm t = { 0 };               // Initalize to all 0's
+        t.tm_year = _gps->date.year + 100; // This is year+100, so 121 = 2021
+        t.tm_mon = _gps->date.month - 1;
+        t.tm_mday = _gps->date.day;
+        t.tm_hour = _gps->tim.hour + 1;
+        t.tm_min = _gps->tim.minute;
+        t.tm_sec = _gps->tim.second;
+
+        struct timeval tv = { mktime(&t), 0 }; // epoch time (seconds)
+        settimeofday(&tv, NULL);
+
         gps_ticks++;
+        if (gpstrack_queue != NULL) {
+            log_position_t log_position = { .position = current_position, .timestamp = mktime(&t) };
+            xQueueSendFromISR(gpstrack_queue, &log_position, 0);
+        }
         break;
     case GPS_UNKNOWN:
         /* print unknown statements */
@@ -165,6 +192,8 @@ void StartGpsTask(void const* argument)
     }
     tzset();
 
+    gpstrack_queue = xQueueCreate(10, sizeof(log_position_t));
+
     ESP_LOGI(TAG, "UART config");
     /* NMEA parser configuration */
     nmea_parser_config_t config = {
@@ -188,6 +217,26 @@ void StartGpsTask(void const* argument)
     ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO));
     ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_GLP));
 
+    async_file_t* gps_track = &BFILE;
+    gps_track->filename = "//log.gpx";
+    if (PM_OK == openFileForWriting(gps_track)) {
+        char* gpxbuffer = RTOS_Malloc(1024);
+        if (gpxbuffer) {
+            struct tm timeinfo;
+            time_t now;
+            time(&now);
+            localtime_r(&now, &timeinfo);
+            ctime_r(&now, timeString);
+            save_snprintf(gpxbuffer, 1024, gpx_header, timeString);
+            uint32_t bytes_written;
+            writeToFile(gps_track, gpxbuffer, strlen(gpxbuffer), &bytes_written);
+            ESP_LOGI(TAG, "Written %lu", bytes_written);
+            RTOS_Free(gpxbuffer);
+        }
+    } else {
+        ESP_LOGE(TAG, "Cannot open log file for writing");
+    }
+
     for (;;) {
         // struct tm timeinfo;
         struct timeval tv;
@@ -202,6 +251,20 @@ void StartGpsTask(void const* argument)
             ESP_LOGI(TAG, "Fix: %d", current_position.fix);
         }
 
+        log_position_t position;
+        char trkpt[] = "<trkpt lat=\"%f\" lon=\"%f\"><ele>%f</ele><time>%s</time></trkpt>\n";
+        char trkpt_buf[255];
+        if (gps_track->loaded) {
+            while (xQueueReceive(gpstrack_queue, &position, 0) == pdTRUE) {
+                if (position.position.fix == GPS_FIX_GPS) {
+                    ctime_r(&position.timestamp, timeString);
+                    save_snprintf(trkpt_buf, sizeof(trkpt_buf), trkpt, position.position.latitude, position.position.longitude, position.position.altitude, timeString);
+                    uint32_t bytes_written;
+                    writeToFile(gps_track, trkpt_buf, strlen(trkpt_buf), &bytes_written);
+                    ESP_LOGI(TAG, "GPS queue: %f, %f, written %lu", position.position.latitude, position.position.longitude, bytes_written);
+                }
+            }
+        }
         // Update every minute
         vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
