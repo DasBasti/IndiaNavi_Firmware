@@ -13,6 +13,7 @@
 #include "label.h"
 
 #include <icons_32.h>
+#include <stdbool.h>
 
 #define BATTERY_CHARGE_STRBUF 5
 
