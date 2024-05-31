@@ -19,9 +19,11 @@
 #include <esp_log.h>
 #include <esp_netif.h>
 #include <esp_ota_ops.h>
+#include <esp_pm.h>
 #include <esp_sleep.h>
 #include <esp_system.h>
 #include <esp_timer.h>
+
 #include <nvs.h>
 #include <nvs_flash.h>
 
@@ -73,10 +75,33 @@ gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
 int32_t current_battery_level = 0;
 int32_t is_charging;
+gpio_t* led;
 
 esp_timer_handle_t button_timer;
 void (*_short_press)(void);
 void (*_long_press)(void);
+
+esp_pm_config_t pm_config = {
+    .max_freq_mhz = 240,
+    .min_freq_mhz = 80,
+    .light_sleep_enable = true,
+};
+
+esp_err_t light_sleep_cb(int64_t sleep_time_us, void* arg)
+{
+    assert(led);
+    assert((gpio_value_t)arg == GPIO_RESET || (gpio_value_t)arg == GPIO_SET);
+    gpio_value_t level = (gpio_value_t)arg;
+    gpio_write(led, level);
+    return ESP_OK;
+}
+
+esp_pm_sleep_cbs_register_config_t esp_pm_config = {
+    .enter_cb = light_sleep_cb,
+    .exit_cb = light_sleep_cb,
+    .enter_cb_user_arg = (void*)GPIO_RESET,
+    .exit_cb_user_arg = (void*)GPIO_SET,
+};
 
 static void print_sha256(const uint8_t* image_hash, const char* label)
 {
@@ -211,12 +236,18 @@ void app_main()
 {
     uint16_t cnt = 300;
     uint32_t event_num;
-    gpio_t* led = gpio_create(OUTPUT, 0, LED);
+
+    led = gpio_create(OUTPUT, 0, LED);
+
+    // hook into light sleep power management
+    esp_pm_light_sleep_register_cbs(&esp_pm_config);
+
     /* Set Button IO to input, with PUI and any edge IRQ */
-    esp_btn.mode = GPIO_MODE_INPUT;
+    esp_btn.mode
+        = GPIO_MODE_INPUT;
     esp_btn.pull_up_en = true;
     esp_btn.pin_bit_mask = BIT64(BTN);
-    esp_btn.intr_type = GPIO_INTR_ANYEDGE;
+    esp_btn.intr_type = GPIO_INTR_NEGEDGE;
     gpio_config(&esp_btn);
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
         rtc_gpio_deinit(BTN);
@@ -249,6 +280,9 @@ void app_main()
     gpio_set_intr_type(BTN, GPIO_INTR_ANYEDGE);
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(BTN, handleButtonPress, NULL);
+
+    // configure PM
+    // ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
 
 #ifdef WITH_ACC
     /* Set Accelerator IO to input, with PUI and falling edge IRQ */
@@ -314,7 +348,6 @@ void app_main()
             trigger_rendering();
         }
 #endif
-        gpio_write(led, GPIO_SET);
         if (++cnt >= 300) {
             ESP_LOGI(TAG, "Heap Free: %zu Byte", xPortGetFreeHeapSize());
             cnt = 0;
@@ -352,7 +385,6 @@ void app_main()
                 trigger_rendering();
             }
         }
-        gpio_write(led, GPIO_RESET);
     }
 }
 
