@@ -3,7 +3,11 @@
 build
 sdkconfig*
 
+logs/*
+
 #gcov coverage
 cov/
 filtered_lcov.info
 lcov.info
+
+__pycache__/
