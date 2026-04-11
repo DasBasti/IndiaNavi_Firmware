@@ -131,7 +131,8 @@ error_code_t loadFile(async_file_t* file)
 
 error_code_t fileExists(async_file_t* file)
 {
-    waitForSDInit();
+    if (waitForSDInit() != PM_OK)
+        return PM_FAIL;
     xSemaphoreTake(sd_semaphore, portMAX_DELAY);
     FILINFO fno;
     FRESULT fres = f_stat(file->filename, &fno);
@@ -143,7 +144,8 @@ error_code_t fileExists(async_file_t* file)
 
 error_code_t createFileBuffer(async_file_t* file)
 {
-    waitForSDInit();
+    if (waitForSDInit() != PM_OK)
+        return PM_FAIL;
     xSemaphoreTake(sd_semaphore, portMAX_DELAY);
     FILINFO fno;
     FRESULT fres = f_stat(file->filename, &fno);

@@ -159,6 +159,11 @@ void StartWiFiTask(void const* argument)
     wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
+
+    // Create event group before registering handlers to avoid a race where an
+    // event fires before the group handle is valid.
+    s_wifi_event_group = xEventGroupCreate();
+
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
         ESP_EVENT_ANY_ID,
         &event_handler,
@@ -178,7 +183,6 @@ void StartWiFiTask(void const* argument)
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
-    s_wifi_event_group = xEventGroupCreate();
     for (;;) {
         _is_connected = false;
 
@@ -187,7 +191,7 @@ void StartWiFiTask(void const* argument)
          */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-            pdTRUE, // clear bits on exit so the group can be reused
+            pdTRUE, // clear bits on exit so the group can be reused each iteration
             pdFALSE,
             portMAX_DELAY);
 
@@ -207,11 +211,7 @@ void StartWiFiTask(void const* argument)
             continue;
         }
 
-        /* The event will not be processed after unregister */
-        ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-        ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-        vEventGroupDelete(s_wifi_event_group);
-
+        // Keep event handlers and event group alive so reconnection works.
         while (updateConnectionInfo() == PM_OK) {
             static uint8_t last_rssi_state = 0;
             ESP_LOGI(TAG, "ssid is: %d", sta_record.rssi);
