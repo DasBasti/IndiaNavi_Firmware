@@ -131,6 +131,8 @@ error_code_t loadFile(async_file_t* file)
 
 error_code_t fileExists(async_file_t* file)
 {
+    if (waitForSDInit() != PM_OK)
+        return PM_FAIL;
     xSemaphoreTake(sd_semaphore, portMAX_DELAY);
     FILINFO fno;
     FRESULT fres = f_stat(file->filename, &fno);
@@ -142,6 +144,8 @@ error_code_t fileExists(async_file_t* file)
 
 error_code_t createFileBuffer(async_file_t* file)
 {
+    if (waitForSDInit() != PM_OK)
+        return PM_FAIL;
     xSemaphoreTake(sd_semaphore, portMAX_DELAY);
     FILINFO fno;
     FRESULT fres = f_stat(file->filename, &fno);
@@ -165,6 +169,7 @@ error_code_t openFileForWriting(async_file_t* file)
             return PM_FAIL;
 
         char* path = RTOS_Malloc(strlen(file->filename) + 1);
+        char* path_start = path; // save original pointer for free
         char* tmp_path = RTOS_Malloc(strlen(file->filename) + 1);
 
         // 2. skip first // for root
@@ -191,6 +196,7 @@ error_code_t openFileForWriting(async_file_t* file)
                 break;
         }
         RTOS_Free(tmp_path);
+        RTOS_Free(path_start);
         // Retry to open file for writing
         res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
     }
@@ -238,8 +244,8 @@ void closePhysicalFile(async_file_t* file)
         if (file->file) {
             if (file->file->fptr)
                 ESP_LOGI(TAG, "File: %lu is still open", file->file->fptr);
-            // f_close(file->file);
-            // RTOS_Free(file->file);
+            f_close(file->file);
+            RTOS_Free(file->file);
         }
         if (file->dest) {
             ESP_LOGI(TAG, "Free file->dest");

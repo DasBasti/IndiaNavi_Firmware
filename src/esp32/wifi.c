@@ -32,7 +32,7 @@ static async_file_t AFILE;
 
 static esp_netif_t* wifi_netif = 0;
 
-static bool _is_connected = false;
+static volatile bool _is_connected = false;
 
 uint8_t* wifi_indicator_image_data = WIFI_0;
 
@@ -159,6 +159,11 @@ void StartWiFiTask(void const* argument)
     wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
+
+    // Create event group before registering handlers to avoid a race where an
+    // event fires before the group handle is valid.
+    s_wifi_event_group = xEventGroupCreate();
+
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
         ESP_EVENT_ANY_ID,
         &event_handler,
@@ -179,7 +184,6 @@ void StartWiFiTask(void const* argument)
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
     for (;;) {
-        s_wifi_event_group = xEventGroupCreate();
         _is_connected = false;
 
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
@@ -187,7 +191,7 @@ void StartWiFiTask(void const* argument)
          */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-            pdFALSE,
+            pdTRUE, // clear bits on exit so the group can be reused each iteration
             pdFALSE,
             portMAX_DELAY);
 
@@ -195,23 +199,19 @@ void StartWiFiTask(void const* argument)
          * happened.
          */
         if (bits & WIFI_CONNECTED_BIT) {
-            ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-                wifi_config.sta.ssid, wifi_config.sta.password);
+            ESP_LOGI(TAG, "connected to ap SSID:%s",
+                wifi_config.sta.ssid);
             start_mdns_service();
         } else if (bits & WIFI_FAIL_BIT) {
-            ESP_LOGI(TAG, "Failed to connect to SSID:'%s', password:'%s'",
-                wifi_config.sta.ssid, wifi_config.sta.password);
+            ESP_LOGI(TAG, "Failed to connect to SSID:'%s'",
+                wifi_config.sta.ssid);
             continue;
         } else {
             ESP_LOGE(TAG, "UNEXPECTED EVENT");
             continue;
         }
 
-        /* The event will not be processed after unregister */
-        ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-        ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-        vEventGroupDelete(s_wifi_event_group);
-
+        // Keep event handlers and event group alive so reconnection works.
         while (updateConnectionInfo() == PM_OK) {
             static uint8_t last_rssi_state = 0;
             ESP_LOGI(TAG, "ssid is: %d", sta_record.rssi);

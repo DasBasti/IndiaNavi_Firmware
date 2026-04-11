@@ -37,7 +37,6 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
         return UNAVAILABLE;
     }
 
-    img->data = imageBuf;
     map_tile_t* tile = img->parent; // the parent component of the image is the tile
     FIL t_img;
     uint32_t br;
@@ -49,14 +48,14 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
     ESP_LOGI(TAG, "Load %s  to %p", fn, tile->image->data);
 
     waitForSDInit();
-    if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
-
+    if (xSemaphoreTake(sd_semaphore, pdMS_TO_TICKS(1000))) {
         res = f_open(&t_img, fn, FA_READ);
-        if (FR_OK == res && tile->image->data != 0) {
+        if (FR_OK == res) {
             res = f_read(&t_img,
-                tile->image->data, 32768,
+                imageBuf, 32768,
                 (UINT*)&br); // Tilesize 256*256/2 bytes
             if (FR_OK == res) {
+                img->data = imageBuf; // assign only after successful read
                 tile->image->loaded = LOADED;
             }
             f_close(&t_img);
@@ -67,25 +66,22 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
         xSemaphoreGive(sd_semaphore);
     } else {
         ESP_LOGI(TAG, "load timeout!");
-        goto freeImageMemory;
+        RTOS_Free(imageBuf);
+        return TIMEOUT;
     }
 
     label_t* l = (label_t*)img->child;
     if (img->loaded == LOADED) {
         l->text = "";
-        return PM_OK;
+        return PM_OK; // imageBuf now owned by img->data
     }
 
     if (img->loaded == ERROR) {
         l->text = "Error";
-        goto freeImageMemory;
-    }
-    if (img->loaded == NOT_FOUND) {
+    } else if (img->loaded == NOT_FOUND) {
         l->text = "Not Found";
-        goto freeImageMemory;
     }
-
-freeImageMemory:
+    // img->data was never assigned to imageBuf on failure paths, safe to free
     RTOS_Free(imageBuf);
     return TIMEOUT;
 }
@@ -117,7 +113,7 @@ error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map
             tile->y);
         // TODO: decompress lz4 tiles
         waitForSDInit();
-        if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
+        if (xSemaphoreTake(sd_semaphore, pdMS_TO_TICKS(1000))) {
             // Check file info
             res = f_stat((const TCHAR*)&fn, &t_img_nfo);
             if (FR_OK == res) {
@@ -173,6 +169,7 @@ error_code_t check_if_map_tile_is_loaded(const display_t* dsp, void* image)
     if (img->loaded == LOADED) {
         img->loaded = NOT_LOADED;
         RTOS_Free(img->data);
+        img->data = NULL;
     }
     return PM_OK;
 }
