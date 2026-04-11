@@ -32,7 +32,7 @@ static async_file_t AFILE;
 
 static esp_netif_t* wifi_netif = 0;
 
-static bool _is_connected = false;
+static volatile bool _is_connected = false;
 
 uint8_t* wifi_indicator_image_data = WIFI_0;
 
@@ -178,8 +178,8 @@ void StartWiFiTask(void const* argument)
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
+    s_wifi_event_group = xEventGroupCreate();
     for (;;) {
-        s_wifi_event_group = xEventGroupCreate();
         _is_connected = false;
 
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
@@ -187,7 +187,7 @@ void StartWiFiTask(void const* argument)
          */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-            pdFALSE,
+            pdTRUE, // clear bits on exit so the group can be reused
             pdFALSE,
             portMAX_DELAY);
 
@@ -195,12 +195,12 @@ void StartWiFiTask(void const* argument)
          * happened.
          */
         if (bits & WIFI_CONNECTED_BIT) {
-            ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-                wifi_config.sta.ssid, wifi_config.sta.password);
+            ESP_LOGI(TAG, "connected to ap SSID:%s",
+                wifi_config.sta.ssid);
             start_mdns_service();
         } else if (bits & WIFI_FAIL_BIT) {
-            ESP_LOGI(TAG, "Failed to connect to SSID:'%s', password:'%s'",
-                wifi_config.sta.ssid, wifi_config.sta.password);
+            ESP_LOGI(TAG, "Failed to connect to SSID:'%s'",
+                wifi_config.sta.ssid);
             continue;
         } else {
             ESP_LOGE(TAG, "UNEXPECTED EVENT");

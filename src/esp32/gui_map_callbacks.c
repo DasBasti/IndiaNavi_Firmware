@@ -37,7 +37,6 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
         return UNAVAILABLE;
     }
 
-    img->data = imageBuf;
     map_tile_t* tile = img->parent; // the parent component of the image is the tile
     FIL t_img;
     uint32_t br;
@@ -50,6 +49,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
 
     waitForSDInit();
     if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
+        img->data = imageBuf; // assign only after acquiring semaphore
 
         res = f_open(&t_img, fn, FA_READ);
         if (FR_OK == res && tile->image->data != 0) {
@@ -173,6 +173,7 @@ error_code_t check_if_map_tile_is_loaded(const display_t* dsp, void* image)
     if (img->loaded == LOADED) {
         img->loaded = NOT_LOADED;
         RTOS_Free(img->data);
+        img->data = NULL;
     }
     return PM_OK;
 }

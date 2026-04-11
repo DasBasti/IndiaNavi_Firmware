@@ -106,7 +106,8 @@ void free_render_pipeline(enum RenderLayer layer)
         r = r->next;
         RTOS_Free(rn);
     }
-    render_pipeline[layer] = 0;
+    render_pipeline[layer] = NULL;
+    render_last[layer] = NULL;
 }
 
 void free_all_render_pipelines()
@@ -152,7 +153,8 @@ error_code_t updateTimeText(const display_t* dsp, void* comp)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    struct tm* timeinfo = localtime(&tv.tv_sec);
+    struct tm timeinfo_buf;
+    struct tm* timeinfo = localtime_r(&tv.tv_sec, &timeinfo_buf);
     xSemaphoreTake(print_semaphore, portMAX_DELAY);
     sprintf(clock_label->text, "%02d:%02d", timeinfo->tm_hour,
         timeinfo->tm_min);

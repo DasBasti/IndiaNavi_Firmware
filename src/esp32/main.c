@@ -74,7 +74,7 @@ uint32_t ledDelay = 100;
 gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
 int32_t current_battery_level = 0;
-int32_t is_charging;
+volatile bool is_charging = false;
 gpio_t* led;
 
 esp_timer_handle_t button_timer;
@@ -140,7 +140,7 @@ int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
         xQueueSend(eventQueueHandle, &chargingTrigger, 0);
         is_charging = false;
         if (battery_indicator)
-            battery_indicator->charging = true;
+            battery_indicator->charging = false;
     }
 
     const int min = 1550;
@@ -188,7 +188,9 @@ static void IRAM_ATTR handleButtonPress(void* arg)
     } else {
         gpio_num = TASK_EVENT_BUTTON_UP;
     }
-    xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(eventQueueHandle, &gpio_num, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 /**

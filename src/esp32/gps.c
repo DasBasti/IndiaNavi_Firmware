@@ -118,7 +118,7 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         gps_ticks++;
         if (gpstrack_queue != NULL) {
             log_position_t log_position = { .position = current_position, .timestamp = mktime(&t) };
-            xQueueSendFromISR(gpstrack_queue, &log_position, 0);
+            xQueueSend(gpstrack_queue, &log_position, 0);
         }
         break;
     case GPS_UNKNOWN:
@@ -241,7 +241,8 @@ void StartGpsTask(void const* argument)
         // struct tm timeinfo;
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        struct tm* timeinfo = localtime(&tv.tv_sec);
+        struct tm timeinfo_buf;
+        struct tm* timeinfo = localtime_r(&tv.tv_sec, &timeinfo_buf);
         if (clock_label && minute != timeinfo->tm_min) {
             trigger_rendering();
         }
