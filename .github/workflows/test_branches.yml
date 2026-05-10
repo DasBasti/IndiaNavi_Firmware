@@ -1,8 +1,8 @@
 name: Run Native Tests with platformio 
 on:
   push:
-    branches: 
-      - '!main'
+    branches-ignore:
+      - main
 
 jobs:
   platformio_run_native_tests:
