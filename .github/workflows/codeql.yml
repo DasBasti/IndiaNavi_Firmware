@@ -32,7 +32,6 @@ jobs:
       fail-fast: false
       matrix:
         language: [ 'cpp', 'python' ]
-        target: [indianavi_s3_n16r8_debug, indianavi_s3_n16r8_release, linux_native]
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
         # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
 
@@ -78,12 +77,20 @@ jobs:
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
     - name: Install pio and its dependencies
+      if: matrix.language == 'cpp'
       run: |
         python -m pip install --upgrade pip
         pip install platformio
 
+    - name: Install linux_native dependencies
+      if: matrix.language == 'cpp'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libx11-dev
+
     - name: Run PlatformIO build on embedded platforms
-      run: platformio run -e ${{ matrix.target }}
+      if: matrix.language == 'cpp'
+      run: platformio run -e linux_native
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3

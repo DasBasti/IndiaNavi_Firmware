@@ -37,6 +37,11 @@ jobs:
       - name: Run PlatformIO test on host platform
         run: platformio test -e native
 
+      - name: Generate coverage data
+        run: |
+          lcov -d .pio/build/native/ -c -o lcov.info
+          lcov --remove lcov.info '*/tool-unity/*' '*/test/*' '*/MockArduino/*' '/usr/*' '*pio/*' -o filtered_lcov.info
+
       - name: Report code coverage
         uses: zgosalvez/github-actions-report-lcov@v3
         with:
