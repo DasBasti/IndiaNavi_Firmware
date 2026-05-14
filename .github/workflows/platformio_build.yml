@@ -93,7 +93,7 @@ jobs:
         retention-days: 5
     
     - name: Deploy tagged version to S3
-      if: (success())
+      if: success() && github.event_name != 'pull_request'
       uses: jakejarvis/s3-sync-action@master
       with:
         args: --acl public-read 
