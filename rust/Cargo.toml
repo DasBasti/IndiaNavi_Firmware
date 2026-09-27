@@ -1,0 +1,6 @@
+[workspace]
+resolver = "2"
+# Further crates of the Rust port are added here as they land.
+members = ["crates/pm-icons"]
+# rust/tools/* are host-only build tools with their own workspaces.
+exclude = ["tools"]

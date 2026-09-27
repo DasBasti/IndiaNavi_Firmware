@@ -1,0 +1,8 @@
+[package]
+name = "pm-icons"
+version = "0.1.0"
+edition = "2021"
+description = "32px icon assets ported from lib/icons_32/"
+publish = false
+
+[dependencies]

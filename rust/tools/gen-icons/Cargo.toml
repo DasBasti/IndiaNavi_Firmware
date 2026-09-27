@@ -1,0 +1,17 @@
+# Converter for the 32px icon assets: lib/icons_32/*.c -> crates/pm-icons/src/icons_32.rs
+#
+# Standalone package on purpose: it is a host-only build tool and must not be a
+# member of the firmware workspace (it needs std and the host target).
+[package]
+name = "gen-icons"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "gen-icons"
+path = "src/main.rs"
+
+[dependencies]
+
+[workspace]
