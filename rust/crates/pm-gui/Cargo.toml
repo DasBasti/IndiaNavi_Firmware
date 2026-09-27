@@ -1,0 +1,13 @@
+[package]
+name = "pm-gui"
+description = "GUI widgets: labels, images, graphs, map tiles, waypoints"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+pm-core.workspace = true
+pm-font.workspace = true

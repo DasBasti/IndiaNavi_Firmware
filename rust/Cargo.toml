@@ -1,0 +1,47 @@
+# Rust port of IndiaNavi.
+#
+# Workspace for the host-testable library crates. `firmware/` is deliberately
+# NOT a member: it can only be built with the Xtensa/ESP-IDF toolchain and has
+# its own .cargo/config.toml + rust-toolchain.toml. Keeping it out means
+# `cargo test` at this level stays a plain host build.
+#
+# See PORTING.md for the binding decisions behind this layout.
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/pm-core",
+    "crates/pm-font",
+    "crates/pm-icons",
+    "crates/pm-gui",
+    "crates/pm-parser",
+    "crates/nmea",
+    "crates/gpx",
+    "crates/lsm303",
+    "crates/acep-5in65-7c",
+    "crates/pm-qr",
+]
+exclude = ["firmware"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+repository = "https://github.com/platinenmacher/IndiaNavi"
+authors = ["Bastian Neumann <info@platinenmacher.tech>"]
+
+[workspace.dependencies]
+# Hardware is only ever touched through these traits -- see PORTING.md.
+embedded-hal = "1.0"
+
+pm-core = { path = "crates/pm-core" }
+pm-font = { path = "crates/pm-font" }
+pm-icons = { path = "crates/pm-icons" }
+pm-gui = { path = "crates/pm-gui" }
+pm-parser = { path = "crates/pm-parser" }
+nmea = { path = "crates/nmea" }
+gpx = { path = "crates/gpx" }
+lsm303 = { path = "crates/lsm303" }
+acep-5in65-7c = { path = "crates/acep-5in65-7c" }
+pm-qr = { path = "crates/pm-qr" }

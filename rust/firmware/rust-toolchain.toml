@@ -1,0 +1,5 @@
+# Xtensa has no upstream LLVM backend, so the firmware needs the `esp`
+# toolchain that espup installs. The library crates in ../crates build on
+# plain stable; only this directory needs `esp`.
+[toolchain]
+channel = "esp"

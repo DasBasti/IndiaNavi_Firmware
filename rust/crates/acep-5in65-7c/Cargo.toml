@@ -1,0 +1,13 @@
+[package]
+name = "acep-5in65-7c"
+description = "Waveshare ACeP 5.65in 7-color e-paper panel driver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+pm-core.workspace = true
+embedded-hal.workspace = true
