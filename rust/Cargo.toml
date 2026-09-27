@@ -1,0 +1,9 @@
+# Rust port of the IndiaNavi firmware.
+#
+# Crates are added by their own porting tasks; the glob keeps this file stable.
+# rust/firmware builds only for the ESP target and is therefore excluded from
+# the host workspace.
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+exclude = ["firmware"]

@@ -1,0 +1,15 @@
+[package]
+name = "pm-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Core types and framebuffer display driver of the Platinenmacher library (port of lib/Platinenmacher)"
+
+[features]
+default = ["eink-7color"]
+# Mirrors the EINK_7COLOR define: the 7 colors of the ACeP 5.65" panel.
+# Without it the 3-color (black/white/transparent) panel enum is used.
+eink-7color = []
+# Exports MockDisplay for the tests of dependent crates
+# (replaces test/host/Platinenmacher/mock/mock_display.h).
+mock = []
