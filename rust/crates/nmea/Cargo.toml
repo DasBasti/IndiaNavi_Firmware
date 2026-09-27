@@ -1,0 +1,8 @@
+[package]
+name = "nmea"
+version = "0.1.0"
+edition = "2021"
+description = "NMEA 0183 sentence parser for the IndiaNavi GPS receiver (no_std + alloc)"
+license = "MIT"
+
+[dependencies]
