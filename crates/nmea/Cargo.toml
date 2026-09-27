@@ -1,0 +1,9 @@
+[package]
+name = "nmea"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "NMEA sentence parsing for the Quectel L96 GNSS module"
+publish = false
+
+[dependencies]

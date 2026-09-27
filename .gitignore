@@ -11,3 +11,5 @@ filtered_lcov.info
 lcov.info
 
 __pycache__/
+# Rust build output
+/target
