@@ -1,0 +1,12 @@
+[package]
+name = "nmea"
+description = "NMEA 0183 sentence parser plus the PMTK and PQ vendor extensions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+pm-core.workspace = true

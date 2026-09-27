@@ -1,0 +1,27 @@
+# Pins the ESP target for everything built in this directory.
+#
+# Primary board: indianavi-s3-n16r8 (ESP32-S3) -> xtensa-esp32s3-espidf.
+# For the secondary REV2 board build with:
+#   cargo build --target xtensa-esp32-espidf \
+#               --no-default-features --features board-esp32
+[build]
+target = "xtensa-esp32s3-espidf"
+
+[target.xtensa-esp32s3-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+rustflags = ["--cfg", "espidf_time64"]
+
+[target.xtensa-esp32-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+rustflags = ["--cfg", "espidf_time64"]
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+MCU = "esp32s3"
+# Matches the C tree: dependencies.lock pins idf 5.2.1, and
+# sdkconfig.indianavi_s3_n16r8_release has CONFIG_IDF_INIT_VERSION="5.2.1".
+ESP_IDF_VERSION = "v5.2.1"

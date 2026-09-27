@@ -1,0 +1,58 @@
+# The firmware binary. NOT a member of ../Cargo.toml: it can only be built
+# with the Xtensa/ESP-IDF toolchain (see rust-toolchain.toml and
+# .cargo/config.toml next to this file, and PORTING.md one level up).
+
+[package]
+name = "indianavi-firmware"
+description = "IndiaNavi firmware binary (ESP-IDF)"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+repository = "https://github.com/platinenmacher/IndiaNavi"
+authors = ["Bastian Neumann <info@platinenmacher.tech>"]
+
+[[bin]]
+name = "indianavi"
+path = "src/main.rs"
+
+[features]
+# Primary board: indianavi-s3-n16r8 / ESP32-S3. Matches the platformio
+# env:indianavi_s3_n16r8_* (-DESP_S3).
+default = ["board-esp32s3"]
+board-esp32s3 = []
+# Secondary board: the original REV2 ESP32. Matches env:esp32dev_*.
+# Same application code, different pin map and flash layout.
+board-esp32 = []
+
+[dependencies]
+# ESP-IDF (std) rather than bare-metal esp-hal -- see PORTING.md "Runtime".
+# UNVERIFIED in this container (no host C compiler, no python3/cmake/ninja, so
+# esp-idf-sys cannot run). The first firmware task must confirm that this
+# version pair works against ESP-IDF v5.2.1 -- see PORTING.md "Firmware build".
+esp-idf-svc = "0.53"
+esp-idf-hal = "0.47"
+log = "0.4"
+
+# The ported libraries. Paths, not workspace deps: this crate is outside the
+# ../Cargo.toml workspace.
+pm-core = { path = "../crates/pm-core" }
+pm-font = { path = "../crates/pm-font" }
+pm-icons = { path = "../crates/pm-icons" }
+pm-gui = { path = "../crates/pm-gui" }
+pm-parser = { path = "../crates/pm-parser" }
+nmea = { path = "../crates/nmea" }
+gpx = { path = "../crates/gpx" }
+lsm303 = { path = "../crates/lsm303" }
+acep-5in65-7c = { path = "../crates/acep-5in65-7c" }
+pm-qr = { path = "../crates/pm-qr" }
+
+[build-dependencies]
+embuild = { version = "0.33", features = ["espidf"] }
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+opt-level = "z"
+debug = true
