@@ -1,0 +1,90 @@
+# The firmware binary. NOT a member of ../Cargo.toml: it can only be built
+# with the Xtensa/ESP-IDF toolchain (see rust-toolchain.toml and
+# .cargo/config.toml next to this file, and PORTING.md one level up).
+
+[package]
+name = "indianavi-firmware"
+description = "IndiaNavi firmware binary (ESP-IDF)"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+repository = "https://github.com/platinenmacher/IndiaNavi"
+authors = ["Bastian Neumann <info@platinenmacher.tech>"]
+
+[[bin]]
+name = "indianavi"
+path = "src/main.rs"
+
+[features]
+# Primary board: indianavi-s3-n16r8 / ESP32-S3. Matches the platformio
+# env:indianavi_s3_n16r8_* (-DESP_S3).
+default = ["board-esp32s3"]
+board-esp32s3 = []
+# Secondary board: the original REV2 ESP32. Matches env:esp32dev_*.
+# Same application code, different pin map and flash layout.
+board-esp32 = []
+
+# Host-buildable dependencies. `embedded-hal` is the trait boundary
+# rust/PORTING.md mandates: src/board/ hands these traits to the drivers, and
+# because the crate is pure Rust with no build script it resolves and compiles
+# on the host too, which is what makes the tests in src/board/ runnable -- see
+# TESTING.md.
+[dependencies]
+embedded-hal = "1.0"
+
+# ESP-IDF (std) rather than bare-metal esp-hal -- see PORTING.md "Runtime".
+#
+# Target-gated, unlike the scaffold's version of this file, so that a host
+# `cargo test` does not try to resolve or build esp-idf-sys (which needs
+# python3/cmake/ninja and a host C compiler). This is what acceptance criterion
+# "hardware setup code is isolated behind cfg(target_os = \"espidf\")" buys:
+# every `mod espidf` in src/board/ is gated on the same cfg these deps are.
+#
+# UNVERIFIED in this container (no host C compiler, no python3/cmake/ninja, so
+# esp-idf-sys cannot run). The first task that builds for the device must
+# confirm this version pair works against ESP-IDF v5.2.1 -- see PORTING.md
+# "Firmware build".
+[target.'cfg(target_os = "espidf")'.dependencies]
+esp-idf-svc = "0.53"
+esp-idf-hal = "0.47"
+log = "0.4"
+
+# The ported libraries. Paths, not workspace deps: this crate is outside the
+# ../Cargo.toml workspace.
+#
+# COMMENTED OUT ON THIS BRANCH. `rust/crates/` does not exist on `main`: the
+# scaffold PR (#68) is unmerged and none of the crate PRs have landed either.
+# Cargo refuses to parse a manifest whose path dependency is missing -- even an
+# optional one -- so declaring these here would break the build, tests included,
+# rather than just one feature. This is the same workaround
+# `rust/crates/acep-5in65-7c` used; see memory mem_01M3K83EVZK5PT9C8Q9C3TW8MZ.
+#
+# On merge: uncomment. src/board/ deliberately depends on none of them -- it
+# hands out `embedded-hal` traits, which is exactly what lets it land first.
+#
+# pm-core = { path = "../crates/pm-core" }
+# pm-font = { path = "../crates/pm-font" }
+# pm-icons = { path = "../crates/pm-icons" }
+# pm-gui = { path = "../crates/pm-gui" }
+# pm-parser = { path = "../crates/pm-parser" }
+# nmea = { path = "../crates/nmea" }
+# gpx = { path = "../crates/gpx" }
+# lsm303 = { path = "../crates/lsm303" }
+# acep-5in65-7c = { path = "../crates/acep-5in65-7c" }
+# pm-qr = { path = "../crates/pm-qr" }
+
+# Unconditional, unlike the [dependencies] above: Cargo matches a
+# `[target.'cfg(...)'.build-dependencies]` section against the *target*, but the
+# build script itself is compiled for the *host*, so gating it that way leaves
+# build.rs unable to see embuild on the real cross build. build.rs therefore
+# takes embuild unconditionally and checks CARGO_CFG_TARGET_OS at run time.
+[build-dependencies]
+embuild = { version = "0.33", features = ["espidf"] }
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+opt-level = "z"
+debug = true
