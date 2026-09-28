@@ -1,0 +1,8 @@
+[package]
+name = "pm-parser"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Port of the Platinenmacher parsers: serial command parser, config parser, readline and framebuffer formatting helpers"
+
+[dependencies]
