@@ -1,0 +1,9 @@
+[package]
+name = "pm-core"
+version = "0.1.0"
+description = "Core display model ported from lib/Platinenmacher"
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true

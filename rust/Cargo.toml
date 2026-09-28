@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["crates/pm-core", "crates/pm-font"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/DasBasti/IndiaNavi_Firmware"
+
+[workspace.dependencies]
+pm-core = { path = "crates/pm-core" }
+
+[workspace.lints.rust]
+missing_docs = "warn"

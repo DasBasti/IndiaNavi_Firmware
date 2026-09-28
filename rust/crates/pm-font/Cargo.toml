@@ -1,0 +1,12 @@
+[package]
+name = "pm-font"
+version = "0.1.0"
+description = "Bitmap fonts and text rendering ported from lib/Platinenmacher"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+pm-core.workspace = true
+
+[lints]
+workspace = true
