@@ -1,0 +1,21 @@
+[package]
+name = "lsm303"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Platform-independent LSM303AH accelerometer + magnetometer driver (Rust port of lib/lsm303)"
+
+[features]
+# The firmware port targets ESP-IDF with std (see rust/PORTING.md), so std is
+# the default float-math backend. `libm` swaps in a pure-Rust backend for a
+# no_std build; exactly one of the two must be enabled.
+default = ["std"]
+std = []
+libm = ["dep:libm"]
+
+[dependencies]
+embedded-hal = "1.0"
+libm = { version = "0.2", optional = true }
+
+[dev-dependencies]
+embedded-hal-mock = { version = "0.11", default-features = false, features = ["eh1"] }
