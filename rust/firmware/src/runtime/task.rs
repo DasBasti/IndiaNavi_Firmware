@@ -229,13 +229,17 @@ where
 
     apply_spawn_configuration(&spec)?;
 
-    let join = thread::Builder::new()
+    let spawned = thread::Builder::new()
         .name(spec.name.to_string())
         .stack_size(spec.stack_size)
-        .spawn(move || body(token))
-        .map_err(SpawnError::Os)?;
+        .spawn(move || body(token));
 
+    // Unconditionally, and before the `?`: the configuration is consumed by
+    // the *next* spawn, so leaving it set after a failed one would silently
+    // give an unrelated thread this task's stack size and priority.
     reset_spawn_configuration();
+
+    let join = spawned.map_err(SpawnError::Os)?;
 
     Ok(TaskHandle {
         spec,
