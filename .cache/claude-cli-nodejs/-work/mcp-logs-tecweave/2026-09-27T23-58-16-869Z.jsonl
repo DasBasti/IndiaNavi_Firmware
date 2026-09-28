@@ -24,3 +24,6 @@
 {"debug":"Tool 'msg.request' failed after 60s: The operation timed out.","timestamp":"2026-09-28T00:01:30.201Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
 {"debug":"Calling MCP tool: repo.commit","timestamp":"2026-09-28T00:18:38.644Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
 {"debug":"Tool 'repo.commit' completed successfully in 116ms","timestamp":"2026-09-28T00:18:38.760Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
+{"debug":"Calling MCP tool: repo.open_pr","timestamp":"2026-09-28T00:19:05.746Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
+{"error":"Resource not accessible by personal access token - https://docs.github.com/rest/pulls/pulls#create-a-pull-request","timestamp":"2026-09-28T00:19:08.598Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
+{"debug":"Tool 'repo.open_pr' failed after 2s: Resource not accessible by personal access token - https://docs.github.com/rest/pulls/pulls#create-a-pull-request","timestamp":"2026-09-28T00:19:08.598Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
