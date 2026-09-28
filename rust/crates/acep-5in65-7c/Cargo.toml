@@ -1,0 +1,38 @@
+# NOTE ON LAYOUT: this crate is currently a *standalone* package. `rust/Cargo.toml`
+# (the workspace root from the scaffold task, tsk_01M3HGZ510KAR8VN1960MHK018) has
+# not been merged to main yet, so there is no workspace to inherit from and the
+# keys below are spelled out literally instead of `*.workspace = true`. They match
+# the scaffold's `[workspace.package]` exactly. Once the scaffold lands, this file
+# can be reduced to the inheriting form without any other change; the crate is
+# already at the path the scaffold lists as a member.
+#
+# See the pm-parser precedent (mem_01M3JQ6RC2WTC183CGYQP5VQAG) for the same call.
+
+[package]
+name = "acep-5in65-7c"
+description = "Waveshare ACeP 5.65in 7-color e-paper panel driver"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+repository = "https://github.com/platinenmacher/IndiaNavi"
+authors = ["Bastian Neumann <info@platinenmacher.tech>"]
+
+[dependencies]
+embedded-hal = "1.0"
+
+# pm-core = { path = "../pm-core" }
+#
+# DELIBERATELY COMMENTED OUT. `rust/crates/pm-core` does not exist on this branch:
+# tsk_01M3HGZ51A2YCXJQQET91NVDT0 is marked done but its PR was never pushed, and
+# cargo refuses to even parse a manifest whose path dependency is missing --
+# `optional = true` does not help. Uncommenting this line and deleting the
+# `pm-core = []` line under [features] is the whole of the merge work; see
+# src/display_target.rs.
+
+[features]
+default = []
+# Enables src/display_target.rs, the `pm_core::display::DisplayTarget` impl.
+# Replace this line with `optional = true` on the dependency above when pm-core
+# lands -- a feature and an optional dependency may not share a name.
+pm-core = []

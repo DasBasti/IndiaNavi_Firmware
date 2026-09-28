@@ -1,0 +1,5 @@
+/target/
+# Library crate: the lockfile is not part of the API, and the scaffold owns
+# rust/Cargo.lock for the whole workspace. Committing one here would just
+# conflict with it.
+/Cargo.lock
