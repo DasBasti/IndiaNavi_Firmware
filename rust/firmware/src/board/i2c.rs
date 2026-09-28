@@ -49,10 +49,10 @@ pub use espidf::*;
 #[cfg(target_os = "espidf")]
 mod espidf {
     //! UNVERIFIED BY A COMPILER -- see rust/PORTING.md "Firmware build".
+    //! Written against `esp-idf-hal` 0.47.0; see TESTING.md.
 
-    use esp_idf_hal::gpio::{InputPin, OutputPin};
+    use esp_idf_hal::gpio::{InputPin as EspInputPin, OutputPin as EspOutputPin};
     use esp_idf_hal::i2c::{I2c, I2cConfig, I2cDriver};
-    use esp_idf_hal::peripheral::Peripheral;
     use esp_idf_hal::sys::EspError;
     use esp_idf_hal::units::Hertz;
 
@@ -65,21 +65,34 @@ mod espidf {
     /// Bring up the I2C master at 400 kHz with pull-ups on, as `lsm303_init`
     /// did.
     ///
+    /// Peripherals are taken by value: `esp-idf-hal` 0.47 dropped the
+    /// `Peripheral<P = ...>` indirection, so this is `peripherals.i2c0` and
+    /// two pins straight from `peripherals.pins`.
+    ///
     /// Deviation: C called `ESP_ERROR_CHECK` on both setup calls, aborting the
     /// firmware if the bus could not be configured. The accelerometer is
     /// optional on this board -- its only call site in `src/esp32/main.c:339`
     /// is commented out -- so a failure here is returned and the caller can
     /// carry on without it.
-    pub fn i2c_bus<'d, I: I2c>(
-        i2c: impl Peripheral<P = I> + 'd,
-        sda: impl Peripheral<P = impl InputPin + OutputPin> + 'd,
-        scl: impl Peripheral<P = impl InputPin + OutputPin> + 'd,
+    pub fn i2c_bus<'d>(
+        i2c: impl I2c + 'd,
+        sda: impl EspInputPin + EspOutputPin + 'd,
+        scl: impl EspInputPin + EspOutputPin + 'd,
     ) -> Result<Bus<'d>, EspError> {
         let config = I2cConfig::new()
             .baudrate(Hertz(CLOCK_HZ))
             .sda_enable_pullup(INTERNAL_PULLUPS)
             .scl_enable_pullup(INTERNAL_PULLUPS);
         I2cDriver::new(i2c, sda, scl, &config)
+    }
+
+    /// Compile-time check that the accelerometer gets an
+    /// `embedded_hal::i2c::I2c`, which is what `lsm303` is generic over.
+    /// Never called.
+    #[allow(dead_code)]
+    fn assert_embedded_hal_1_0(bus: Bus<'static>) {
+        fn takes_i2c(_: impl embedded_hal::i2c::I2c) {}
+        takes_i2c(bus);
     }
 }
 

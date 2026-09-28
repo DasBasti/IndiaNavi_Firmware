@@ -41,10 +41,14 @@ embedded-hal = "1.0"
 # "hardware setup code is isolated behind cfg(target_os = \"espidf\")" buys:
 # every `mod espidf` in src/board/ is gated on the same cfg these deps are.
 #
-# UNVERIFIED in this container (no host C compiler, no python3/cmake/ninja, so
-# esp-idf-sys cannot run). The first task that builds for the device must
-# confirm this version pair works against ESP-IDF v5.2.1 -- see PORTING.md
-# "Firmware build".
+# The pair is consistent: esp-idf-svc 0.53.0 depends on esp-idf-hal ^0.47, and
+# 0.47.0 is the current 0.47.x. The src/board/ espidf blocks are written against
+# 0.47.0's actual API (read from the published crate source, see TESTING.md).
+#
+# Still UNBUILT in this container: esp-idf-sys needs python3/cmake/ninja and a
+# host C compiler, none of which exist here, so nothing has confirmed the pair
+# against ESP-IDF v5.2.1 itself. The first task with real hardware or a full
+# toolchain must -- see PORTING.md "Firmware build".
 [target.'cfg(target_os = "espidf")'.dependencies]
 esp-idf-svc = "0.53"
 esp-idf-hal = "0.47"

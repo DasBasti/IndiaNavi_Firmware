@@ -218,10 +218,12 @@ pub use espidf::*;
 #[cfg(target_os = "espidf")]
 mod espidf {
     //! UNVERIFIED BY A COMPILER -- see rust/PORTING.md "Firmware build".
+    //! Written against `esp-idf-hal` 0.47.0, where SPI peripherals and pins are
+    //! passed **by value** and carry a lifetime; the `esp_idf_hal::peripheral`
+    //! module and its `Peripheral<P = ...>` trait no longer exist.
 
-    use esp_idf_hal::gpio::{AnyIOPin, AnyOutputPin, OutputPin};
-    use esp_idf_hal::peripheral::Peripheral;
-    use esp_idf_hal::spi::config::{Config, DriverConfig};
+    use esp_idf_hal::gpio::{AnyIOPin, OutputPin as EspOutputPin};
+    use esp_idf_hal::spi::config::{Config, DriverConfig, MODE_0};
     use esp_idf_hal::spi::{Dma, SpiAnyPins, SpiDeviceDriver, SpiDriver};
     use esp_idf_hal::sys::EspError;
     use esp_idf_hal::units::Hertz;
@@ -252,19 +254,23 @@ mod espidf {
     /// `EINK_DC` and `EINK_BUSY` are *not* configured here -- they are not bus
     /// pins, and the panel driver takes them as `embedded-hal` pins. Use
     /// [`super::super::gpio::output`] and [`super::super::gpio::input`].
-    pub fn eink_spi<'d, SPI: SpiAnyPins>(
-        spi: impl Peripheral<P = SPI> + 'd,
-        sclk: impl Peripheral<P = impl OutputPin> + 'd,
-        mosi: impl Peripheral<P = impl OutputPin> + 'd,
-        cs: impl Peripheral<P = AnyOutputPin> + 'd,
+    ///
+    /// The caller picks the peripheral, and [`super::SpiBus::host`] says which
+    /// one that must be: `SPI3_HOST`, i.e. `peripherals.spi3`.
+    pub fn eink_spi<'d>(
+        spi: impl SpiAnyPins + 'd,
+        sclk: impl EspOutputPin + 'd,
+        mosi: impl EspOutputPin + 'd,
+        cs: impl EspOutputPin + 'd,
     ) -> Result<EinkSpi<'d>, EspError> {
-        // miso is EINK_SPI_MISO == NC on both boards: the panel is write-only.
+        // miso is EINK_SPI_MISO == NC on both boards: the panel is write-only,
+        // so the bus is created without a MISO pin at all.
         debug_assert_eq!(EINK_BUS.miso, super::super::pins::NC);
-        let driver = SpiDriver::new::<SPI>(
+        let driver = SpiDriver::new(
             spi,
             sclk,
             mosi,
-            None::<AnyIOPin>,
+            None::<AnyIOPin<'d>>,
             &DriverConfig {
                 dma: Dma::Auto(EINK_MAX_TRANSFER_SZ),
                 ..Default::default()
@@ -272,8 +278,17 @@ mod espidf {
         )?;
         let config = Config::new()
             .baudrate(Hertz(EINK_BUS.clock_hz))
-            .data_mode(esp_idf_hal::spi::config::MODE_0);
+            .data_mode(MODE_0);
         SpiDeviceDriver::new(driver, Some(cs), &config)
+    }
+
+    /// Compile-time check that the panel gets an `embedded_hal::spi::SpiDevice`,
+    /// which is what `acep_5in65_7c` is generic over. Never called; it exists
+    /// so a device build fails here rather than inside the driver.
+    #[allow(dead_code)]
+    fn assert_embedded_hal_1_0(spi: EinkSpi<'static>) {
+        fn takes_spi_device(_: impl embedded_hal::spi::SpiDevice) {}
+        takes_spi_device(spi);
     }
 }
 

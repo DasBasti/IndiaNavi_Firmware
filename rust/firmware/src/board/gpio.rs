@@ -95,25 +95,53 @@ pub use espidf::*;
 mod espidf {
     //! Thin wrappers that turn an `esp-idf-hal` pin into an `embedded-hal` 1.0
     //! pin. `PinDriver` already implements the traits; these functions exist
-    //! only to keep the pull/interrupt configuration of the C code in one
-    //! place.
+    //! only to keep the pull configuration and the initial level of the C code
+    //! in one place.
     //!
     //! UNVERIFIED BY A COMPILER: this container cannot build for ESP-IDF (no
     //! host C compiler, no python3/cmake/ninja -- see rust/PORTING.md
-    //! "Firmware build"). Reviewers should treat this module as inspection
-    //! only; the pure modules around it are covered by host tests.
+    //! "Firmware build"). It *has* been checked line by line against the
+    //! published source of `esp-idf-hal` 0.47.0, the version `Cargo.toml`
+    //! resolves to; see TESTING.md, "What the espidf blocks were checked
+    //! against".
+    //!
+    //! Two things about that API are easy to get wrong, because most examples
+    //! on the internet predate them:
+    //!
+    //! - `PinDriver` is generic over the *mode* only (`PinDriver<'d, MODE>`).
+    //!   The pin type is erased at construction, so there is no third
+    //!   parameter to name.
+    //! - Peripherals are passed **by value** and carry a lifetime
+    //!   (`AnyOutputPin<'d>`, `Gpio16<'d>`). The `esp_idf_hal::peripheral`
+    //!   module and its `Peripheral<P = ...>` trait are gone.
 
-    use esp_idf_hal::gpio::{AnyIOPin, AnyInputPin, AnyOutputPin, Input, Output, PinDriver, Pull};
+    use esp_idf_hal::gpio::{
+        Input, InputPin as EspInputPin, Level, Output, OutputPin as EspOutputPin, PinDriver, Pull,
+    };
     use esp_idf_hal::sys::EspError;
 
     use super::PinLevel;
 
-    /// An output pin. Implements `embedded_hal::digital::OutputPin`.
-    pub type OutPin = PinDriver<'static, AnyOutputPin, Output>;
-    /// An input pin. Implements `embedded_hal::digital::InputPin`.
-    pub type InPin = PinDriver<'static, AnyInputPin, Input>;
-    /// An input pin that can also raise interrupts, so it needs `AnyIOPin`.
-    pub type IrqPin = PinDriver<'static, AnyIOPin, Input>;
+    /// An output pin. Implements `embedded_hal::digital::OutputPin`, which is
+    /// all [`super::super::regulator::GpioRegulator`], [`super::super::led::Led`]
+    /// and the panel's D/C line ever ask for.
+    pub type OutPin<'d> = PinDriver<'d, Output>;
+    /// An input pin. Implements `embedded_hal::digital::InputPin`, which is what
+    /// [`super::super::button::Button`] and the panel's BUSY line ask for.
+    pub type InPin<'d> = PinDriver<'d, Input>;
+    /// An input pin that is also going to raise interrupts. Same type as
+    /// [`InPin`] -- `set_interrupt_type`/`subscribe` are available on any input
+    /// driver -- named separately only because the call sites read better.
+    pub type IrqPin<'d> = InPin<'d>;
+
+    /// [`PinLevel`] as `esp-idf-hal` spells it.
+    #[must_use]
+    pub const fn level(level: PinLevel) -> Level {
+        match level {
+            PinLevel::Set => Level::High,
+            PinLevel::Reset => Level::Low,
+        }
+    }
 
     /// Configure a pin as a push-pull output driven to `initial`.
     ///
@@ -123,23 +151,29 @@ mod espidf {
     /// the caller must say, because a power rail that floats between
     /// `gpio_config` and the first `gpio_write` is how `EINK_VCC_nEN` gets to
     /// glitch the panel.
-    pub fn output(pin: AnyOutputPin, initial: PinLevel) -> Result<OutPin, EspError> {
+    ///
+    /// `gpio.c` also carried a `gpio_pp_mode_t` (`PUSHPULL`/`OPENDRAIN`) that
+    /// it never once read -- `gpio_config` was always left in push-pull -- so
+    /// open drain is not offered here. `PinDriver::output_od` is there if a
+    /// line ever needs it.
+    pub fn output<'d>(
+        pin: impl EspOutputPin + 'd,
+        initial: PinLevel,
+    ) -> Result<OutPin<'d>, EspError> {
         let mut driver = PinDriver::output(pin)?;
-        driver.set_level(if initial.is_high() {
-            esp_idf_hal::gpio::Level::High
-        } else {
-            esp_idf_hal::gpio::Level::Low
-        })?;
+        driver.set_level(level(initial))?;
         Ok(driver)
     }
 
     /// Configure a pin as a floating input.
     ///
     /// Replaces `gpio_create(INPUT, 0, pin)`, used for `SD_CARD_nDET`
-    /// (`src/esp32/sd.c:267`). The card-detect line has an external pull-up on
-    /// both boards, which is why the C code asked for no pull either.
-    pub fn input(pin: AnyInputPin) -> Result<InPin, EspError> {
-        PinDriver::input(pin)
+    /// (`src/esp32/sd.c:267`) and `EINK_BUSY`. `gpio.c` never touched the pull
+    /// registers, which is ESP-IDF's floating default, so that is what this
+    /// asks for explicitly -- 0.47's `PinDriver::input` takes the pull as an
+    /// argument and has no "leave it alone" option.
+    pub fn input<'d>(pin: impl EspInputPin + 'd) -> Result<InPin<'d>, EspError> {
+        PinDriver::input(pin, Pull::Floating)
     }
 
     /// Configure a pin as an input with the internal pull-up enabled.
@@ -147,10 +181,74 @@ mod espidf {
     /// Replaces the `esp_btn`/`esp_acc` `gpio_config_t` in
     /// `src/esp32/main.c:249-251` and `:290-292`, which set
     /// `pull_up_en = true`. Interrupt type is left to the caller
-    /// ([`super::button`] wants any-edge, the accelerometer wants neg-edge).
-    pub fn input_pullup(pin: AnyIOPin) -> Result<IrqPin, EspError> {
-        let mut driver = PinDriver::input(pin)?;
-        driver.set_pull(Pull::Up)?;
-        Ok(driver)
+    /// ([`super::super::button`] wants any-edge, the accelerometer wants
+    /// neg-edge), because `PinDriver::set_interrupt_type` is a separate call.
+    pub fn input_pullup<'d>(pin: impl EspInputPin + 'd) -> Result<IrqPin<'d>, EspError> {
+        PinDriver::input(pin, Pull::Up)
+    }
+
+    /// Compile-time check that this module really does hand out
+    /// `embedded-hal` 1.0 pins, which is the whole point of it: the drivers
+    /// under `rust/crates/` take those traits and nothing else. Never called;
+    /// it exists so a device build fails here rather than inside a driver.
+    #[allow(dead_code)]
+    fn assert_embedded_hal_1_0(out: OutPin<'static>, input: InPin<'static>) {
+        fn takes_output_pin(_: impl embedded_hal::digital::OutputPin) {}
+        fn takes_input_pin(_: impl embedded_hal::digital::InputPin) {}
+        takes_output_pin(out);
+        takes_input_pin(input);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inverted_matches_c_logical_not_on_a_gpio_value() {
+        // `!GPIO_RESET` is 1 and `!GPIO_SET` is 0 in C, which is what
+        // `regulator_gpio.c:32` relies on to find the off level.
+        assert_eq!(PinLevel::Reset.inverted(), PinLevel::Set);
+        assert_eq!(PinLevel::Set.inverted(), PinLevel::Reset);
+        for level in [PinLevel::Reset, PinLevel::Set] {
+            assert_eq!(level.inverted().inverted(), level);
+        }
+    }
+
+    #[test]
+    fn the_discriminants_are_the_c_enum() {
+        assert_eq!(PinLevel::Reset as u8, 0, "GPIO_RESET");
+        assert_eq!(PinLevel::Set as u8, 1, "GPIO_SET");
+    }
+
+    #[test]
+    fn levels_round_trip_through_the_embedded_hal_bool() {
+        assert!(PinLevel::Set.is_high());
+        assert!(!PinLevel::Reset.is_high());
+        assert_eq!(PinLevel::from_high(true), PinLevel::Set);
+        assert_eq!(PinLevel::from_high(false), PinLevel::Reset);
+        for level in [PinLevel::Reset, PinLevel::Set] {
+            assert_eq!(PinLevel::from_high(level.is_high()), level);
+        }
+    }
+
+    #[test]
+    fn a_pins_h_level_constant_is_read_the_way_c_reads_it() {
+        // Both `BTN_LEVEL` and `I2C_INT_LEVEL` are 0 on both boards.
+        assert_eq!(PinLevel::from_pins_h(0), PinLevel::Reset);
+        assert_eq!(PinLevel::from_pins_h(1), PinLevel::Set);
+        // C truthiness: anything non-zero is high.
+        assert_eq!(PinLevel::from_pins_h(2), PinLevel::Set);
+        assert_eq!(PinLevel::from_pins_h(-1), PinLevel::Set);
+    }
+
+    #[test]
+    fn is_asserted_compares_against_the_active_level() {
+        // Active low, as BTN/BTN_LEVEL and SD_CARD_nDET are.
+        assert!(is_asserted(PinLevel::Reset, PinLevel::Reset));
+        assert!(!is_asserted(PinLevel::Set, PinLevel::Reset));
+        // Active high.
+        assert!(is_asserted(PinLevel::Set, PinLevel::Set));
+        assert!(!is_asserted(PinLevel::Reset, PinLevel::Set));
     }
 }

@@ -28,7 +28,7 @@ cargo +stable test --target x86_64-unknown-linux-gnu \
       --no-default-features --features board-esp32
 ```
 
-Result at the time of writing: **69 tests, green on both boards**; `clippy -D
+Result at the time of writing: **74 tests, green on both boards**; `clippy -D
 warnings` and `cargo fmt --check` clean. `rustc`/`cargo` 1.98.1 from `rustup`,
 with `gcc` on `PATH` for the link step.
 
@@ -55,6 +55,35 @@ in CI. Review them by reading. Every value they hand to ESP-IDF comes from a
 `const` that a host test pins, so the numbers are checked even though the calls
 are not. `rust/PORTING.md`, "Firmware build", explains why an ESP-IDF build
 cannot run in this container.
+
+## What the `espidf` blocks were checked against
+
+They are not compiled here, so "checked" needs saying precisely. Every
+`mod espidf` in `src/board/` was written against the **published source of
+`esp-idf-hal` 0.47.0**, which is what `Cargo.toml`'s `"0.47"` resolves to
+today, and which `esp-idf-svc` 0.53 (its `esp-idf-hal ^0.47` dependency) pins
+to the same major. The crate was downloaded from `static.crates.io` and read;
+that is the extent of it. Three API facts are worth repeating, because almost
+every esp-idf-hal example online predates them and copying one in is how this
+file rots:
+
+1. **Peripherals are passed by value and carry a lifetime.** `AnyOutputPin<'d>`,
+   `Gpio6<'d>`, `ADC1<'d>`, `SPI3<'d>`. The `esp_idf_hal::peripheral` module and
+   its `impl Peripheral<P = T>` argument style no longer exist.
+2. **`PinDriver<'d, MODE>` has two parameters, not three** -- the pin type is
+   erased at construction -- and `PinDriver::input` takes the `Pull` as an
+   argument, because `set_pull` is private.
+3. **`adc::oneshot` is typed on markers, not on what you pass it.**
+   `AdcDriver<'d, ADCU1>` (the unit marker, though `AdcDriver::new` takes the
+   `ADC1` peripheral) and `AdcChannelDriver<'d, C, M>` where `C` is
+   `<Gpio6 as ADCPin>::AdcChannel`, not `Gpio6`.
+
+Each `espidf` block also ends in a never-called `assert_embedded_hal_1_0`
+function that feeds the handles the module produces into a generic taking the
+`embedded-hal` 1.0 trait the drivers want -- `OutputPin`/`InputPin`,
+`SpiDevice`, `I2c`. It costs nothing at run time and turns "the wrappers
+expose embedded-hal 1.0 traits" from something a reviewer has to believe into
+something the first device build proves.
 
 ## Building the firmware
 

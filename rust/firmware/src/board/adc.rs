@@ -112,12 +112,27 @@ pub use espidf::*;
 mod espidf {
     //! UNVERIFIED BY A COMPILER -- see rust/PORTING.md "Firmware build". The
     //! channel numbers, the unit and the attenuation above *are* covered by
-    //! host tests; only this construction is not.
+    //! host tests; only this construction is not. The API it is written
+    //! against is `esp-idf-hal` 0.47.0's `adc::oneshot`, checked against that
+    //! crate's published source and its `examples/adc_oneshot.rs`.
+    //!
+    //! The generics are fiddly and worth spelling out, because the one-shot
+    //! driver is typed three ways at once:
+    //!
+    //! - `AdcDriver<'d, U>` is generic over the ADC **unit** marker (`ADCU1`),
+    //!   not over the `ADC1` peripheral you hand to `AdcDriver::new`.
+    //! - `AdcChannelDriver<'d, C, M>` is generic over the **channel** marker
+    //!   (`ADCCH5<ADCU1>`), which you get from the pin as
+    //!   `<Gpio6 as ADCPin>::AdcChannel` -- not over the pin itself.
+    //! - `M` is how the channel borrows the unit; `&'d AdcDriver<..>` is the
+    //!   shape that lets both channels share one unit, which is what the C
+    //!   power task did with its single `adc1_handle`.
 
     use esp_idf_hal::adc::attenuation::DB_12;
     use esp_idf_hal::adc::oneshot::config::AdcChannelConfig;
     use esp_idf_hal::adc::oneshot::{AdcChannelDriver, AdcDriver};
-    use esp_idf_hal::adc::ADC1;
+    use esp_idf_hal::adc::{ADC1, ADCU1};
+    use esp_idf_hal::gpio::ADCPin;
     use esp_idf_hal::sys::EspError;
 
     use super::SenseReading;
@@ -125,15 +140,23 @@ mod espidf {
     /// GPIO carrying `VBAT_ADC` on this board. See the module docs for why this
     /// is not `PINS.vbat_adc`.
     #[cfg(feature = "board-esp32s3")]
-    type VbatPin = esp_idf_hal::gpio::Gpio6;
+    pub type VbatPin<'d> = esp_idf_hal::gpio::Gpio6<'d>;
     /// GPIO carrying `VIN_ADC` on this board.
     #[cfg(feature = "board-esp32s3")]
-    type VinPin = esp_idf_hal::gpio::Gpio7;
+    pub type VinPin<'d> = esp_idf_hal::gpio::Gpio7<'d>;
 
     #[cfg(all(feature = "board-esp32", not(feature = "board-esp32s3")))]
-    type VbatPin = esp_idf_hal::gpio::Gpio34;
+    pub type VbatPin<'d> = esp_idf_hal::gpio::Gpio34<'d>;
     #[cfg(all(feature = "board-esp32", not(feature = "board-esp32s3")))]
-    type VinPin = esp_idf_hal::gpio::Gpio35;
+    pub type VinPin<'d> = esp_idf_hal::gpio::Gpio35<'d>;
+
+    /// The ADC1 one-shot unit, `StartPowerTask`'s `adc1_handle`
+    /// (src/esp32/main.c:459-464).
+    pub type SenseAdcUnit<'d> = AdcDriver<'d, ADCU1>;
+
+    /// One configured channel on [`SenseAdcUnit`], borrowing the unit.
+    type SenseChannel<'d, P> =
+        AdcChannelDriver<'d, <P as ADCPin>::AdcChannel, &'d SenseAdcUnit<'d>>;
 
     /// Both sense channels on ADC1, configured once and read on demand.
     ///
@@ -143,8 +166,8 @@ mod espidf {
     /// `readBatteryPercent`; here the two channel drivers own the
     /// configuration, so a read cannot happen against an unconfigured channel.
     pub struct SenseAdc<'d> {
-        battery: AdcChannelDriver<'d, VbatPin, &'d AdcDriver<'d, ADC1>>,
-        charger: AdcChannelDriver<'d, VinPin, &'d AdcDriver<'d, ADC1>>,
+        battery: SenseChannel<'d, VbatPin<'d>>,
+        charger: SenseChannel<'d, VinPin<'d>>,
     }
 
     impl<'d> SenseAdc<'d> {
@@ -154,16 +177,16 @@ mod espidf {
         /// the unit driver, so the caller has to own it. This is the one-shot
         /// equivalent of the C `adc1_handle` living in the power task's stack
         /// frame (src/esp32/main.c:459).
-        pub fn unit(adc1: ADC1) -> Result<AdcDriver<'d, ADC1>, EspError> {
+        pub fn unit(adc1: ADC1<'d>) -> Result<SenseAdcUnit<'d>, EspError> {
             AdcDriver::new(adc1)
         }
 
         /// Configure both channels at 12 dB attenuation and the driver default
         /// bit width, as src/esp32/main.c:465-472 does.
         pub fn new(
-            adc: &'d AdcDriver<'d, ADC1>,
-            vbat: VbatPin,
-            vin: VinPin,
+            adc: &'d SenseAdcUnit<'d>,
+            vbat: VbatPin<'d>,
+            vin: VinPin<'d>,
         ) -> Result<Self, EspError> {
             let config = AdcChannelConfig {
                 attenuation: DB_12,
@@ -176,6 +199,10 @@ mod espidf {
         }
 
         /// Read both channels, battery first, as `readBatteryPercent` did.
+        ///
+        /// `read_raw`, not `read`: the C code never calibrated, so
+        /// [`super::super::battery`]'s thresholds are raw counts. See the module
+        /// docs.
         ///
         /// Deviation: C wrapped both reads in `ESP_ERROR_CHECK`, which aborts
         /// the firmware on a failed ADC read. A dropped sample is not worth a
