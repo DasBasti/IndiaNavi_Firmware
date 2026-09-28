@@ -22,3 +22,5 @@
 {"debug":"HTTP connection dropped after 192s uptime","timestamp":"2026-09-28T00:01:30.200Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
 {"debug":"Connection error: The operation timed out.","timestamp":"2026-09-28T00:01:30.201Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
 {"debug":"Tool 'msg.request' failed after 60s: The operation timed out.","timestamp":"2026-09-28T00:01:30.201Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
+{"debug":"Calling MCP tool: repo.commit","timestamp":"2026-09-28T00:18:38.644Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
+{"debug":"Tool 'repo.commit' completed successfully in 116ms","timestamp":"2026-09-28T00:18:38.760Z","sessionId":"3f8c88eb-a3bf-4b02-ba78-741d9f0f6496","cwd":"/work"}
