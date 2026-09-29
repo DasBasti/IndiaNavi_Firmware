@@ -106,7 +106,7 @@ void turn_to_on()
 
 void off_screen_create(const display_t* display)
 {
-    FIL t_img;
+    FIL t_img = {0};
     uint32_t br;
     FILINFO t_img_nfo;
     FRESULT res = FR_NOT_READY;

@@ -9,7 +9,9 @@
 #define __PLATINENMACHER_CONFIG_H__
 
 #include <stdio.h>
+#ifndef __weak
 #define __weak __attribute__((weak))
+#endif
 
 /* Power management */
 #ifdef LINUX

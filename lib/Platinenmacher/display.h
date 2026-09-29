@@ -36,7 +36,7 @@ struct display
 								uint8_t color);
 	uint8_t (*decompress)(rect_t *size, int16_t x, int16_t y, const uint8_t *data);
 
-	void (*update)();
+	void (*update)(const display_t *dsp);
 };
 
 inline size_t sizeof_fb(rect_t size, uint8_t bpp)

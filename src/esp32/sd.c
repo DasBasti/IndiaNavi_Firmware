@@ -92,7 +92,7 @@ error_code_t waitForSDInit()
 error_code_t loadFile(async_file_t* file)
 {
     FRESULT res;
-    FIL t_file;
+    FIL t_file = {0};
     FILINFO fno;
     uint32_t br;
     ESP_LOGI(TAG, "Load %s ", file->filename);
@@ -155,8 +155,13 @@ error_code_t createFileBuffer(async_file_t* file)
 
 error_code_t openFileForWriting(async_file_t* file)
 {
-    if (!file->file)
+    if (!file->file) {
         file->file = RTOS_Malloc(sizeof(FIL));
+        if (!file->file)
+            return PM_FAIL;
+        // FatFs dynamic buffers: f_open() only allocates fp->buf when it is NULL
+        memset(file->file, 0, sizeof(FIL));
+    }
     // try to open file
     FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_OPEN_APPEND);
     if (FR_NO_PATH == res) {
@@ -205,6 +210,8 @@ async_file_t* createPhysicalFile()
 {
     async_file_t* f = RTOS_Malloc(sizeof(async_file_t));
     f->file = RTOS_Malloc(sizeof(FIL));
+    if (f->file)
+        memset(f->file, 0, sizeof(FIL));
     return f;
 }
 
@@ -293,7 +300,7 @@ void StartSDTask(void const* argument)
                 sd_status = UNAVAILABLE;
                 xSemaphoreTake(sd_semaphore, portMAX_DELAY);
                 // deinit SDMMC periphery
-                esp_vfs_fat_sdmmc_unmount();
+                esp_vfs_fat_sdcard_unmount("", card);
                 // show on gui
                 trigger_rendering();
                 vTaskDelay(pdMS_TO_TICKS(1000));

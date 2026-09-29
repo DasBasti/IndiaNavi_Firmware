@@ -39,7 +39,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
 
     img->data = imageBuf;
     map_tile_t* tile = img->parent; // the parent component of the image is the tile
-    FIL t_img;
+    FIL t_img = {0};
     uint32_t br;
     // TODO: decompress lz4 tiles
     save_sprintf(fn, "//MAPS/%u/%lu/%lu.RAW",
@@ -103,7 +103,7 @@ error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map
 
     for (size_t i = 0; i < map->tile_count; i++) {
         map_tile_t* tile = map->tiles[i];
-        FIL t_img;
+        FIL t_img = {0};
         FILINFO t_img_nfo;
         uint32_t br;
 

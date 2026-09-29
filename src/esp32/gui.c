@@ -257,7 +257,7 @@ error_code_t gui_set_app_mode(app_mode_t mode)
 /**
  * Run after rendering and displaying is finished
  */
-void run_post_render_hook()
+void run_post_render_hook(void)
 {
     if (_post_render_hook)
         if (_post_render_hook(_post_rener_hook_arg) == PM_OK)
@@ -271,6 +271,12 @@ void set_post_rendering_hook(error_code_t (*cb)(size_t arg), size_t arg)
 {
     _post_rener_hook_arg = arg;
     _post_render_hook = cb;
+}
+
+static error_code_t deep_sleep_post_render_hook(size_t arg)
+{
+    (void)arg;
+    return enter_deep_sleep_if_not_charging();
 }
 
 void free_screen(void)
@@ -316,7 +322,7 @@ void app_screen(const display_t* dsp)
     case APP_MODE_TURN_OFF:
         free_all_render_pipelines();
         off_screen_create(dsp);
-        set_post_rendering_hook(enter_deep_sleep_if_not_charging, 0);
+        set_post_rendering_hook(deep_sleep_post_render_hook, 0);
         gps_enter_standby();
         ESP_LOGI(TAG, "Starting Power Down Mode");
         gui_set_app_mode(APP_MODE_RUNNING);
@@ -399,7 +405,7 @@ void StartGuiTask(void const* argument)
                 display_commit_fb(eink);
                 // vTaskPrioritySet(NULL, 5);
                 ESP_LOGI(TAG, "Refresh finished.");
-                run_post_render_hook(eink);
+                run_post_render_hook();
                 xSemaphoreGive(gui_semaphore);
             } else {
                 ESP_LOGI(TAG, "Render Mutex locked.");

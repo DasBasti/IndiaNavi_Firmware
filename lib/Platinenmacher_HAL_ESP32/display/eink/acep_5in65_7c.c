@@ -7,6 +7,7 @@
 #include <string.h>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
+#include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "acep_5in65_7c.h"
 #include <esp_log.h>
@@ -57,7 +58,7 @@ error_code_t ACEP_5IN65_Write(const display_t *dsp, int16_t x, int16_t y,
 /*
  * Send framebuffer to display
  */
-void ACEP_5IN65_Commit_Fb()
+static void ACEP_5IN65_Commit_Fb(const display_t *dsp)
 {
 	if (ACEP_5IN65_Display(fb) == TIMEOUT)
 		ESP_LOGE(TAG, "Timeout during commiting FB");

@@ -78,6 +78,12 @@ static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
     case HTTP_EVENT_REDIRECT:
         ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
         break;
+    case HTTP_EVENT_ON_STATUS_CODE:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_STATUS_CODE");
+        break;
+    case HTTP_EVENT_ON_HEADERS_COMPLETE:
+        ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADERS_COMPLETE");
+        break;
     }
     return ESP_OK;
 }

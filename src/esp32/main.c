@@ -249,7 +249,7 @@ void app_main()
     esp_btn.pin_bit_mask = BIT64(BTN);
     esp_btn.intr_type = GPIO_INTR_NEGEDGE;
     gpio_config(&esp_btn);
-    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+    if (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_EXT0)) {
         rtc_gpio_deinit(BTN);
         vTaskDelay(pdMS_TO_TICKS(2000));
         if (gpio_get_level(BTN)) {

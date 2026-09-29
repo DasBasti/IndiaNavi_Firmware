@@ -21,14 +21,14 @@ static label_t* bat_graph_label;
 static label_t* bat_graph_label1;
 static label_t* bat_graph_label2;
 static label_t* gps;
-char gps_info[1024];
+char gps_info[384];
 static label_t* task_info_label;
 char task_info[1024];
 
 extern uint32_t gps_ticks;
 
 static label_t* sd_info_label;
-char sd_info[1024];
+char sd_info[128];
 
 error_code_t record_battery_voltage(const display_t* dsp, void* comp)
 {
@@ -77,7 +77,7 @@ error_code_t update_gps_info_label(const display_t* dsp, void* comp)
     gpio_t pwr = {};
     pwr.pin = GPS_VCC_nEN;
     if (map_position && xSemaphoreTake(print_semaphore, 1000)) {
-        snprintf(gps_info, 1024, "GPS Info\n Power: %d\n Fix: %d HDOP:%f\n Lat: %f\n Lon:%f\n Ele:%f\n Sats in view/use %d/%d\n Ticks: %lu",
+        snprintf(gps_info, sizeof(gps_info), "GPS Info\n Power: %d\n Fix: %d HDOP:%f\n Lat: %f\n Lon:%f\n Ele:%f\n Sats in view/use %d/%d\n Ticks: %lu",
             !gpio_read(&pwr),
             map_position->fix,
             map_position->hdop,
@@ -170,7 +170,7 @@ error_code_t update_sd_info_label(const display_t* dsp, void* comp)
     gpio_t pwr = {};
     pwr.pin = SD_VCC_nEN;
     if (xSemaphoreTake(print_semaphore, 1000)) {
-        snprintf(sd_info, 1024, "SD Info\n Power: %d\n Semaphore Count: %d",
+        snprintf(sd_info, sizeof(sd_info), "SD Info\n Power: %d\n Semaphore Count: %d",
             !gpio_read(&pwr),
             uxSemaphoreGetCount(sd_semaphore));
 

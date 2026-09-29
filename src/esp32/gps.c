@@ -30,7 +30,7 @@
 #include <icons_32.h>
 
 static const char* TAG = "GPS";
-char timeString[20];
+char timeString[26]; // ctime_r() writes up to 26 bytes
 
 nmea_parser_handle_t nmea_hdl;
 static async_file_t AFILE;
@@ -41,7 +41,7 @@ uint32_t gps_ticks = 0;
 
 QueueHandle_t gpstrack_queue;
 
-static char gpx_header[] = "<?xml version=\"1.0\" encoding=\"UTF-8\"  standalone=\"yes\"?>\n"
+static const char gpx_header[] = "<?xml version=\"1.0\" encoding=\"UTF-8\"  standalone=\"yes\"?>\n"
                            "<gpx version=\"1.1\" creator=\"IndiaNavi\" xmlns=\"http://www.topografix.com/GPX/1/1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\" xmlns:oa=\"http://www.outdooractive.com/GPX/Extensions/1\">\n"
                            "<metadata>\n"
                            "<name>WanderNavi IndiaNavi</name>\n"
