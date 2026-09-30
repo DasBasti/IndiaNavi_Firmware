@@ -33,6 +33,24 @@ inline static void *RTOS_Malloc(size_t size)
 #endif
     return mem;
 }
+/*
+ * Allocate zeroed memory for data that is never used for DMA, like track
+ * points or file contents. PSRAM is preferred so the small internal RAM stays
+ * free for WiFi, SD card and display. Falls back to internal RAM on boards
+ * without PSRAM. Free with RTOS_Free().
+ */
+inline static void *RTOS_Malloc_Large(size_t size)
+{
+#if defined(TESTING) || defined(LINUX)
+    return RTOS_Malloc(size);
+#else
+    void *mem = heap_caps_malloc_prefer(size, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, MALLOC_CAP_DEFAULT);
+    if (mem)
+        memset(mem, 0, size);
+    return mem;
+#endif
+}
+
 inline static void RTOS_Free(void *pointer)
 {
     if (pointer)

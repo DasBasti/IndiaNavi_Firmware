@@ -71,7 +71,7 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
                 if (wp) // unfinished waypoint, reuse it
                     memset(wp, 0, sizeof(waypoint_t));
                 else
-                    wp = RTOS_Malloc(sizeof(waypoint_t));
+                    wp = RTOS_Malloc_Large(sizeof(waypoint_t)); // thousands of points, keep them out of internal RAM
                 if (wp && first_wp == 0)
                     first_wp = wp;
             } else if (state == TRKPT && strcmp("ele", buf) == 0)

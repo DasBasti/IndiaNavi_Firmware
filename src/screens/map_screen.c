@@ -233,7 +233,7 @@ void load_waypoint_file(char* filename)
         height_min = __FLT_MAX__;
         height_max = 0;
         if (gpx_data->waypoints_num) {
-            height_graph_data = RTOS_Malloc(sizeof(graph_point_t) * gpx_data->waypoints_num);
+            height_graph_data = RTOS_Malloc_Large(sizeof(graph_point_t) * gpx_data->waypoints_num);
             if (height_graph_data)
                 height_graph_data_len = gpx_data->waypoints_num;
         }

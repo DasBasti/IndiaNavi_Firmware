@@ -154,7 +154,7 @@ error_code_t loadFile(async_file_t* file)
         if (FR_OK == res) {
             size_t to_read = fno.fsize;
             if (!file->dest) {
-                file->dest = RTOS_Malloc(to_read + 1);
+                file->dest = RTOS_Malloc_Large(to_read + 1);
                 file->dest_size = file->dest ? to_read + 1 : 0;
             }
             if (to_read > file->dest_size - 1) {
@@ -210,7 +210,7 @@ error_code_t createFileBuffer(async_file_t* file)
     FRESULT fres = f_stat(file->filename, &fno);
     giveSD();
     if (FR_OK == fres) {
-        file->dest = RTOS_Malloc(fno.fsize + 1);
+        file->dest = RTOS_Malloc_Large(fno.fsize + 1);
         if (!file->dest)
             return PM_FAIL;
         file->dest_size = fno.fsize + 1;
