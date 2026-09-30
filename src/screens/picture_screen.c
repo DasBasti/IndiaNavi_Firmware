@@ -15,11 +15,17 @@ static const char* fn = "//lost.raw";
 static uint8_t* splash_image_data;
 image_t* splash;
 
+#define SPLASH_WIDTH 448
+#define SPLASH_HEIGHT 600
+#define SPLASH_DATA_SIZE (SPLASH_WIDTH * SPLASH_HEIGHT / 2)
+
 void picture_screen_free()
 {
     free_all_render_pipelines();
     RTOS_Free(splash);
+    splash = NULL;
     RTOS_Free(splash_image_data);
+    splash_image_data = NULL;
 }
 
 void picture_set_image_path(const char *path)
@@ -30,7 +36,7 @@ void picture_set_image_path(const char *path)
 void picture_screen_create(const display_t* display)
 {
     FIL t_img = {0};
-    uint32_t br;
+    UINT br = 0;
     FILINFO t_img_nfo;
     FRESULT res = FR_NOT_READY;
     
@@ -38,31 +44,33 @@ void picture_screen_create(const display_t* display)
 
     /* Create splash screen image component from splash.raw on SD card*/
     waitForSDInit();
-    if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
+    if (sd_semaphore && xSemaphoreTake(sd_semaphore, SD_MUTEX_TIMEOUT)) {
         // Check file info
         res = f_stat((const TCHAR*)fn, &t_img_nfo);
-        ESP_LOGI(__func__, "Load image %s is: %d (%ld)", fn, res, t_img_nfo.fsize);
-        if (FR_OK == res) {
-            // Allocate file size
-            splash_image_data = RTOS_Malloc(t_img_nfo.fsize);
-        }
-        ESP_LOGI(__func__, "Load image to: %p", splash_image_data);
-        res = f_open(&t_img, (const TCHAR*)fn, FA_READ);
-        ESP_LOGI(__func__, "Image is opened %d: %p", res, splash_image_data);
-        if (FR_OK == res && splash_image_data != 0) {
-            res = f_read(&t_img,
-                splash_image_data, t_img_nfo.fsize,
-                (UINT*)&br);
-            f_close(&t_img);
-        } else {
-            ESP_LOGI(__func__, "Error from SD card: %d", res);
+        ESP_LOGI(__func__, "Load image %s is: %d", fn, res);
+        // the renderer reads a full screen image, smaller files would be read out of bounds
+        if (FR_OK == res && t_img_nfo.fsize >= SPLASH_DATA_SIZE) {
+            splash_image_data = RTOS_Malloc(SPLASH_DATA_SIZE);
+            ESP_LOGI(__func__, "Load image to: %p", splash_image_data);
+            if (splash_image_data) {
+                res = f_open(&t_img, (const TCHAR*)fn, FA_READ);
+                if (FR_OK == res) {
+                    res = f_read(&t_img, splash_image_data, SPLASH_DATA_SIZE, &br);
+                    f_close(&t_img);
+                }
+                if (FR_OK != res || br != SPLASH_DATA_SIZE) {
+                    ESP_LOGI(__func__, "Error from SD card: %d", res);
+                    RTOS_Free(splash_image_data);
+                    splash_image_data = NULL;
+                }
+            }
         }
         xSemaphoreGive(sd_semaphore);
     }
 
-    splash = image_create(splash_image_data, 0, 0, 448, 600);
-
-    add_to_render_pipeline(image_render, splash, RL_MAP);
+    splash = image_create(splash_image_data, 0, 0, SPLASH_WIDTH, SPLASH_HEIGHT);
+    if (splash)
+        add_to_render_pipeline(image_render, splash, RL_MAP);
 
     set_screen_free_function(picture_screen_free);
 }

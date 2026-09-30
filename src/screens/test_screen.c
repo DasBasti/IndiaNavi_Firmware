@@ -140,6 +140,11 @@ error_code_t update_task_info_label(const display_t* dsp, void* comp)
                 ulStatsAsPercentage = pxTaskStatusArray[x].ulRunTimeCounter / ulTotalRunTime;
 
                 uint8_t tabs = (strlen(pxTaskStatusArray[x].pcTaskName) + 1) / 8;
+                if (tabs > 1)
+                    tabs = 1; // only two formats available
+                // stop if the next line might not fit into task_info
+                if (pcWriteBuffer + 64 > task_info + sizeof(task_info))
+                    break;
 
                 if (ulStatsAsPercentage > 0UL) {
                     sprintf(pcWriteBuffer, tab_format[tabs],

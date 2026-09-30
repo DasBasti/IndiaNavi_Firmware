@@ -69,12 +69,31 @@ static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
 
 error_code_t do_background_ota(void* pvParameter)
 {
+    char url[256];
+    error_code_t result = PM_FAIL;
+
+    // Get URL from OTA file. No file means no update requested.
+    async_file_t AFILE = { 0 };
+    async_file_t* ota = &AFILE;
+    ota->filename = "//OTA";
+    ota->dest = url;
+    ota->dest_size = sizeof(url);
+    if (loadFile(ota) != PM_OK) {
+        ESP_LOGD(TAG, "No OTA file");
+        return NOT_NEEDED;
+    }
+    // only the first line contains the url
+    readline_n(url, url, sizeof(url));
+
     ESP_LOGI(TAG, "Starting OTA...");
 
-    ESP_ERROR_CHECK(esp_tls_init_global_ca_store());
+    if (esp_tls_init_global_ca_store() != ESP_OK) {
+        ESP_LOGE(TAG, "Can not init CA store");
+        return PM_FAIL;
+    }
     if (esp_tls_set_global_ca_store((const unsigned char*)server_cert_pem_start, server_cert_pem_end - server_cert_pem_start) != ESP_OK) {
         ESP_LOGE(TAG, "Server certificate not found");
-        return PM_FAIL;
+        goto out;
     }
 
     esp_http_client_config_t http_config = {
@@ -87,28 +106,13 @@ error_code_t do_background_ota(void* pvParameter)
     esp_https_ota_config_t ota_config = {
         .http_config = &http_config,
     };
-    async_file_t AFILE = { 0 };
-    async_file_t* ota = &AFILE;
-    ota->filename = "//OTA";
-    ota->loaded = false;
-    loadFile(ota);
-    uint8_t timeout = 0;
-    while (!ota->loaded) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-        if (timeout++ > 100) {
-            ESP_LOGI(TAG, "timeout loading OTA url");
-            return TIMEOUT;
-        }
-    }
 
     esp_err_t ret = ESP_FAIL;
-
-    // Get length of first line in OAT file
-    char* url = RTOS_Malloc(countline(ota->dest));
-    readline(ota->dest, url);
-    http_config.url = url;
-    ESP_LOGI(TAG, "Download from: %s", http_config.url);
-    ret = esp_https_ota(&ota_config);
+    if (url[0]) {
+        http_config.url = url;
+        ESP_LOGI(TAG, "Download from: %s", http_config.url);
+        ret = esp_https_ota(&ota_config);
+    }
     if (ret != ESP_OK) {
         http_config.url = FIRMWARE_UPGRADE_URL;
         ESP_LOGI(TAG, "Download from internal url: %s", http_config.url);
@@ -118,9 +122,11 @@ error_code_t do_background_ota(void* pvParameter)
     if (ret == ESP_OK) {
         deleteFile(ota);
         ESP_LOGI(TAG, "Firmware upgrade succeded OTA file deleted, press reset to restart.");
-        return PM_OK;
+        result = PM_OK;
     } else {
         ESP_LOGE(TAG, "Firmware upgrade failed: %d", ret);
     }
-    return PM_FAIL;
+out:
+    esp_tls_free_global_ca_store();
+    return result;
 }

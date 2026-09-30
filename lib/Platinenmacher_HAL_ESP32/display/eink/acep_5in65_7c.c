@@ -209,6 +209,8 @@ display_t *ACEP_5IN65_Init(acep_5in65_dev_t* eink_dev, display_rotation_t rotati
 		disp = display_init(ACEP_5IN65_WIDTH, ACEP_5IN65_HEIGHT, 4, rotation);
 		break;
 	}
+	if (!disp)
+		goto display_init_failed;
 	/* assign driver functions */
 	disp->update = ACEP_5IN65_Commit_Fb;
 	disp->write_pixel = ACEP_5IN65_Write;
@@ -269,6 +271,7 @@ display_t *ACEP_5IN65_Init(acep_5in65_dev_t* eink_dev, display_rotation_t rotati
 display_busyhigh_timeout:
 	spi_device_release_bus(spi);
 	RTOS_Free(disp);
+display_init_failed:
 	spi_bus_remove_device(spi);
 spi_bus_add_device_failed:
 	spi_bus_free(dev->host);
@@ -297,15 +300,20 @@ static error_code_t ACEP_5IN65_Display(uint8_t *image)
 	}
 	ACEP_5IN65_SendCommand(0x04); //0x04
 	if (ACEP_5IN65_BusyHigh() == TIMEOUT)
-		return TIMEOUT;
+		goto timeout;
 	ACEP_5IN65_SendCommand(0x12); //0x12
 	if (ACEP_5IN65_BusyHigh() == TIMEOUT)
-		return TIMEOUT;
+		goto timeout;
 	ACEP_5IN65_SendCommand(0x02); //0x02
 	spi_device_release_bus(spi);
 	if (ACEP_5IN65_BusyLow() == TIMEOUT)
 		return TIMEOUT;
 	return PM_OK;
+
+timeout:
+	// the bus has to be released or the next update blocks forever
+	spi_device_release_bus(spi);
+	return TIMEOUT;
 }
 
 /******************************************************************************

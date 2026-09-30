@@ -17,6 +17,7 @@
 #include <esp_log.h>
 #include <sys/time.h>
 
+#include "helper.h"
 #include "l96.h"
 #include "nmea_parser.h"
 #include "pmtk_parser.h"
@@ -118,13 +119,15 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         gps_ticks++;
         if (gpstrack_queue != NULL) {
             log_position_t log_position = { .position = current_position, .timestamp = mktime(&t) };
-            xQueueSendFromISR(gpstrack_queue, &log_position, 0);
+            // called from the parser task, not from an ISR
+            xQueueSend(gpstrack_queue, &log_position, 0);
         }
         break;
     case GPS_UNKNOWN:
         /* print unknown statements */
         char message_buf[255];
-        strncpy(message_buf, (char*)event_data, 255);
+        strncpy(message_buf, (char*)event_data, sizeof(message_buf) - 1);
+        message_buf[sizeof(message_buf) - 1] = 0;
         ESP_LOGW(TAG, "Unknown statement:%s", message_buf);
         break;
     default:
@@ -138,12 +141,19 @@ void gps_stop_parser()
     if (nmea_hdl) {
         nmea_parser_remove_handler(nmea_hdl, gps_event_handler);
         nmea_parser_deinit(nmea_hdl);
+        nmea_hdl = NULL;
     }
 }
 
 void gps_enter_standby()
 {
-    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_STANDBY));
+    if (!nmea_hdl) {
+        ESP_LOGW(TAG, "parser not running, can not enter standby");
+        return;
+    }
+    esp_err_t err = nmea_send_command(nmea_hdl, L96_ENTER_STANDBY);
+    if (err != ESP_OK)
+        ESP_LOGE(TAG, "enter standby failed: %s", esp_err_to_name(err));
 }
 
 void StartGpsTask(void const* argument)
@@ -171,6 +181,7 @@ void StartGpsTask(void const* argument)
     async_file_t* tz_file = &AFILE;
     tz_file->filename = "//TIMEZONE";
     tz_file->dest = timezone_file;
+    tz_file->dest_size = sizeof(timezone_file);
     tz_file->loaded = false;
     loadFile(tz_file);
     uint8_t delay = 0;
@@ -183,7 +194,7 @@ void StartGpsTask(void const* argument)
     ESP_LOGI(TAG, "Load timezone information loaded");
     if (tz_file->loaded) {
         char tz[50] = { 0 };
-        readline(timezone_file, tz);
+        readline_n(timezone_file, tz, sizeof(tz));
         setenv("TZ", tz, 1);
         ESP_LOGI(TAG, "Set timezone to: %s", tz);
     } else {
@@ -211,11 +222,16 @@ void StartGpsTask(void const* argument)
     };
     /* init NMEA parser library */
     nmea_hdl = nmea_parser_init(&config);
-    /* register event handler for NMEA parser library */
-    nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
-    // send initial commands to GPS module
-    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO));
-    ESP_ERROR_CHECK(nmea_send_command(nmea_hdl, L96_ENTER_GLP));
+    if (nmea_hdl) {
+        /* register event handler for NMEA parser library */
+        nmea_parser_add_handler(nmea_hdl, gps_event_handler, NULL);
+        // send initial commands to GPS module
+        if (nmea_send_command(nmea_hdl, L96_SEARCH_GPS_GLONASS_GALILEO) != ESP_OK
+            || nmea_send_command(nmea_hdl, L96_ENTER_GLP) != ESP_OK)
+            ESP_LOGE(TAG, "Sending initial commands failed");
+    } else {
+        ESP_LOGE(TAG, "NMEA parser init failed");
+    }
 
     async_file_t* gps_track = &BFILE;
     gps_track->filename = "//log.gpx";
@@ -241,8 +257,10 @@ void StartGpsTask(void const* argument)
         // struct tm timeinfo;
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        struct tm* timeinfo = localtime(&tv.tv_sec);
-        if (clock_label && minute != timeinfo->tm_min) {
+        struct tm timeinfo;
+        localtime_r(&tv.tv_sec, &timeinfo);
+        if (clock_label && minute != timeinfo.tm_min) {
+            minute = timeinfo.tm_min;
             trigger_rendering();
         }
 
@@ -254,7 +272,7 @@ void StartGpsTask(void const* argument)
         log_position_t position;
         char trkpt[] = "<trkpt lat=\"%f\" lon=\"%f\"><ele>%f</ele><time>%s</time></trkpt>\n";
         char trkpt_buf[255];
-        if (gps_track->loaded) {
+        if (gps_track->loaded && gpstrack_queue) {
             while (xQueueReceive(gpstrack_queue, &position, 0) == pdTRUE) {
                 if (position.position.fix == GPS_FIX_GPS) {
                     ctime_r(&position.timestamp, timeString);

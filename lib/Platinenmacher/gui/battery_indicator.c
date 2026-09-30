@@ -36,6 +36,8 @@ void battery_indicator_set_level(battery_indicator_t* battery, uint8_t level)
 battery_indicator_t* create_battery_indicator(int16_t left, int16_t top, uint8_t level, bool charging, font_t* font, uint8_t* batlevels, uint8_t** batlevel_images, size_t num_levels)
 {
     battery_indicator_t* battery = RTOS_Malloc(sizeof(battery_indicator_t));
+    if (!battery)
+        return NULL;
     battery->level = level;
     battery->num_levels = num_levels;
     battery->batlevels = batlevels;

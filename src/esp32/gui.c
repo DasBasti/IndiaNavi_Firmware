@@ -24,6 +24,9 @@
 
 #include <icons_32.h>
 
+#define GPS_VIEW_STRLEN 5 // number of satellites
+#define CLOCK_STRLEN 6    // "hh:mm"
+
 #ifndef INITIAL_APP_MODE
 #    define INITIAL_APP_MODE APP_MODE_TURN_OFF
 #endif
@@ -43,7 +46,7 @@ extern void vTaskGetRunTimeStats(char* pcWriteBuffer);
 
 render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
-static uint8_t render_needed = 0;
+static volatile uint8_t render_needed = 0;
 
 app_mode_t _app_mode = INITIAL_APP_MODE;
 font_t f8x8, f8x16;
@@ -86,6 +89,7 @@ render_t* add_to_render_pipeline(error_code_t (*render)(const display_t* dsp, vo
     }
     rd->render = render;
     rd->comp = comp;
+    rd->next = NULL;
 
     if (render_pipeline[layer] == NULL) {
         render_pipeline[layer] = rd;
@@ -106,7 +110,8 @@ void free_render_pipeline(enum RenderLayer layer)
         r = r->next;
         RTOS_Free(rn);
     }
-    render_pipeline[layer] = 0;
+    render_pipeline[layer] = NULL;
+    render_last[layer] = NULL;
 }
 
 void free_all_render_pipelines()
@@ -133,15 +138,18 @@ static label_t* create_icon_with_text(const display_t* dsp, uint8_t* icon_data,
 
     image_t* img = image_create(icon_data, left, top, ICON_SIZE,
         ICON_SIZE);
+    if (!img)
+        return NULL;
 
     label_t* il = label_create(text, font,
         img->box.left + img->box.width + margin_left, top, 0, 0);
+    if (!il) {
+        RTOS_Free(img);
+        return NULL;
+    }
     il->child = img;
     label_shrink_to_text(il);
     il->alignVertical = MIDDLE;
-    add_to_render_pipeline(label_render, il, RL_GUI_ELEMENTS);
-    // render image after Label is rendered
-    add_to_render_pipeline(image_render, img, RL_GUI_ELEMENTS);
     return il;
 }
 
@@ -151,11 +159,12 @@ static label_t* create_icon_with_text(const display_t* dsp, uint8_t* icon_data,
 error_code_t updateTimeText(const display_t* dsp, void* comp)
 {
     struct timeval tv;
+    struct tm timeinfo;
     gettimeofday(&tv, NULL);
-    struct tm* timeinfo = localtime(&tv.tv_sec);
+    localtime_r(&tv.tv_sec, &timeinfo);
     xSemaphoreTake(print_semaphore, portMAX_DELAY);
-    sprintf(clock_label->text, "%02d:%02d", timeinfo->tm_hour,
-        timeinfo->tm_min);
+    snprintf(clock_label->text, CLOCK_STRLEN, "%02d:%02d", timeinfo.tm_hour,
+        timeinfo.tm_min);
     xSemaphoreGive(print_semaphore);
     return PM_OK;
 }
@@ -169,10 +178,33 @@ static int sprint_battery_percent(char* buffer, const char* format, ...)
     return 0;
 }
 
-static void create_top_bar(const display_t* dsp)
+static label_t* top_bar;
+
+/*
+ * Add the icon label and its image to the render pipeline
+ */
+static void add_icon_with_text_to_pipeline(label_t* il)
 {
+    if (!il)
+        return;
+    add_to_render_pipeline(label_render, il, RL_GUI_ELEMENTS);
+    // render image after Label is rendered
+    add_to_render_pipeline(image_render, il->child, RL_GUI_ELEMENTS);
+}
+
+/*
+ * Create the top bar components once. The components are shared with other
+ * tasks (battery, SD, GPS status) and therefore never freed.
+ */
+static error_code_t create_top_bar_components(const display_t* dsp)
+{
+    if (top_bar)
+        return PM_OK;
+
     label_t* sb = label_create("", &f8x8, 0, 0, dsp->size.width,
         ICON_SIZE + margin_vertical);
+    if (!sb)
+        return PM_FAIL;
 
     sb->borderColor = BLACK;
     sb->borderWidth = 1;
@@ -180,37 +212,66 @@ static void create_top_bar(const display_t* dsp)
     sb->alignHorizontal = CENTER;
     sb->alignVertical = MIDDLE;
     sb->backgroundColor = WHITE;
-    add_to_render_pipeline(label_render, sb, RL_GUI_BACKGROUND);
 
-    battery_indicator = create_battery_indicator(sb->box.left + margin_left, margin_top, current_battery_level, is_charging, &f8x8, batlevels, batlevel_images, batlevel_num);
-    battery_indicator->save_printf = sprint_battery_percent;
-    save_sprintf(battery_indicator->label_text, "...%%");
-    label_shrink_to_text(&battery_indicator->label);
-    add_to_render_pipeline(label_render, &battery_indicator->label, RL_GUI_ELEMENTS);
-    // render image after Label is rendered
-    add_to_render_pipeline(image_render, &battery_indicator->image, RL_GUI_ELEMENTS);
+    battery_indicator_t* bat = create_battery_indicator(sb->box.left + margin_left, margin_top, current_battery_level, is_charging, &f8x8, batlevels, batlevel_images, batlevel_num);
+    if (!bat) {
+        RTOS_Free(sb);
+        return PM_FAIL;
+    }
+    bat->save_printf = sprint_battery_percent;
+    save_sprintf(bat->label_text, "...%%");
+    label_shrink_to_text(&bat->label);
 
     north_indicator_label = create_icon_with_text(dsp, norden,
-        battery_indicator->label.box.left + battery_indicator->label.box.width + margin_horizontal,
+        bat->label.box.left + bat->label.box.width + margin_horizontal,
         margin_top, "", &f8x8);
 
-    char* GPSView = RTOS_Malloc(sizeof(char) * 5);
+    char* GPSView = RTOS_Malloc(GPS_VIEW_STRLEN);
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
         dsp->size.width - ICON_SIZE - (2 * margin_right) - 16, margin_top, GPSView, &f8x8);
 
-    sd_indicator_label = create_icon_with_text(dsp, noSD,
-        gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
-        &f8x8);
+    if (gps_indicator_label)
+        sd_indicator_label = create_icon_with_text(dsp, noSD,
+            gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
+            &f8x8);
 
 #ifdef CLOCK
     /* global clock label. */
-    char* time = RTOS_Malloc(6);
-    clock_label = label_create(time, &f8x8, sb->box.left, sb->box.top,
-        sb->box.width, sb->box.height);
-    clock_label->alignVertical = MIDDLE;
-    clock_label->alignHorizontal = CENTER;
-    clock_label->onBeforeRender = updateTimeText;
-    add_to_render_pipeline(label_render, clock_label, RL_GUI_ELEMENTS);
+    char* time = RTOS_Malloc(CLOCK_STRLEN);
+    if (time) {
+        clock_label = label_create(time, &f8x8, sb->box.left, sb->box.top,
+            sb->box.width, sb->box.height);
+        if (clock_label) {
+            clock_label->alignVertical = MIDDLE;
+            clock_label->alignHorizontal = CENTER;
+            clock_label->onBeforeRender = updateTimeText;
+        } else {
+            RTOS_Free(time);
+        }
+    }
+#endif
+    battery_indicator = bat;
+    top_bar = sb;
+    return PM_OK;
+}
+
+static void create_top_bar(const display_t* dsp)
+{
+    if (create_top_bar_components(dsp) != PM_OK) {
+        ESP_LOGE(TAG, "Can not create top bar");
+        return;
+    }
+
+    add_to_render_pipeline(label_render, top_bar, RL_GUI_BACKGROUND);
+    add_to_render_pipeline(label_render, &battery_indicator->label, RL_GUI_ELEMENTS);
+    // render image after Label is rendered
+    add_to_render_pipeline(image_render, &battery_indicator->image, RL_GUI_ELEMENTS);
+    add_icon_with_text_to_pipeline(north_indicator_label);
+    add_icon_with_text_to_pipeline(gps_indicator_label);
+    add_icon_with_text_to_pipeline(sd_indicator_label);
+#ifdef CLOCK
+    if (clock_label)
+        add_to_render_pipeline(label_render, clock_label, RL_GUI_ELEMENTS);
 #endif
 }
 
@@ -273,16 +334,30 @@ void set_post_rendering_hook(error_code_t (*cb)(size_t arg), size_t arg)
     _post_render_hook = cb;
 }
 
+static error_code_t start_screen_transition_hook(size_t arg)
+{
+    (void)arg;
+    gui_set_app_mode(APP_START_SCREEN_TRANSITION);
+    return PM_OK;
+}
+
 static error_code_t deep_sleep_post_render_hook(size_t arg)
 {
     (void)arg;
     return enter_deep_sleep_if_not_charging();
 }
 
+/**
+ * Free the current screen and remove all components from the render pipelines
+ */
 void free_screen(void)
 {
-    if (free_screen_func)
-        free_screen_func();
+    void (*func)(void) = free_screen_func;
+    // clear first, a screen must never be freed twice
+    free_screen_func = NULL;
+    if (func)
+        func();
+    free_all_render_pipelines();
 }
 /**
  * Set screen free function
@@ -299,10 +374,12 @@ void app_screen(const display_t* dsp)
 {
     switch (_app_mode) {
     case APP_START_SCREEN:
+        free_screen();
         picture_screen_create(dsp);
-        set_post_rendering_hook(gui_set_app_mode, APP_START_SCREEN_TRANSITION);
+        set_post_rendering_hook(start_screen_transition_hook, 0);
         break;
     case APP_TEST_SCREEN:
+        free_screen();
         create_top_bar(dsp);
         test_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
@@ -315,12 +392,13 @@ void app_screen(const display_t* dsp)
         gui_set_app_mode(APP_MODE_GPS_CREATE);
         __attribute__((fallthrough));
     case APP_MODE_GPS_CREATE:
+        free_screen();
         create_top_bar(dsp);
         map_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
         break;
     case APP_MODE_TURN_OFF:
-        free_all_render_pipelines();
+        free_screen();
         off_screen_create(dsp);
         set_post_rendering_hook(deep_sleep_post_render_hook, 0);
         gps_enter_standby();

@@ -17,6 +17,8 @@ char min_str[10], max_str[10];
 graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, graph_point_t* data, uint16_t data_len, font_t* font)
 {
     graph_t* graph = RTOS_Malloc(sizeof(graph_t));
+    if (!graph)
+        return NULL;
     graph->box.left = left;
     graph->box.top = top;
     graph->box.width = width;
@@ -43,7 +45,7 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         display_rect_fill(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, graph->background_color);
     display_rect_draw(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, BLACK);
 
-    if (graph->data_len < 2)
+    if (!graph->data || graph->data_len < 2 || graph->max <= graph->min)
         return OUT_OF_BOUNDS;
 
     uint16_t inner_box_top = graph->box.top + 1;
@@ -69,7 +71,7 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         last_y = new_y;
     }
 
-    if (graph->current_position) {
+    if (graph->current_position && graph->current_position < graph->data_len) {
         display_circle_fill(dsp,
             inner_box_left + (uint16_t)(graph->current_position * x_step),
             inner_box_top + inner_box_height - (uint16_t)(ceilf(graph->data[graph->current_position].value - graph->min) * y_step),

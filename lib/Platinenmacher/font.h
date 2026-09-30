@@ -32,6 +32,9 @@ typedef struct
 } font_t;
 
 
+/* all fonts contain glyphs from asciiOffset up to this character */
+#define FONT_LAST_CHAR 0x7F
+
 error_code_t font_load_from_array(font_t *font, const uint8_t *data, const char *name);
 uint32_t font_text_pixel_width(font_t *font, const char *text);
 uint32_t font_text_pixel_height(font_t *font, const char *text);

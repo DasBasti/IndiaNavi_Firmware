@@ -372,7 +372,7 @@ static esp_err_t parse_item(esp_gps_t* esp_gps)
         else {
             esp_gps->cur_statement = STATEMENT_UNKNOWN;
             for (uint8_t i = 0; i < GPS_MAX_PARSER_PLUGINS; i++)
-                if (esp_gps->plugins != NULL && esp_gps->plugins[i].detect) {
+                if (esp_gps->plugins[i].detect) {
                     if (ESP_OK == esp_gps->plugins[i].detect(esp_gps)) {
                         esp_gps->cur_statement = STATEMENT_PLUGIN + i;
                     }
@@ -414,14 +414,31 @@ static esp_err_t parse_item(esp_gps_t* esp_gps)
         parse_vtg(esp_gps);
     }
 #endif
-    else if (esp_gps->cur_statement >= STATEMENT_PLUGIN) {
-        err = esp_gps->plugins[esp_gps->cur_statement - STATEMENT_PLUGIN].parse(esp_gps);
+    else if (esp_gps->cur_statement >= STATEMENT_PLUGIN
+        && esp_gps->cur_statement < STATEMENT_PLUGIN + GPS_MAX_PARSER_PLUGINS) {
+        const nmea_parser_plugin_t* plugin = &esp_gps->plugins[esp_gps->cur_statement - STATEMENT_PLUGIN];
+        if (plugin->parse)
+            err = plugin->parse(esp_gps);
     }
     else {
         err = ESP_FAIL;
     }
 out:
     return err;
+}
+
+/**
+ * @brief Append one character to the current item
+ *
+ * Characters that do not fit into item_str are dropped, the item is
+ * always \0 terminated.
+ */
+static inline void item_append(esp_gps_t* esp_gps, char c)
+{
+    if (esp_gps->item_pos < NMEA_MAX_STATEMENT_ITEM_LENGTH - 1) {
+        esp_gps->item_str[esp_gps->item_pos++] = c;
+    }
+    esp_gps->item_str[esp_gps->item_pos] = '\0';
 }
 
 /**
@@ -446,8 +463,7 @@ static esp_err_t gps_decode(esp_gps_t* esp_gps, size_t len)
             esp_gps->sat_count = 0;
             esp_gps->sat_num = 0;
             /* Add character to item */
-            esp_gps->item_str[esp_gps->item_pos++] = *d;
-            esp_gps->item_str[esp_gps->item_pos] = '\0';
+            item_append(esp_gps, *d);
         }
         /* Detect item separator character */
         else if (*d == ',') {
@@ -536,8 +552,7 @@ static esp_err_t gps_decode(esp_gps_t* esp_gps, size_t len)
                 esp_gps->crc ^= (uint8_t)(*d);
             }
             /* Add character to item */
-            esp_gps->item_str[esp_gps->item_pos++] = *d;
-            esp_gps->item_str[esp_gps->item_pos] = '\0';
+            item_append(esp_gps, *d);
         }
         /* Process next character */
         d++;
@@ -554,8 +569,16 @@ static void esp_handle_uart_pattern(esp_gps_t* esp_gps)
 {
     int pos = uart_pattern_pop_pos(esp_gps->uart_port);
     if (pos != -1) {
-        /* read one line(include '\n') */
-        int read_len = uart_read_bytes(esp_gps->uart_port, esp_gps->buffer, pos + 1, 100 / portTICK_PERIOD_MS);
+        /* read one line(include '\n'), leave space for the terminating \0 */
+        int len = pos + 1;
+        if (len > NMEA_PARSER_RUNTIME_BUFFER_SIZE - 1) {
+            ESP_LOGW(GPS_TAG, "Statement too long (%d), dropped", len);
+            uart_flush_input(esp_gps->uart_port);
+            return;
+        }
+        int read_len = uart_read_bytes(esp_gps->uart_port, esp_gps->buffer, len, 100 / portTICK_PERIOD_MS);
+        if (read_len < 0)
+            read_len = 0;
         /* make sure the line is a standard string */
         esp_gps->buffer[read_len] = '\0';
         /* Send new line to handle */
@@ -694,8 +717,8 @@ nmea_parser_handle_t nmea_parser_init(const nmea_parser_config_t* config)
         ESP_LOGE(GPS_TAG, "create event loop faild");
         goto err_eloop;
     }
-    /* Set plugins */
-    esp_gps->plugins = config->plugins;
+    /* Set plugins. Copy them, the config may live on the callers stack */
+    memcpy(esp_gps->plugins, config->plugins, sizeof(esp_gps->plugins));
 
     /* Create NMEA Parser task */
     BaseType_t err = xTaskCreate(
@@ -734,6 +757,8 @@ err_gps:
 esp_err_t nmea_parser_deinit(nmea_parser_handle_t nmea_hdl)
 {
     esp_gps_t* esp_gps = (esp_gps_t*)nmea_hdl;
+    if (!esp_gps)
+        return ESP_ERR_INVALID_ARG;
     vTaskDelete(esp_gps->tsk_hdl);
     esp_event_loop_delete(esp_gps->event_loop_hdl);
     esp_err_t err = uart_driver_delete(esp_gps->uart_port);
@@ -757,6 +782,8 @@ esp_err_t nmea_parser_deinit(nmea_parser_handle_t nmea_hdl)
 esp_err_t nmea_parser_add_handler(nmea_parser_handle_t nmea_hdl, esp_event_handler_t event_handler, void* handler_args)
 {
     esp_gps_t* esp_gps = (esp_gps_t*)nmea_hdl;
+    if (!esp_gps)
+        return ESP_ERR_INVALID_ARG;
     return esp_event_handler_register_with(esp_gps->event_loop_hdl, ESP_NMEA_EVENT, ESP_EVENT_ANY_ID,
         event_handler, handler_args);
 }
@@ -774,6 +801,8 @@ esp_err_t nmea_parser_add_handler(nmea_parser_handle_t nmea_hdl, esp_event_handl
 esp_err_t nmea_parser_remove_handler(nmea_parser_handle_t nmea_hdl, esp_event_handler_t event_handler)
 {
     esp_gps_t* esp_gps = (esp_gps_t*)nmea_hdl;
+    if (!esp_gps)
+        return ESP_ERR_INVALID_ARG;
     return esp_event_handler_unregister_with(esp_gps->event_loop_hdl, ESP_NMEA_EVENT, ESP_EVENT_ANY_ID, event_handler);
 }
 
@@ -791,10 +820,10 @@ esp_err_t nmea_parser_remove_handler(nmea_parser_handle_t nmea_hdl, esp_event_ha
 esp_err_t nmea_send_command(nmea_parser_handle_t nmea_hdl, char* cmd)
 {
     esp_gps_t* esp_gps = (esp_gps_t*)nmea_hdl;
-    size_t length = strlen(cmd);
     // break if parser task is not running
-    if (!esp_gps->tsk_hdl)
+    if (!esp_gps || !cmd || !esp_gps->tsk_hdl)
         return ESP_ERR_INVALID_STATE;
+    size_t length = strlen(cmd);
 
     if (uart_write_bytes(esp_gps->uart_port, cmd, length) != length)
         return ESP_ERR_NO_MEM;

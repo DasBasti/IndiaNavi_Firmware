@@ -21,8 +21,10 @@
 #include <mdns.h>
 
 #include "gui.h"
+#include "helper.h"
 #include "tasks.h"
 #include <icons_32.h>
+#include <string.h>
 char wifi_file[32 + 1 + 64];
 wifi_config_t wifi_config;
 static int s_retry_num = 0;
@@ -32,7 +34,10 @@ static async_file_t AFILE;
 
 static esp_netif_t* wifi_netif = 0;
 
-static bool _is_connected = false;
+static volatile bool _is_connected = false;
+static volatile bool s_stop_requested = false;
+
+#define WIFI_TASK_STACK_SIZE (1024 * 8)
 
 uint8_t* wifi_indicator_image_data = WIFI_0;
 
@@ -46,6 +51,7 @@ static EventGroupHandle_t s_wifi_event_group;
 
 wifi_ap_record_t sta_record;
 void StartOTATask(void* pvParameter);
+void StartWiFiTask(void const* argument);
 
 static void event_handler(void* arg, esp_event_base_t event_base,
     int32_t event_id, void* event_data)
@@ -57,21 +63,24 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             esp_wifi_connect();
             s_retry_num++;
             ESP_LOGI(TAG, "retry to connect to the AP");
-        } else {
+        } else if (s_wifi_event_group) {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
+        _is_connected = false;
         ESP_LOGI(TAG, "connect to the AP fail");
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         _is_connected = true;
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        if (s_wifi_event_group)
+            xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
 
 void start_mdns_service()
 {
+    mdns_free(); // allow restarting the service after a reconnect
     // initialize mDNS service
     esp_err_t err = mdns_init();
     if (err) {
@@ -100,7 +109,7 @@ static error_code_t updateConnectionInfo()
     }
 
     const ip_addr_t* ip = dns_getserver(0);
-    if (ip->addr)
+    if (ip && ip->addr)
         return PM_OK;
 
     return PM_FAIL;
@@ -139,26 +148,91 @@ esp_err_t startDownloadFile(void* handler, const char* url)
     return err;
 }
 
+/**
+ * Start the WiFi task if it is not running
+ */
+void wifi_start_task(void)
+{
+    if (wifiTask_h)
+        return;
+    s_stop_requested = false;
+    if (xTaskCreate((TaskFunction_t)&StartWiFiTask, "wifi", WIFI_TASK_STACK_SIZE, NULL, 8, &wifiTask_h) != pdPASS) {
+        ESP_LOGE(TAG, "Can not create WiFi task");
+        wifiTask_h = NULL;
+    }
+}
+
+/**
+ * Ask the WiFi task to shut down WiFi and delete itself.
+ *
+ * The task is never deleted from outside, it could hold the SD mutex
+ * or HTTP resources at that moment.
+ */
+void wifi_request_stop(void)
+{
+    TaskHandle_t task = wifiTask_h;
+    if (!task)
+        return;
+    s_stop_requested = true;
+    xTaskNotifyGive(task);
+}
+
+/**
+ * Wait for ms or until a stop is requested.
+ *
+ * @return true if the task should stop
+ */
+static bool wait_or_stop(uint32_t ms)
+{
+    if (s_stop_requested)
+        return true;
+    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ms));
+    return s_stop_requested;
+}
+
 void StartWiFiTask(void const* argument)
 {
+    esp_event_handler_instance_t instance_any_id = NULL;
+    esp_event_handler_instance_t instance_got_ip = NULL;
+    bool wifi_initialized = false;
+
     ESP_LOGI(TAG, "Start");
     waitForSDInit();
     ESP_LOGI(TAG, "Load credentials");
     async_file_t* creds = &AFILE;
+    memset(creds, 0, sizeof(*creds));
     creds->filename = "//WIFI";
     creds->dest = wifi_file;
-    creds->loaded = false;
-    ESP_ERROR_CHECK(loadFile(creds));
+    creds->dest_size = sizeof(wifi_file);
+    if (loadFile(creds) != PM_OK) {
+        ESP_LOGE(TAG, "No WiFi credentials found");
+        goto exit;
+    }
 
     if (!wifi_netif)
         wifi_netif = esp_netif_create_default_wifi_sta();
 
-    char* next = readline(wifi_file, (char*)wifi_config.sta.ssid);
-    readline(next, (char*)wifi_config.sta.password);
+    memset(&wifi_config, 0, sizeof(wifi_config));
+    // one more byte than the field so a too long ssid/password is detected
+    char ssid[sizeof(wifi_config.sta.ssid) + 1];
+    char password[sizeof(wifi_config.sta.password) + 1];
+    char* next = readline_n(wifi_file, ssid, sizeof(ssid));
+    readline_n(next, password, sizeof(password));
+    if (next == NULL)
+        password[0] = 0;
+    if (strlen(ssid) > sizeof(wifi_config.sta.ssid) || strlen(password) >= sizeof(wifi_config.sta.password)) {
+        ESP_LOGE(TAG, "SSID or password too long");
+        goto exit;
+    }
+    // ssid does not need to be \0 terminated if it has 32 characters
+    memcpy(wifi_config.sta.ssid, ssid, strlen(ssid));
+    memcpy(wifi_config.sta.password, password, strlen(password));
+
+    s_wifi_event_group = xEventGroupCreate();
+    if (!s_wifi_event_group)
+        goto exit;
 
     wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
-    esp_event_handler_instance_t instance_any_id;
-    esp_event_handler_instance_t instance_got_ip;
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
         ESP_EVENT_ANY_ID,
         &event_handler,
@@ -170,7 +244,11 @@ void StartWiFiTask(void const* argument)
         NULL,
         &instance_got_ip));
 
-    ESP_ERROR_CHECK(esp_wifi_init(&config));
+    if (esp_wifi_init(&config) != ESP_OK) {
+        ESP_LOGE(TAG, "WiFi init failed");
+        goto exit;
+    }
+    wifi_initialized = true;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
@@ -178,8 +256,7 @@ void StartWiFiTask(void const* argument)
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
-    for (;;) {
-        s_wifi_event_group = xEventGroupCreate();
+    while (!s_stop_requested) {
         _is_connected = false;
 
         /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
@@ -187,32 +264,27 @@ void StartWiFiTask(void const* argument)
          */
         EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            pdTRUE,
             pdFALSE,
-            pdFALSE,
-            portMAX_DELAY);
+            pdMS_TO_TICKS(1000));
 
-        /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-         * happened.
-         */
         if (bits & WIFI_CONNECTED_BIT) {
-            ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-                wifi_config.sta.ssid, wifi_config.sta.password);
+            ESP_LOGI(TAG, "connected to ap SSID:%s", ssid);
             start_mdns_service();
         } else if (bits & WIFI_FAIL_BIT) {
-            ESP_LOGI(TAG, "Failed to connect to SSID:'%s', password:'%s'",
-                wifi_config.sta.ssid, wifi_config.sta.password);
+            ESP_LOGI(TAG, "Failed to connect to SSID:'%s'", ssid);
+            // try again later
+            if (wait_or_stop(30000))
+                break;
+            s_retry_num = 0;
+            esp_wifi_connect();
             continue;
         } else {
-            ESP_LOGE(TAG, "UNEXPECTED EVENT");
+            // timeout, check for stop request
             continue;
         }
 
-        /* The event will not be processed after unregister */
-        ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-        ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-        vEventGroupDelete(s_wifi_event_group);
-
-        while (updateConnectionInfo() == PM_OK) {
+        while (!s_stop_requested && updateConnectionInfo() == PM_OK) {
             static uint8_t last_rssi_state = 0;
             ESP_LOGI(TAG, "ssid is: %d", sta_record.rssi);
             if (sta_record.rssi >= -70 && last_rssi_state != 3) {
@@ -228,10 +300,32 @@ void StartWiFiTask(void const* argument)
                 trigger_rendering();
                 last_rssi_state = 1;
             }
-            vTaskDelay(pdMS_TO_TICKS(30000));
+            if (wait_or_stop(30000))
+                break;
 
             do_background_ota(NULL);
         }
+        mdns_free();
         ESP_LOGI(TAG, "Reconnect....");
     }
+
+exit:
+    ESP_LOGI(TAG, "Stop");
+    _is_connected = false;
+    if (wifi_initialized) {
+        esp_wifi_stop();
+        esp_wifi_deinit();
+    }
+    if (instance_got_ip)
+        esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip);
+    if (instance_any_id)
+        esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id);
+    if (s_wifi_event_group) {
+        vEventGroupDelete(s_wifi_event_group);
+        s_wifi_event_group = NULL;
+    }
+    wifi_indicator_image_data = WIFI_0;
+    s_retry_num = 0;
+    wifiTask_h = NULL;
+    vTaskDelete(NULL);
 }

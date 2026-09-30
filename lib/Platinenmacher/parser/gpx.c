@@ -40,7 +40,7 @@ typedef enum {
 /* Input XML text */
 static gpx_state_e state = SKIP;
 static gpx_cdata_e cdata = NONE;
-static uint32_t waypoint_num = 0;
+static uint32_t waypoint_num = 0; // number of waypoints added
 static waypoint_t* wp = NULL;
 waypoint_t* first_wp = NULL;
 uint32_t (*add_waypoint)(waypoint_t* wp);
@@ -52,8 +52,12 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
 {
     char buf[255];
     for (uint32_t i = 0; i < parser->ntokens; i++) {
-        strncpy(buf, buffer + tokens[i].startpos, tokens[i].endpos - tokens[i].startpos);
-        buf[tokens[i].endpos - tokens[i].startpos] = 0;
+        // tokens can be longer than buf (comments, descriptions), truncate them
+        size_t len = tokens[i].endpos - tokens[i].startpos;
+        if (len > sizeof(buf) - 1)
+            len = sizeof(buf) - 1;
+        memcpy(buf, buffer + tokens[i].startpos, len);
+        buf[len] = 0;
         switch (tokens[i].type) {
         case SXML_STARTTAG:
             if (state == SKIP && strcmp("trk", buf) == 0)
@@ -64,7 +68,10 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
                 state = TRKSEG;
             else if (state == TRKSEG && strcmp("trkpt", buf) == 0) {
                 state = TRKPT;
-                wp = RTOS_Malloc(sizeof(waypoint_t));
+                if (wp) // unfinished waypoint, reuse it
+                    memset(wp, 0, sizeof(waypoint_t));
+                else
+                    wp = RTOS_Malloc(sizeof(waypoint_t));
                 if (wp && first_wp == 0)
                     first_wp = wp;
             } else if (state == TRKPT && strcmp("ele", buf) == 0)
@@ -79,15 +86,20 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
                 state = TRK;
             else if (state == TRKPT && strcmp("trkpt", buf) == 0) {
                 state = TRKSEG;
-                if (wp)
-                    waypoint_num = add_waypoint(wp);
+                if (wp) {
+                    add_waypoint(wp);
+                    waypoint_num++;
+                    wp = NULL; // owned by the waypoint list now
+                }
             } else if (state == ELE && strcmp("ele", buf) == 0)
                 state = TRKPT;
             break;
         case SXML_CHARACTER:
             if (state == TRK_NAME) {
+                RTOS_Free(gpx->track_name);
                 gpx->track_name = RTOS_Malloc(sizeof(char) * (strlen(buf) + 1));
-                strcpy(gpx->track_name, buf);
+                if (gpx->track_name)
+                    strcpy(gpx->track_name, buf);
                 ESP_LOGI("xml_data", "name: %s", buf);
             } else if (state == ELE) {
                 if (wp)
@@ -133,8 +145,15 @@ void process_tokens(const char* buffer, sxmltok_t* tokens, sxml_t* parser)
 gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp))
 {
     add_waypoint = add_waypoint_cb;
-    waypoint_num = 0; // reset waypoints
+    // reset parser state from previous runs
+    waypoint_num = 0;
+    first_wp = NULL;
+    wp = NULL;
+    state = SKIP;
+    cdata = NONE;
     gpx = RTOS_Malloc(sizeof(gpx_t));
+    if (!gpx || !gpx_file_data)
+        return gpx;
     /* Output token table */
     sxmltok_t tokens[128];
 
@@ -161,18 +180,14 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
             parser.ntokens = 0;
             break;
 
-        case SXML_ERROR_BUFFERDRY: 
-            parser.ntokens = 0;
+        case SXML_ERROR_BUFFERDRY:
             /*
-             If position reaches data_len we do not have enough data. This should currently 
-             not happen since we use a buffer big enough for the whole file.
-             If the file is not complete, this is triggered though.
+             The whole file is in the buffer, so no more data will follow and
+             the file is incomplete. Stop here, restarting at the beginning of
+             the buffer would parse the same data again and never end.
             */
-            if(parser.bufferpos == data_len)
-                parser_running = 0;
-            
-            /* Parser will now have to read from beginning of buffer to contiue */
-            parser.bufferpos = 0;
+            ESP_LOGI("xml_error", "incomplete file at %u of %u", (unsigned)parser.bufferpos, (unsigned)data_len);
+            parser_running = 0;
             break;
 
         case SXML_ERROR_XMLINVALID: 
@@ -192,7 +207,25 @@ gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoin
 #endif
     }
     
+    // a waypoint that was started but never finished is not in the list
+    if (wp) {
+        if (wp == first_wp)
+            first_wp = NULL;
+        RTOS_Free(wp);
+        wp = NULL;
+    }
+
     gpx->waypoints_num = waypoint_num;
     gpx->waypoints = first_wp;
     return gpx;
+}
+/**
+ * Free gpx data. Waypoints are owned by the waypoint list and freed there.
+ */
+void gpx_free(gpx_t* gpx_data)
+{
+    if (!gpx_data)
+        return;
+    RTOS_Free(gpx_data->track_name);
+    RTOS_Free(gpx_data);
 }

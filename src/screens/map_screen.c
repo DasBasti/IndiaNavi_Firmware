@@ -40,10 +40,12 @@ static waypoint_t* closest_wp;
 static int32_t dlat_min = INT32_MAX, dlon_min = INT32_MAX;
 
 static uint8_t zoom_level_selected = 0;
+static volatile bool zoom_toggle_requested = false;
 uint8_t zoom_level[] = { 16, 14 };
 uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
 graph_point_t* height_graph_data;
+static uint16_t height_graph_data_len;
 float height_min = __FLT_MAX__, height_max = 0;
 
 #define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
@@ -56,11 +58,11 @@ static const char* TAG = "map_screen";
  */
 static error_code_t updateInfoText(const display_t* dsp, void* comp)
 {
-    if (!map_position)
+    if (!map_position || !infoBox->text)
         return UNAVAILABLE;
 
     if (gpx_data && gpx_data->track_name) {
-        strncpy(infoBox->text, gpx_data->track_name, INFOBOX_STRLEN);
+        save_snprintf(infoBox->text, INFOBOX_STRLEN, "%s", gpx_data->track_name);
         infoBox->backgroundColor = TRANSPARENT;
     } else if (map_position->fix != GPS_FIX_INVALID) {
         char lat = 'N';
@@ -104,8 +106,11 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
 
 error_code_t updateSatsInView(const display_t* dsp, void* comp)
 {
-    save_sprintf(gps_indicator_label->text, "%d", map_position->satellites_in_view);
+    if (!map_position)
+        return UNAVAILABLE;
     if (gps_indicator_label) {
+        if (gps_indicator_label->text)
+            save_snprintf(gps_indicator_label->text, 5, "%d", map_position->satellites_in_view);
         image_t* icon = gps_indicator_label->child;
         if (map_position->fix != GPS_FIX_INVALID)
             icon->data = GPS_lock;
@@ -135,8 +140,25 @@ void add_waypoints_to_renderer(waypoint_t* wp)
         add_to_render_pipeline(waypoint_render_marker, wp, RL_PATH);
 }
 
+static void apply_zoom_toggle(void)
+{
+    ESP_LOGI(TAG, "Zoom level was: %d", zoom_level[zoom_level_selected]);
+    zoom_level_selected = !zoom_level_selected;
+    ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
+    map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+
+    scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
+    scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
+}
+
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 {
+    // zoom is changed from the button task, apply it in the render task
+    if (zoom_toggle_requested && map && scaleBox) {
+        zoom_toggle_requested = false;
+        apply_zoom_toggle();
+    }
+
     // Only modify map if we are GPS fixed
     if (!map_position || map_position->fix == GPS_FIX_INVALID) {
         return NOT_NEEDED;
@@ -156,7 +178,7 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     closest_wp = NULL;
     map_run_on_waypoints(find_closest_waypoint);
 
-    if (closest_wp)
+    if (closest_wp && graph && closest_wp->num < graph->data_len)
         graph->current_position = closest_wp->num;
 
     return PM_OK;
@@ -164,6 +186,8 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 
 void populate_height_data_prepare_waypoints(waypoint_t* wp)
 {
+    if (!height_graph_data || wp->num >= height_graph_data_len)
+        return;
     height_graph_data[wp->num].value = wp->ele;
     if (wp->next) {
         uint32_t diff = abs((int)(wp->ele - wp->next->ele));
@@ -190,19 +214,29 @@ void load_waypoint_file(char* filename)
     #if !defined(TESTING) && !defined(LINUX)
     uint64_t start = esp_timer_get_time();
 
-    async_file_t wp_file;
+    async_file_t wp_file = { 0 };
     wp_file.filename = filename;
-    wp_file.loaded = 0;
     if (PM_OK == createFileBuffer(&wp_file))
         loadFile(&wp_file);
 
     if (wp_file.loaded == LOADED) {
+        // start with an empty waypoint list
+        map_free_waypoints();
         gpx_data = gpx_parser(wp_file.dest, map_add_waypoint);
+    }
+    RTOS_Free(wp_file.dest);
+
+    if (gpx_data) {
         map_set_first_waypoint(gpx_data->waypoints);
-        RTOS_Free(wp_file.dest);
 
         // populate height data
-        height_graph_data = RTOS_Malloc(sizeof(graph_point_t) * gpx_data->waypoints_num + 1);
+        height_min = __FLT_MAX__;
+        height_max = 0;
+        if (gpx_data->waypoints_num) {
+            height_graph_data = RTOS_Malloc(sizeof(graph_point_t) * gpx_data->waypoints_num);
+            if (height_graph_data)
+                height_graph_data_len = gpx_data->waypoints_num;
+        }
         map_run_on_waypoints(populate_height_data_prepare_waypoints);
         ESP_LOGI(TAG, "Load waypoint information done. Took: %lu ms", (uint32_t)(esp_timer_get_time() - start) / 1000);
     } else {
@@ -214,22 +248,51 @@ void load_waypoint_file(char* filename)
 #endif
 }
 
+/**
+ * Called from the button handler task. The map is only modified in the render task.
+ */
 void toggleZoom()
 {
-    if (!map_position || !map || !scaleBox)
-        return;
-
-    ESP_LOGI(TAG, "Zoom level was: %d", zoom_level[zoom_level_selected]);
-    zoom_level_selected = !zoom_level_selected;
-    ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
-    map_update_zoom_level(map, zoom_level[zoom_level_selected]);
-    if (map_position->fix != GPS_FIX_INVALID)
-        map_update_position(map, map_position);
-
-    scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
-    scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
-
+    zoom_toggle_requested = true;
     trigger_rendering();
+}
+
+/**
+ * Free all components of the map screen
+ */
+static void map_screen_free(void)
+{
+    set_short_press_event(NULL);
+    free_all_render_pipelines();
+
+    map_free(map);
+    map = NULL;
+    RTOS_Free(positon_marker);
+    positon_marker = NULL;
+    RTOS_Free(scaleBox);
+    scaleBox = NULL;
+    RTOS_Free(map_copyright);
+    map_copyright = NULL;
+    if (infoBox) {
+        RTOS_Free(infoBox->text);
+        RTOS_Free(infoBox);
+        infoBox = NULL;
+    }
+    if (graph) {
+        RTOS_Free(graph->min_label);
+        RTOS_Free(graph->max_label);
+        RTOS_Free(graph);
+        graph = NULL;
+    }
+    RTOS_Free(height_graph_data);
+    height_graph_data = NULL;
+    height_graph_data_len = 0;
+    closest_wp = NULL;
+    map_free_waypoints();
+    gpx_free(gpx_data);
+    gpx_data = NULL;
+    if (gps_indicator_label)
+        gps_indicator_label->onBeforeRender = NULL;
 }
 
 void map_screen_create(const display_t* display)
@@ -240,6 +303,11 @@ void map_screen_create(const display_t* display)
 
     /* 3x3 tiles */
     map = map_create(-offset_x, -offset_y, 3, 3, 256, &f8x8);
+    if (!map) {
+        ESP_LOGE(TAG, "Can not create map");
+        return;
+    }
+    set_screen_free_function(map_screen_free);
     add_to_render_pipeline(map_render, map, RL_MAP);
 
     /* position marker */
@@ -280,8 +348,8 @@ void map_screen_create(const display_t* display)
 
     load_waypoint_file("//track.gpx");
 
-    if (height_graph_data) {
-        graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, gpx_data->waypoints_num, &f8x8);
+    if (height_graph_data && height_graph_data_len >= 2) {
+        graph = graph_create(0, display->size.height - 45, display->size.width, 45, height_graph_data, height_graph_data_len, &f8x8);
         graph_set_range(graph, height_min, height_max);
         graph->current_position_color = BLUE;
         graph->line_color = BLACK;

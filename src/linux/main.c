@@ -96,6 +96,10 @@ void set_short_press_event(void (*event)(void))
 {
 }
 
+void set_screen_free_function(void (*free_screen_cb)(void))
+{
+}
+
 /**
  * Add render function to pipeline
  *
@@ -132,6 +136,8 @@ void free_render_pipeline(enum RenderLayer layer)
         r = r->next;
         RTOS_Free(rn);
     }
+    render_pipeline[layer] = NULL;
+    render_last[layer] = NULL;
 }
 
 void free_all_render_pipelines()

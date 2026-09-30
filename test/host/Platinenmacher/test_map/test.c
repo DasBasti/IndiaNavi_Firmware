@@ -50,6 +50,34 @@ void test_map_get_tile()
 {
     TEST_ASSERT_NOT_NULL_MESSAGE(map_get_tile(map, 0, 0), "origin tile is NULL");
     TEST_ASSERT_NULL_MESSAGE(map_get_tile(map, 100, 100), "tile oob is not NULL");
+    TEST_ASSERT_NOT_NULL_MESSAGE(map_get_tile(map, 2, 2), "last tile is NULL");
+    TEST_ASSERT_NULL_MESSAGE(map_get_tile(map, 3, 0), "tile x == width is not NULL");
+    TEST_ASSERT_NULL_MESSAGE(map_get_tile(map, 0, 3), "tile y == height is not NULL");
+}
+
+void test_map_free()
+{
+    map_t* _map = map_create(0, 0, 2, 2, 256, 0);
+    _map->tiles[0]->image->data = RTOS_Malloc(16);
+    map_free(_map);
+    map_free(NULL);
+}
+
+void test_waypoints_restart_after_free()
+{
+    waypoint_t* a = RTOS_Malloc(sizeof(waypoint_t));
+    waypoint_t* b = RTOS_Malloc(sizeof(waypoint_t));
+    map_add_waypoint(a);
+    map_add_waypoint(b);
+    TEST_ASSERT_EQUAL_UINT(1, b->num);
+    map_free_waypoints();
+
+    // a new list has to start at 0 and must not touch freed waypoints
+    waypoint_t* c = RTOS_Malloc(sizeof(waypoint_t));
+    map_add_waypoint(c);
+    TEST_ASSERT_EQUAL_UINT(0, c->num);
+    TEST_ASSERT_NULL(c->next);
+    map_free_waypoints();
 }
 
 void test_position_update()
@@ -152,5 +180,7 @@ int main(int argc, char** argv)
     RUN_TEST(test_position_update);
     RUN_TEST(test_map_render_callbacks);
     RUN_TEST(test_waypoints);
+    RUN_TEST(test_map_free);
+    RUN_TEST(test_waypoints_restart_after_free);
     UNITY_END();
 }

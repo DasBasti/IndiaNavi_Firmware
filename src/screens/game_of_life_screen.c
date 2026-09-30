@@ -95,7 +95,7 @@ static error_code_t update_world(const display_t* dsp, void* image)
                 set_pixel_at_offset(x, y, ORGANISM);
         }
     }
-    save_sprintf(label_text, "Generation %lu", generation);
+    save_snprintf(label_text, sizeof(label_text), "Generation %lu", generation);
 
     return PM_OK;
 }
@@ -103,13 +103,21 @@ static error_code_t update_world(const display_t* dsp, void* image)
 void conway_screen_create(const display_t* display)
 {
     dsp = display;
-    world_height = dsp->size.height;
-    world_width = dsp->size.width;
-    world_data = RTOS_Malloc((dsp->size.width-2) * (dsp->size.height-2) / 2);
-    world = image_create(world_data, 1, 1, world_width-2, world_height-2);
+    // world is drawn with a 1 pixel border, world_width/height is the size of world_data
+    world_height = dsp->size.height - 2;
+    world_width = dsp->size.width - 2;
+    world_data = RTOS_Malloc(world_width * world_height / 2);
+    world = image_create(world_data, 1, 1, world_width, world_height);
+    if (!world_data || !world) {
+        RTOS_Free(world_data);
+        RTOS_Free(world);
+        world_data = NULL;
+        world = NULL;
+        return;
+    }
     world->onBeforeRender = update_world;
 
-    for (size_t i = 0; i < (dsp->size.width-2) * (dsp->size.height-2) / 2; i++) {
+    for (size_t i = 0; i < world_width * world_height / 2; i++) {
         world_data[i] = esp_random() % 8 ? ORGANISM : EMPTY;
     }
 
@@ -128,6 +136,9 @@ void conway_screen_create(const display_t* display)
 void conway_screen_free()
 {
     free_all_render_pipelines();
+    RTOS_Free(world);
+    world = NULL;
     RTOS_Free(world_data);
+    world_data = NULL;
 }
 

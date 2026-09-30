@@ -18,6 +18,8 @@ display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
     display_rotation_t rotation)
 {
     display_t* disp = RTOS_Malloc(sizeof(display_t));
+    if (!disp)
+        return NULL;
     disp->size.width = width;
     disp->size.height = height;
     disp->bpp = bpp;
@@ -357,7 +359,11 @@ error_code_t display_text_draw(const display_t* dsp, font_t* font, int16_t x,
         } else if (text[i] == '\t') {
             column += 8-((column + 1) % 8);
         } else {
-            uint32_t pos = (text[i] - font->asciiOffset) * font->height * font->width / 8;
+            uint8_t ch = (uint8_t)text[i];
+            // only glyphs from asciiOffset to FONT_LAST_CHAR exist in the font data
+            if (ch < font->asciiOffset || ch > FONT_LAST_CHAR)
+                ch = '?';
+            uint32_t pos = (ch - font->asciiOffset) * font->height * font->width / 8;
             uint8_t* c = (uint8_t*)&font->data[pos];
             display_draw_raw_rot(dsp, c, x + (column * 8), y + (line * (font->height + 2)), font->width, font->height,
                 color, TRANSPARENT, font->rotation);

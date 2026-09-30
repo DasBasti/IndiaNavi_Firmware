@@ -19,6 +19,8 @@ label_t* label_create(char* text, font_t* font, int16_t left, int16_t top,
     uint16_t width, uint16_t height)
 {
     label_t* label = RTOS_Malloc(sizeof(label_t));
+    if (!label)
+        return NULL;
     label->onBeforeRender = NULL;
     label->onAfterRender = NULL;
     label->text = text;

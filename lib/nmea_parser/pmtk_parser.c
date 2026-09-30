@@ -97,16 +97,20 @@ esp_err_t pmtk_parse(esp_gps_t* esp_gps)
    3 ..: Packet specific
 
    */
-    static int message_id;
+    /* index into message_parser of the acknowledged packet or -1 if unknown */
+    static int message_idx = -1;
     switch (messageNumber) {
     case 1:
         switch (esp_gps->item_num) {
         case 1: /* Process message */
-            message_id = atoi(esp_gps->item_str);
-            for (int i = 0; i < sizeof(message_parser); i++)
+            message_idx = -1;
+            int message_id = atoi(esp_gps->item_str);
+            for (size_t i = 0; i < sizeof(message_parser) / sizeof(message_parser[0]); i++)
                 if (message_parser[i].packet_type == message_id) {
-                    if (message_parser[i].parse_packet_type)
+                    if (message_parser[i].parse_packet_type) {
+                        message_idx = i;
                         return ESP_OK;
+                    }
                 }
             return ESP_ERR_NOT_SUPPORTED;
             break;
@@ -124,14 +128,16 @@ esp_err_t pmtk_parse(esp_gps_t* esp_gps)
             }
             break;
         default:
-            if (message_id)
-                return message_parser[message_id].parse_packet_type(esp_gps);
+            if (message_idx >= 0)
+                return message_parser[message_idx].parse_packet_type(esp_gps);
             break;
         }
         break;
     case 10:
         /* PMTK_SYS_MSG */
         int systemMessage = atoi(esp_gps->item_str);
+        if (systemMessage < 0 || systemMessage >= (int)(sizeof(pmtkSystemMessages) / sizeof(pmtkSystemMessages[0])))
+            systemMessage = 0;
         ESP_LOGI(__func__, "PMTK_SYS_MSG: %s", pmtkSystemMessages[systemMessage]);
         break;
     case 11:

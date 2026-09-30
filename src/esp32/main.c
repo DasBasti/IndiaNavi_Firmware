@@ -140,7 +140,7 @@ int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
         xQueueSend(eventQueueHandle, &chargingTrigger, 0);
         is_charging = false;
         if (battery_indicator)
-            battery_indicator->charging = true;
+            battery_indicator->charging = false;
     }
 
     const int min = 1550;
@@ -161,7 +161,7 @@ int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
 static void get_sha256_of_partitions(void)
 {
     uint8_t sha_256[HASH_LEN] = { 0 };
-    esp_partition_t partition;
+    esp_partition_t partition = { 0 };
 
     // get sha256 digest for bootloader
     partition.address = ESP_BOOTLOADER_OFFSET;
@@ -370,18 +370,28 @@ void app_main()
                 // gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
             }
 #endif
+            // Never call vTaskDelete() with a NULL handle, it would delete this task.
             else if (event_num == TASK_EVENT_ENABLE_GPS) {
-                xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
+                if (!gpsTask_h)
+                    xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
             } else if (event_num == TASK_EVENT_DISABLE_GPS) {
-                vTaskDelete(gpsTask_h);
+                if (gpsTask_h) {
+                    gps_stop_parser();
+                    vTaskDelete(gpsTask_h);
+                    gpsTask_h = NULL;
+                }
             } else if (event_num == TASK_EVENT_ENABLE_DISPLAY) {
-                xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
+                if (!guiTask_h)
+                    xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
             } else if (event_num == TASK_EVENT_DISABLE_DISPLAY) {
-                vTaskDelete(guiTask_h);
+                if (guiTask_h) {
+                    vTaskDelete(guiTask_h);
+                    guiTask_h = NULL;
+                }
             } else if (event_num == TASK_EVENT_ENABLE_WIFI || event_num == TASK_EVENT_START_CHARGING) {
-                xTaskCreate(&StartWiFiTask, "wifi", taskWifiStackSize, NULL, 8, &wifiTask_h);
+                wifi_start_task();
             } else if (event_num == TASK_EVENT_DISABLE_WIFI || event_num == TASK_EVENT_STOP_CHARGING) {
-                vTaskDelete(wifiTask_h);
+                wifi_request_stop();
                 trigger_rendering();
             }
         }

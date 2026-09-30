@@ -15,6 +15,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -84,29 +85,55 @@ error_code_t waitForSDInit()
     }
     return PM_OK;
 }
+
+static bool takeSD(void)
+{
+    if (waitForSDInit() != PM_OK)
+        return false;
+    return xSemaphoreTake(sd_semaphore, SD_MUTEX_TIMEOUT) == pdTRUE;
+}
+
+static void giveSD(void)
+{
+    xSemaphoreGive(sd_semaphore);
+}
+
 /*
- * Queue arbitrary file reads.
+ * Load a whole file into memory.
  *
- * Allocates memory if destination buffer is not initialized.
+ * If file->dest is NULL a buffer of file size + 1 is allocated, the caller
+ * has to free it. Otherwise file->dest_size bytes are available in dest and
+ * the file is truncated to fit. dest is always \0 terminated.
  */
 error_code_t loadFile(async_file_t* file)
 {
     FRESULT res;
-    FIL t_file = {0};
+    FIL t_file = { 0 };
     FILINFO fno;
-    uint32_t br;
+    UINT br = 0;
+
+    if (!file || !file->filename)
+        return PM_FAIL;
+    if (file->dest && file->dest_size == 0)
+        return PM_FAIL;
+
     ESP_LOGI(TAG, "Load %s ", file->filename);
-    waitForSDInit();
-    if (xSemaphoreTake(sd_semaphore, pdTICKS_TO_MS(1000))) {
+    if (takeSD()) {
         res = f_stat(file->filename, &fno);
         if (FR_OK == res) {
+            size_t to_read = fno.fsize;
             if (!file->dest) {
-                file->dest = RTOS_Malloc(fno.fsize);
+                file->dest = RTOS_Malloc(to_read + 1);
+                file->dest_size = file->dest ? to_read + 1 : 0;
+            }
+            if (to_read > file->dest_size - 1) {
+                ESP_LOGW(TAG, "%s is larger than buffer (%lu > %u), truncated", file->filename, (unsigned long)fno.fsize, (unsigned)(file->dest_size - 1));
+                to_read = file->dest_size - 1;
             }
             res = f_open(&t_file, file->filename, FA_READ);
             if (FR_OK == res && file->dest != 0) {
-                res = f_read(&t_file,
-                    file->dest, fno.fsize, (UINT*)&br);
+                res = f_read(&t_file, file->dest, to_read, &br);
+                file->dest[br] = 0;
                 if (FR_OK == res) {
                     file->loaded = LOADED;
                 } else {
@@ -119,7 +146,7 @@ error_code_t loadFile(async_file_t* file)
         } else {
             ESP_LOGE(TAG, "cannot stat %s", file->filename);
         }
-        xSemaphoreGive(sd_semaphore);
+        giveSD();
     } else {
         ESP_LOGE(TAG, "sd semapore not available");
     }
@@ -131,74 +158,96 @@ error_code_t loadFile(async_file_t* file)
 
 error_code_t fileExists(async_file_t* file)
 {
-    xSemaphoreTake(sd_semaphore, portMAX_DELAY);
+    if (!takeSD())
+        return PM_FAIL;
     FILINFO fno;
     FRESULT fres = f_stat(file->filename, &fno);
-    xSemaphoreGive(sd_semaphore);
+    giveSD();
     if (FR_OK == fres)
         return PM_OK;
     return PM_FAIL;
 }
 
+/*
+ * Allocate a buffer to hold the file including a terminating \0
+ */
 error_code_t createFileBuffer(async_file_t* file)
 {
-    xSemaphoreTake(sd_semaphore, portMAX_DELAY);
+    if (!takeSD())
+        return PM_FAIL;
     FILINFO fno;
     FRESULT fres = f_stat(file->filename, &fno);
-    xSemaphoreGive(sd_semaphore);
+    giveSD();
     if (FR_OK == fres) {
-        file->dest = RTOS_Malloc(fno.fsize);
+        file->dest = RTOS_Malloc(fno.fsize + 1);
+        if (!file->dest)
+            return PM_FAIL;
+        file->dest_size = fno.fsize + 1;
         return PM_OK;
     }
     return PM_FAIL;
 }
 
+/*
+ * Create all folders of the path to the file
+ */
+static void createPathToFile(const char* filename)
+{
+    size_t len = strlen(filename);
+    if (len < 2)
+        return;
+
+    char* path = RTOS_Malloc(len + 1);
+    char* tmp_path = RTOS_Malloc(len + 1);
+    if (!path || !tmp_path)
+        goto out;
+
+    strcpy(path, filename);
+
+    // skip first // for root
+    char* strtokCtx;
+    char* token = strtok_r(path + 2, "/", &strtokCtx);
+    while (token != NULL) {
+        strcat(tmp_path, token);
+        // Create the folder in the path
+        FRESULT res = f_mkdir(tmp_path);
+        if (FR_OK != res && FR_EXIST != res) {
+            ESP_LOGD(TAG, "Folder %s could not be created: %d", tmp_path, res);
+            break;
+        }
+        strcat(tmp_path, "/");
+        token = strtok_r(NULL, "/", &strtokCtx);
+
+        // Check if the path has a "File extention" so we skip creating a folder for it
+        if (token && strchr(token, '.'))
+            break;
+    }
+out:
+    RTOS_Free(tmp_path);
+    RTOS_Free(path);
+}
+
 error_code_t openFileForWriting(async_file_t* file)
 {
+    if (!file || !file->filename)
+        return PM_FAIL;
+
     if (!file->file) {
+        // zeroed by RTOS_Malloc. FatFs dynamic buffers: f_open() only allocates fp->buf when it is NULL
         file->file = RTOS_Malloc(sizeof(FIL));
         if (!file->file)
             return PM_FAIL;
-        // FatFs dynamic buffers: f_open() only allocates fp->buf when it is NULL
-        memset(file->file, 0, sizeof(FIL));
     }
+    if (!takeSD())
+        return PM_FAIL;
     // try to open file
     FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_OPEN_APPEND);
     if (FR_NO_PATH == res) {
-        // 1. try to create path to file if a path is given
-        if (strlen(file->filename) < 2)
-            return PM_FAIL;
-
-        char* path = RTOS_Malloc(strlen(file->filename) + 1);
-        char* tmp_path = RTOS_Malloc(strlen(file->filename) + 1);
-
-        // 2. skip first // for root
-        strcpy(path, file->filename);
-        path += 2;
-        // strcat(tmp_path, "/");
-
-        // 3. loop through folders
-        char* strtokCtx;
-        char* token = strtok_r(path, "/", &strtokCtx);
-        while (token != NULL) {
-            strcat(tmp_path, token);
-            // Create the folder in the path
-            res = f_mkdir(tmp_path);
-            if (FR_OK != res) {
-                ESP_LOGD(TAG, "Folder %s could not be created: %d", tmp_path, res);
-                break;
-            }
-            strcat(tmp_path, "/");
-            token = strtok_r(NULL, "/", &strtokCtx);
-
-            // Check if the path has a "File extention" so we skip creating a folder for it
-            if (token && strchr(token, '.'))
-                break;
-        }
-        RTOS_Free(tmp_path);
+        createPathToFile(file->filename);
         // Retry to open file for writing
         res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
     }
+    giveSD();
 
     ESP_LOGD(TAG, "File %s -> %d", file->filename, res);
     if (FR_OK == res)
@@ -209,23 +258,43 @@ error_code_t openFileForWriting(async_file_t* file)
 async_file_t* createPhysicalFile()
 {
     async_file_t* f = RTOS_Malloc(sizeof(async_file_t));
+    if (!f)
+        return NULL;
+    // zeroed by RTOS_Malloc
     f->file = RTOS_Malloc(sizeof(FIL));
-    if (f->file)
-        memset(f->file, 0, sizeof(FIL));
+    if (!f->file) {
+        RTOS_Free(f);
+        return NULL;
+    }
     return f;
 }
 
 error_code_t writeToFile(async_file_t* file, void* in_data, uint32_t count, uint32_t* written)
 {
-    FRESULT res = f_write(file->file, in_data, count, (UINT*)written);
-    if (FR_OK == res && FR_OK == f_sync(file->file))
+    *written = 0;
+    if (!file || !file->file)
+        return PM_FAIL;
+    if (!takeSD())
+        return PM_FAIL;
+    UINT bw = 0;
+    FRESULT res = f_write(file->file, in_data, count, &bw);
+    if (FR_OK == res)
+        res = f_sync(file->file);
+    giveSD();
+    *written = bw;
+    if (FR_OK == res)
         return PM_OK;
     return PM_FAIL;
 }
 
 error_code_t closeFile(async_file_t* file)
 {
+    if (!file || !file->file)
+        return PM_FAIL;
+    if (!takeSD())
+        return PM_FAIL;
     FRESULT res = f_close(file->file);
+    giveSD();
     if (FR_OK == res)
         return PM_OK;
     return PM_FAIL;
@@ -233,20 +302,27 @@ error_code_t closeFile(async_file_t* file)
 
 error_code_t deleteFile(async_file_t* file)
 {
+    if (!takeSD())
+        return PM_FAIL;
     FRESULT res = f_unlink(file->filename);
+    giveSD();
     if (FR_OK == res)
         return PM_OK;
     return PM_FAIL;
 }
 
+/*
+ * Close file if still open and free all memory of the file
+ */
 void closePhysicalFile(async_file_t* file)
 {
     if (file) {
         if (file->file) {
-            if (file->file->fptr)
-                ESP_LOGI(TAG, "File: %lu is still open", file->file->fptr);
-            // f_close(file->file);
-            // RTOS_Free(file->file);
+            if (file->file->obj.fs) {
+                ESP_LOGI(TAG, "File: %lu is still open, close it", (unsigned long)file->file->fptr);
+                closeFile(file);
+            }
+            RTOS_Free(file->file);
         }
         if (file->dest) {
             ESP_LOGI(TAG, "Free file->dest");
@@ -258,9 +334,11 @@ void closePhysicalFile(async_file_t* file)
 
 void StartSDTask(void const* argument)
 {
-    sd_semaphore = xSemaphoreCreateMutex();
+    SemaphoreHandle_t mutex = xSemaphoreCreateMutex();
     ESP_LOGI(TAG, "init semaphore");
-    xSemaphoreTake(sd_semaphore, portMAX_DELAY); // block SD mutex
+    xSemaphoreTake(mutex, portMAX_DELAY); // block SD mutex until card is mounted
+    // publish the mutex only after we own it
+    sd_semaphore = mutex;
     ESP_LOGI(TAG, "init gpio %d", SD_VCC_nEN);
 
     /* create power regulator */
@@ -279,31 +357,36 @@ void StartSDTask(void const* argument)
     for (;;) {
         if (!gpio_read(dc_dt)) {
             if (sd_status != PM_OK) {
-                sd_status = PM_OK;
+                // the SD task holds the mutex while no card is mounted
                 esp_err_t ret = esp_vfs_fat_sdmmc_mount("", &host, &slot_config, &mount_config, &card);
-                if (ret != ESP_OK) {
+                if (ret == ESP_OK) {
+                    ESP_LOGI(TAG, "SDC: init done");
+                    sd_status = PM_OK;
+                    xSemaphoreGive(sd_semaphore);
+                    trigger_rendering();
+                } else {
                     if (ret == ESP_FAIL) {
                         ESP_LOGE(TAG, "Failed to mount filesystem.");
                     } else {
                         ESP_LOGE(TAG, "Failed to initialize the card (0x%x).", ret);
                     }
-                    sd_status = !PM_OK;
+                    sd_status = PM_FAIL;
+                    // keep holding the mutex and retry later
+                    vTaskDelay(pdMS_TO_TICKS(2000));
                 }
-                // Card has been initialized, print its properties
-                ESP_LOGI(TAG, "SDC: init done");
-                xSemaphoreGive(sd_semaphore);
-                trigger_rendering();
             }
         } else {
             if (sd_status == PM_OK) {
                 ESP_LOGE("SD", "Unmount filesystem.");
-                sd_status = UNAVAILABLE;
                 xSemaphoreTake(sd_semaphore, portMAX_DELAY);
+                sd_status = UNAVAILABLE;
                 // deinit SDMMC periphery
                 esp_vfs_fat_sdcard_unmount("", card);
                 // show on gui
                 trigger_rendering();
                 vTaskDelay(pdMS_TO_TICKS(1000));
+            } else {
+                sd_status = UNAVAILABLE;
             }
         }
 

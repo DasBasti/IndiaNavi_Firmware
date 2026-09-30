@@ -16,7 +16,11 @@
 #include <sys/socket.h>
 
 #include "gui.h"
+#include "helper.h"
 #include "tasks.h"
+
+#define TRACK_FILE_SIZE 32768
+#define WP_LINE_SIZE 256
 
 typedef struct tileset tileset_t;
 struct tileset {
@@ -60,7 +64,7 @@ static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
         break;
     case HTTP_EVENT_ON_DATA:
         ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-        if (downloadfile->file != 0) {
+        if (downloadfile && downloadfile->file != 0) {
             uint32_t bytes_written = 0;
             writeToFile(downloadfile, evt->data, evt->data_len, &bytes_written);
             ESP_LOGD(TAG, "Wrote to download: %d/%lu", evt->data_len, bytes_written);
@@ -91,20 +95,26 @@ static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
 static void downloadMapTilesForZoomLevel(tileset_t* t, async_file_t* wp_file)
 {
     uint32_t fail_counter = 0;
-    ESP_LOGE(TAG, "URL Size is:%d", strlen(t->baseurl) + 26);
-    char* url = RTOS_Malloc(strlen(t->baseurl) + 26); // base+/zz/xxxxx/yyyyy.raw
+    size_t url_size = strlen(t->baseurl) + 40; // base+/zzz/xxxxxxxxxx/yyyyyyyyyy.raw
+    char* url = RTOS_Malloc(url_size);
     downloadfile = createPhysicalFile();
+    if (!url || !downloadfile) {
+        RTOS_Free(url);
+        closePhysicalFile(downloadfile);
+        downloadfile = NULL;
+        return;
+    }
     ESP_LOGI(TAG, "Run zoom level:%d from %s", t->zoom, t->baseurl);
     for (uint32_t x = t->folder_min; x <= t->folder_max; x++) {
         for (uint32_t y = t->file_min; y <= t->file_max; y++) {
-            save_sprintf(url, "%s/%u/%lu/%lu.raw", t->baseurl, t->zoom, x, y);
-            save_sprintf(wp_file->filename, "//MAPS/%u/%lu/%lu.raw", t->zoom, x, y);
+            save_snprintf(url, url_size, "%s/%u/%lu/%lu.raw", t->baseurl, t->zoom, x, y);
+            save_snprintf(wp_file->filename, WP_LINE_SIZE, "//MAPS/%u/%lu/%lu.raw", t->zoom, x, y);
             if (fileExists(wp_file) != PM_OK) {
                 // Get File because we can not find it on the SD card
                 downloadfile->filename = wp_file->filename;
                 esp_err_t err;
                 do {
-                    while (isConnected() != PM_OK) {
+                    while (!isConnected()) {
                         ESP_LOGI(TAG, "Wait for WiFi connection");
                         vTaskDelay(3000 / portTICK_PERIOD_MS);
                     }
@@ -126,6 +136,7 @@ static void downloadMapTilesForZoomLevel(tileset_t* t, async_file_t* wp_file)
         }
     }
     closePhysicalFile(downloadfile);
+    downloadfile = NULL;
     RTOS_Free(url);
 }
 
@@ -139,17 +150,25 @@ void maploader_screen_element(const display_t* dsp)
 
 void StartMapDownloaderTask(void* pvParameter)
 {
-    async_file_t AFILE;
+    async_file_t AFILE = { 0 };
     async_file_t* wp_file = &AFILE;
+    tileset_t* base_tileset = NULL;
+    char* baseurl = NULL;
     ESP_LOGI(TAG, "Checking Map files...");
-    char* waypoint_file = RTOS_Malloc(32768);
-    char* wp_line = RTOS_Malloc(50);
+    char* waypoint_file = RTOS_Malloc(TRACK_FILE_SIZE);
+    char* wp_line = RTOS_Malloc(WP_LINE_SIZE);
     // Load TRACK file to get track parameters
-    wp_file->filename = RTOS_Malloc(512);
-    save_sprintf(wp_file->filename, "//TRACK");
+    wp_file->filename = RTOS_Malloc(WP_LINE_SIZE);
+    if (!waypoint_file || !wp_line || !wp_file->filename)
+        goto fail_url;
+    save_snprintf(wp_file->filename, WP_LINE_SIZE, "//TRACK");
     wp_file->dest = waypoint_file;
+    wp_file->dest_size = TRACK_FILE_SIZE;
     wp_file->loaded = false;
-    ESP_ERROR_CHECK(loadFile(wp_file));
+    if (loadFile(wp_file) != PM_OK) {
+        ESP_LOGE(TAG, "No TRACK file");
+        goto fail_url;
+    }
     ESP_LOGI(TAG, "Load track information queued.");
     /*
     esp_http_client_config_t client_config = {
@@ -175,30 +194,27 @@ void StartMapDownloaderTask(void* pvParameter)
         vTaskDelay(1000);
     }
 */
-    while (!wp_file->loaded) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-        //if (delay++ == 20)
-        //	break;
-    }
     ESP_LOGI(TAG, "Loaded track information.");
 
-    tileset_t* base_tileset = RTOS_Malloc(sizeof(tileset_t));
+    base_tileset = RTOS_Malloc(sizeof(tileset_t));
     tileset_t* tileset = base_tileset;
     char* f = waypoint_file;
-    f = readline(f, wp_line);
-    if (!f) {
+    f = readline_n(f, wp_line, WP_LINE_SIZE);
+    if (!f || !tileset) {
         ESP_LOGE(TAG, "No URL in TRACK. %s", waypoint_file);
         goto fail_url;
     }
     uint32_t length = strlen(wp_line);
-    char* baseurl = RTOS_Malloc(length + 1);
-    strncpy(baseurl, wp_line, length);
+    baseurl = RTOS_Malloc(length + 1);
+    if (!baseurl)
+        goto fail_url;
+    memcpy(baseurl, wp_line, length + 1);
 
     tileset->baseurl = baseurl;
     tileset->wp_line = wp_line;
     gui_set_app_mode(APP_MODE_DOWNLOAD);
     while (1) {
-        f = readline(f, wp_line);
+        f = readline_n(f, wp_line, WP_LINE_SIZE);
         if (!f) {
             ESP_LOGE(TAG, "No Zoom found in TRACK");
             goto fail_url;
@@ -212,28 +228,28 @@ void StartMapDownloaderTask(void* pvParameter)
 
         tileset->zoom = zoom;
 
-        f = readline(f, wp_line);
+        f = readline_n(f, wp_line, WP_LINE_SIZE);
         if (!f) {
             ESP_LOGE(TAG, "No folder_min found in TRACK");
             goto fail_url;
         }
         tileset->folder_min = atoi(wp_line);
 
-        f = readline(f, wp_line);
+        f = readline_n(f, wp_line, WP_LINE_SIZE);
         if (!f) {
             ESP_LOGE(TAG, "No folder_max found in TRACK");
             goto fail_url;
         }
         tileset->folder_max = atoi(wp_line);
 
-        f = readline(f, wp_line);
+        f = readline_n(f, wp_line, WP_LINE_SIZE);
         if (!f) {
             ESP_LOGE(TAG, "No file_min found in TRACK");
             goto fail_url;
         }
         tileset->file_min = atoi(wp_line);
 
-        f = readline(f, wp_line);
+        f = readline_n(f, wp_line, WP_LINE_SIZE);
         if (!f) {
             ESP_LOGE(TAG, "No file_max found in TRACK");
             goto fail_url;
@@ -248,9 +264,6 @@ void StartMapDownloaderTask(void* pvParameter)
         ESP_LOGI(TAG, "Connected. Start downloading maps");
         downloadMapTilesForZoomLevel(tileset, wp_file);
     }
-    RTOS_Free(base_tileset);
-    RTOS_Free(waypoint_file);
-    RTOS_Free(wp_line);
 #if 0
 
     esp_http_client_config_t config = {
@@ -311,12 +324,11 @@ void StartMapDownloaderTask(void* pvParameter)
     }
 
 #endif
-    vTaskDelete(NULL);
-    return;
 fail_url:
-
+    RTOS_Free(baseurl);
+    RTOS_Free(base_tileset);
+    RTOS_Free(wp_file->filename);
     RTOS_Free(waypoint_file);
     RTOS_Free(wp_line);
     vTaskDelete(NULL);
-    return;
 }

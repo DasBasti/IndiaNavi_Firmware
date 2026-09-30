@@ -13,10 +13,11 @@
 
 typedef struct {
     waypoint_t* waypoints;
-    uint16_t waypoints_num;
+    uint16_t waypoints_num; /// number of waypoints in the list
     char* track_name;
 } gpx_t;
 
+void gpx_free(gpx_t* gpx);
 gpx_t* gpx_parser(const char* gpx_file_data, uint32_t (*add_waypoint_cb)(waypoint_t* wp));
 
 #endif //PLATINENMACHER_PARSER_GPX_H

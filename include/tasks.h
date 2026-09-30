@@ -16,6 +16,7 @@ typedef struct
 {
     char* filename;
     char* dest;
+    size_t dest_size; /// size of dest buffer if provided by caller
     uint8_t loaded;
     void* file;
 } async_file_t;
@@ -60,10 +61,14 @@ typedef enum {
 typedef struct
 {
     char* filename;
-    char* dest;
+    char* dest;       /// buffer for loadFile. Allocated by loadFile if NULL
+    size_t dest_size; /// size of dest buffer if provided by caller
     uint8_t loaded;
     FIL* file;
 } async_file_t;
+
+/* timeout for waiting on the SD card mutex */
+#    define SD_MUTEX_TIMEOUT pdMS_TO_TICKS(1000)
 
 #    define save_sprintf(dest, format, ...)                 \
         do {                                                \
@@ -115,6 +120,8 @@ void trigger_rendering();
 
 // From wifi.c
 bool isConnected();
+void wifi_start_task(void);
+void wifi_request_stop(void);
 
 // From map_loader.c
 void maploader_screen_element(const display_t* dsp);

@@ -31,7 +31,7 @@ extern "C" {
  *
  */
 #define NMEA_PARSER_RUNTIME_BUFFER_SIZE (CONFIG_NMEA_PARSER_RING_BUFFER_SIZE / 2)
-#define NMEA_MAX_STATEMENT_ITEM_LENGTH (16)
+#define NMEA_MAX_STATEMENT_ITEM_LENGTH (32)
 #define NMEA_EVENT_LOOP_QUEUE_SIZE (16)
 
 #ifndef GPS_MAX_PARSER_PLUGINS
@@ -147,7 +147,18 @@ typedef struct nmea_parser_plugin nmea_parser_plugin_t;
  * @brief GPS parser library runtime structure
  *
  */
-typedef struct
+typedef struct esp_gps esp_gps_t;
+
+/**
+ * @brief Parser plugin functions
+ */
+struct nmea_parser_plugin
+{
+    esp_err_t(*detect)(esp_gps_t* esp_gps);
+    esp_err_t(*parse)(esp_gps_t* esp_gps);
+};
+
+struct esp_gps
 {
     uint8_t item_pos;                              /*!< Current position in item */
     uint8_t item_num;                              /*!< Current item number */
@@ -165,17 +176,9 @@ typedef struct
     esp_event_loop_handle_t event_loop_hdl;        /*!< Event loop handle */
     TaskHandle_t tsk_hdl;                          /*!< NMEA Parser task handle */
     QueueHandle_t event_queue;                     /*!< UART event queue handle */
-    const nmea_parser_plugin_t *plugins;           /*!< Configuration options */
-} esp_gps_t;
-
-/**
- * @brief Parser plugin functions
- */
-struct nmea_parser_plugin
-{
-    esp_err_t(*detect)(esp_gps_t* esp_gps);
-    esp_err_t(*parse)(esp_gps_t* esp_gps);
+    nmea_parser_plugin_t plugins[GPS_MAX_PARSER_PLUGINS]; /*!< Copy of the configured plugins */
 };
+
 
 /**
  * @brief Configuration of NMEA Parser
