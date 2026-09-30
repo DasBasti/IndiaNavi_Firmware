@@ -268,6 +268,8 @@ void app_main()
     }
     ESP_ERROR_CHECK(ret);
     get_sha256_of_partitions();
+    // before the power task uses the ADC, password creation needs it as entropy source
+    wifi_ap_credentials_init();
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());

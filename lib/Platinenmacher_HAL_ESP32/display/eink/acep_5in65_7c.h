@@ -9,6 +9,7 @@
 
 #include "display.h"
 #include "error.h"
+#include <stdbool.h>
 
 // TODO: SPI transaktion kapseln!
 #include <driver/spi_master.h>
@@ -28,5 +29,7 @@ typedef struct {
 display_t *ACEP_5IN65_Init(acep_5in65_dev_t* dev, display_rotation_t rotation);
 error_code_t ACEP_5IN65_Write(const display_t *dsp, int16_t x, int16_t y, uint8_t color);
 uint8_t ACEP_5IN65_Decompress_Pixel(rect_t *size, int16_t x, int16_t y, const uint8_t *data);
+bool ACEP_5IN65_NeedsRecovery(void);
+error_code_t ACEP_5IN65_Recover(void);
 
 #endif

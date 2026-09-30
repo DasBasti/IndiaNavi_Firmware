@@ -37,6 +37,25 @@ static image_t* splash;
 static char *url;
 #define URL_LENGTH 61
 
+/* QR code with the access point credentials, shown while charging */
+#define QR_MODULE_SIZE 3 // pixel per QR module
+#define QR_TOP 495
+#define WIFI_QR_BOX_WIDTH 160
+#define WIFI_QR_TEXT_LINES 2
+#define WIFI_QR_TEXT_LEN 64
+
+typedef struct {
+    uint8_t* code;
+    int16_t left;
+    int16_t top;
+    bool (*visible)(void);
+} qr_view_t;
+
+static qr_view_t url_qr;
+static qr_view_t wifi_qr;
+static label_t* wifi_qr_label;
+static char* wifi_qr_text;
+
 void off_screen_free()
 {
     free_all_render_pipelines();
@@ -61,6 +80,11 @@ void off_screen_free()
     qrcode = NULL;
     RTOS_Free(url);
     url = NULL;
+    wifi_qr.code = NULL; // owned by wifi.c
+    RTOS_Free(wifi_qr_label);
+    wifi_qr_label = NULL;
+    RTOS_Free(wifi_qr_text);
+    wifi_qr_text = NULL;
 }
 
 static char* messages[] = { "Device is sleeping push button to start   ", "Device is charging push button to start   " };
@@ -81,17 +105,65 @@ error_code_t render_arrow(const display_t* dsp, void*)
     return PM_OK;
 }
 
-// Prints the given QR Code to the console.
+// Draws the given QR Code at its position
 static error_code_t render_qr(const display_t* dsp, void* comp)
 {
-    uint8_t* qrcode = (uint8_t*)comp;
-    int size = qrcodegen_getSize(qrcode);
+    qr_view_t* view = (qr_view_t*)comp;
+    if (!view->code || (view->visible && !view->visible()))
+        return NOT_NEEDED;
+    int size = qrcodegen_getSize(view->code);
     for (int y = 0; y < size; y++) {
         for (int x = 0; x < size; x++) {
-            display_rect_fill(dsp, (3 * x) + 5, (3 * y) + 495, 3, 3, (qrcodegen_getModule(qrcode, x, y) ? BLACK : WHITE));
+            display_rect_fill(dsp, (QR_MODULE_SIZE * x) + view->left, (QR_MODULE_SIZE * y) + view->top,
+                QR_MODULE_SIZE, QR_MODULE_SIZE, (qrcodegen_getModule(view->code, x, y) ? BLACK : WHITE));
         }
     }
     return PM_OK;
+}
+
+// The access point only runs in charge mode
+static bool wifi_qr_visible(void)
+{
+    return wifi_ap_running();
+}
+
+static error_code_t wifi_qr_label_onBeforeRender(const display_t* dsp, void* label)
+{
+    return wifi_qr_visible() ? PM_OK : ABORT;
+}
+
+/*
+ * QR code of the access point, phones join the network after scanning it.
+ */
+static void create_wifi_qr(const display_t* dsp)
+{
+    wifi_qr.code = (uint8_t*)wifi_ap_qrcode();
+    if (!wifi_qr.code)
+        return;
+
+    int16_t qr_size = qrcodegen_getSize(wifi_qr.code) * QR_MODULE_SIZE;
+    // leave white space between text and QR code for scanners
+    int16_t text_height = WIFI_QR_TEXT_LINES * (f8x8.height + 2) + 8;
+    int16_t box_left = dsp->size.width - WIFI_QR_BOX_WIDTH - 2;
+    wifi_qr.left = box_left + (WIFI_QR_BOX_WIDTH - qr_size) / 2;
+    wifi_qr.top = QR_TOP;
+    wifi_qr.visible = wifi_qr_visible;
+
+    // SSID and password as text for typing them in by hand
+    wifi_qr_text = RTOS_Malloc(WIFI_QR_TEXT_LEN);
+    if (wifi_qr_text) {
+        snprintf(wifi_qr_text, WIFI_QR_TEXT_LEN, "WiFi %s\nPW   %s", wifi_ap_ssid(), wifi_ap_password());
+        wifi_qr_label = label_create(wifi_qr_text, &f8x8, box_left, QR_TOP - text_height,
+            WIFI_QR_BOX_WIDTH, text_height + qr_size + 3);
+    }
+    if (wifi_qr_label) {
+        wifi_qr_label->alignVertical = TOP;
+        wifi_qr_label->alignHorizontal = LEFT;
+        wifi_qr_label->backgroundColor = WHITE;
+        wifi_qr_label->onBeforeRender = wifi_qr_label_onBeforeRender;
+        add_to_render_pipeline(label_render, wifi_qr_label, RL_GUI_ELEMENTS);
+    }
+    add_to_render_pipeline(render_qr, &wifi_qr, RL_GUI_ELEMENTS);
 }
 
 // Update string on display
@@ -202,14 +274,20 @@ void off_screen_create(const display_t* display)
     }
 
     if (qrcode) {
-        qr_label = label_create("Scan me", &f8x8, 2, 495 - 13,
+        url_qr.code = qrcode;
+        url_qr.left = 5;
+        url_qr.top = QR_TOP;
+        url_qr.visible = NULL;
+        qr_label = label_create("Scan me", &f8x8, 2, QR_TOP - 13,
             qrcodegen_getSize(qrcode) * 3 + 6, 13 + qrcodegen_getSize(qrcode) * 3 + 3);
         qr_label->alignVertical = TOP;
         qr_label->alignHorizontal = CENTER;
         qr_label->backgroundColor = WHITE;
         add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
-        add_to_render_pipeline(render_qr, qrcode, RL_GUI_ELEMENTS);
+        add_to_render_pipeline(render_qr, &url_qr, RL_GUI_ELEMENTS);
     }
+
+    create_wifi_qr(dsp);
 
     wifi_indicator_image = image_create(WIFI_0, 3, 0, 32, 32);
     wifi_indicator_image->onBeforeRender = wifi_indicator_image_onBeforeRender;

@@ -103,6 +103,33 @@ error_code_t closeFile(async_file_t* file);
 error_code_t deleteFile(async_file_t* file);
 char* readline(char* c, char* d);
 void closePhysicalFile(async_file_t* file);
+#ifndef LINUX
+bool sd_lock(void);
+void sd_unlock(void);
+error_code_t sd_get_info(uint64_t* total, uint64_t* free);
+#endif
+
+// From upload_server.c
+typedef enum {
+    UPLOAD_IDLE,    /// no transfer announced
+    UPLOAD_ACTIVE,  /// app announced a transfer, files are coming in
+    UPLOAD_DONE,    /// all announced files are stored
+    UPLOAD_ABORTED, /// no upload for too long
+} upload_state_t;
+
+typedef struct {
+    upload_state_t state;
+    uint32_t files_total;
+    uint32_t files_done;
+    uint64_t bytes_total;
+    uint64_t bytes_done;
+    bool result_shown; /// "done"/"aborted" was on the display for one refresh
+} upload_progress_t;
+
+void upload_server_start(void);
+void upload_server_stop(void);
+upload_progress_t upload_get_progress(void);
+void upload_progress_result_shown(upload_state_t shown);
 
 // From gps.c
 void gps_screen_element(const display_t* dsp);
@@ -117,9 +144,17 @@ void set_long_press_event(void (*event)(void));
 
 // From gui.c
 void trigger_rendering();
+void gui_reload_track(void);
 
 // From wifi.c
 bool isConnected();
+void wifi_ap_credentials_init(void);
+const char* wifi_ap_ssid(void);
+const char* wifi_ap_password(void);
+bool wifi_ap_running(void);
+uint8_t wifi_ap_station_count(void);
+const uint8_t* wifi_ap_qrcode(void);
+void wifi_notify_activity(void);
 void wifi_start_task(void);
 void wifi_request_stop(void);
 

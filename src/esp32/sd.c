@@ -99,6 +99,37 @@ static void giveSD(void)
 }
 
 /*
+ * Lock the SD card for direct FatFs access from other modules.
+ *
+ * returns false if no card is mounted or the card is busy
+ */
+bool sd_lock(void)
+{
+    return takeSD();
+}
+
+void sd_unlock(void)
+{
+    giveSD();
+}
+
+/*
+ * Size and free space of the mounted card in bytes
+ */
+error_code_t sd_get_info(uint64_t* total, uint64_t* free)
+{
+    *total = 0;
+    *free = 0;
+    if (sd_status != PM_OK)
+        return UNAVAILABLE;
+    if (!takeSD())
+        return UNAVAILABLE;
+    esp_err_t err = esp_vfs_fat_info("", total, free);
+    giveSD();
+    return err == ESP_OK ? PM_OK : PM_FAIL;
+}
+
+/*
  * Load a whole file into memory.
  *
  * If file->dest is NULL a buffer of file size + 1 is allocated, the caller

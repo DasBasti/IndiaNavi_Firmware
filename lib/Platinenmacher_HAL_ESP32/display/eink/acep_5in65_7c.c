@@ -21,6 +21,9 @@ acep_5in65_dev_t * dev;
 
 static error_code_t ACEP_5IN65_Display(uint8_t *image);
 
+// set when the controller did not get ready, it has to be reset before the next image
+static volatile bool needs_recovery = false;
+
 /*
  * write pixel in framebuffer
  */
@@ -61,7 +64,10 @@ error_code_t ACEP_5IN65_Write(const display_t *dsp, int16_t x, int16_t y,
 static void ACEP_5IN65_Commit_Fb(const display_t *dsp)
 {
 	if (ACEP_5IN65_Display(fb) == TIMEOUT)
+	{
 		ESP_LOGE(TAG, "Timeout during commiting FB");
+		needs_recovery = true;
+	}
 }
 
 /**
@@ -167,6 +173,58 @@ void ACEP_5IN65_pre_transfer_callback(spi_transaction_t *t)
 }
 
 /*
+ * Send the register setup to the controller. The SPI device has to exist.
+ */
+static error_code_t ACEP_5IN65_InitRegisters(void)
+{
+	esp_err_t ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+	ESP_ERROR_CHECK(ret);
+	ACEP_5IN65_Reset();
+	if (ACEP_5IN65_BusyHigh() == TIMEOUT)
+	{
+		spi_device_release_bus(spi);
+		return TIMEOUT;
+	}
+	ACEP_5IN65_SendCommand(0x00);
+	ACEP_5IN65_SendData(0xEF);
+	ACEP_5IN65_SendData(0x08);
+	ACEP_5IN65_SendCommand(0x01);
+	ACEP_5IN65_SendData(0x37);
+	ACEP_5IN65_SendData(0x00);
+	ACEP_5IN65_SendData(0x23);
+	ACEP_5IN65_SendData(0x23);
+	ACEP_5IN65_SendCommand(0x03);
+	ACEP_5IN65_SendData(0x00);
+	ACEP_5IN65_SendCommand(0x06);
+	ACEP_5IN65_SendData(0xC7);
+	ACEP_5IN65_SendData(0xC7);
+	ACEP_5IN65_SendData(0x1D);
+	ACEP_5IN65_SendCommand(0x30);
+	ACEP_5IN65_SendData(0x3C);
+	ACEP_5IN65_SendCommand(0x41);
+	ACEP_5IN65_SendData(0x80);
+	ACEP_5IN65_SendCommand(0x50);
+	ACEP_5IN65_SendData(0x3f);
+	ACEP_5IN65_SendCommand(0x60);
+	ACEP_5IN65_SendData(0x22);
+	ACEP_5IN65_SendCommand(0x61);
+	ACEP_5IN65_SendData(0x02);
+	ACEP_5IN65_SendData(0x58);
+	ACEP_5IN65_SendData(0x01);
+	ACEP_5IN65_SendData(0xC0);
+	ACEP_5IN65_SendCommand(0xE3);
+	ACEP_5IN65_SendData(0xAA);
+	ACEP_5IN65_SendCommand(0x82);
+	ACEP_5IN65_SendData(0x80);
+
+	vTaskDelay(10);
+	ACEP_5IN65_SendCommand(0x50);
+	ACEP_5IN65_SendData(0x37);
+	spi_device_release_bus(spi);
+	return PM_OK;
+}
+
+/*
  * Initialize display and the e-Paper registers
  */
 display_t *ACEP_5IN65_Init(acep_5in65_dev_t* eink_dev, display_rotation_t rotation)
@@ -224,52 +282,12 @@ display_t *ACEP_5IN65_Init(acep_5in65_dev_t* eink_dev, display_rotation_t rotati
 	gpio_set_level(dev->dc, 0);
 	gpio_set_level(dev->select, 0);
 
-	ret = spi_device_acquire_bus(spi, portMAX_DELAY);
-	ESP_ERROR_CHECK(ret);
-	ACEP_5IN65_Reset();
-	if (ACEP_5IN65_BusyHigh() == TIMEOUT)
+	if (ACEP_5IN65_InitRegisters() == TIMEOUT)
 		goto display_busyhigh_timeout;
-	ACEP_5IN65_SendCommand(0x00);
-	ACEP_5IN65_SendData(0xEF);
-	ACEP_5IN65_SendData(0x08);
-	ACEP_5IN65_SendCommand(0x01);
-	ACEP_5IN65_SendData(0x37);
-	ACEP_5IN65_SendData(0x00);
-	ACEP_5IN65_SendData(0x23);
-	ACEP_5IN65_SendData(0x23);
-	ACEP_5IN65_SendCommand(0x03);
-	ACEP_5IN65_SendData(0x00);
-	ACEP_5IN65_SendCommand(0x06);
-	ACEP_5IN65_SendData(0xC7);
-	ACEP_5IN65_SendData(0xC7);
-	ACEP_5IN65_SendData(0x1D);
-	ACEP_5IN65_SendCommand(0x30);
-	ACEP_5IN65_SendData(0x3C);
-	ACEP_5IN65_SendCommand(0x41);
-	ACEP_5IN65_SendData(0x80);
-	ACEP_5IN65_SendCommand(0x50);
-	ACEP_5IN65_SendData(0x3f);
-	ACEP_5IN65_SendCommand(0x60);
-	ACEP_5IN65_SendData(0x22);
-	ACEP_5IN65_SendCommand(0x61);
-	ACEP_5IN65_SendData(0x02);
-	ACEP_5IN65_SendData(0x58);
-	ACEP_5IN65_SendData(0x01);
-	ACEP_5IN65_SendData(0xC0);
-	ACEP_5IN65_SendCommand(0xE3);
-	ACEP_5IN65_SendData(0xAA);
-	ACEP_5IN65_SendCommand(0x82);
-	ACEP_5IN65_SendData(0x80);
-
-	vTaskDelay(10);
-	ACEP_5IN65_SendCommand(0x50);
-	ACEP_5IN65_SendData(0x37);
-	spi_device_release_bus(spi);
 
 	return disp;
 
 display_busyhigh_timeout:
-	spi_device_release_bus(spi);
 	RTOS_Free(disp);
 display_init_failed:
 	spi_bus_remove_device(spi);
@@ -308,6 +326,8 @@ static error_code_t ACEP_5IN65_Display(uint8_t *image)
 	spi_device_release_bus(spi);
 	if (ACEP_5IN65_BusyLow() == TIMEOUT)
 		return TIMEOUT;
+	// the controller needs time after power off before the next command
+	vTaskDelay(pdMS_TO_TICKS(200));
 	return PM_OK;
 
 timeout:
@@ -365,4 +385,24 @@ void ACEP_5IN65_Sleep(void)
 {
 	ACEP_5IN65_SendCommand(0x07);
 	ACEP_5IN65_SendData(0xA5);
+}
+
+/*
+ * true if the last update timed out and the controller has to be reset.
+ * A busy controller ignores commands and shifts the image.
+ */
+bool ACEP_5IN65_NeedsRecovery(void)
+{
+	return needs_recovery;
+}
+
+/*
+ * Initialize the controller again after its supply was switched off and on
+ */
+error_code_t ACEP_5IN65_Recover(void)
+{
+	error_code_t err = ACEP_5IN65_InitRegisters();
+	if (err == PM_OK)
+		needs_recovery = false;
+	return err;
 }
