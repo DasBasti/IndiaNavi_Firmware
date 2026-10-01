@@ -12,7 +12,7 @@ jobs:
   platformio_run_native_tests:
     uses: ./.github/workflows/platformio_test_native.yml
  
-  build_and_upload:
+  build:
     uses: ./.github/workflows/platformio_build.yml
     secrets: inherit
     
