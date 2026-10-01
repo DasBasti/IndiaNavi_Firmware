@@ -7,7 +7,7 @@ jobs:
   platformio_run:
     strategy:
       matrix:
-        target: [indianavi_s3_n16r8_debug, indianavi_s3_n16r8_release, linux_native]
+        target: [indianavi_s3_n16r8_debug, indianavi_s3_n16r8_release]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -35,64 +35,10 @@ jobs:
     - name: Run PlatformIO build on embedded platforms
       run: platformio run -e ${{ matrix.target }}
 
-    - id: hash
-      uses: pr-mpt/actions-commit-hash@v2
-      
-    - name: Upload debug.bin file
-      if: (success() && !contains(matrix.target, 'linux_native'))
+    - name: Upload firmware binary
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: firmware_${{ matrix.target }}.bin
         path: .pio/build/${{ matrix.target }}/firmware.bin
-        retention-days: 5   
-
-    - name: make deploy folder
-      run: |
-        mkdir deploy
-
-    - name: copy firmware to deploy folder
-      if: (success() && !contains(matrix.target, 'linux_native'))
-      run: |
-        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_latest.bin
-        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
-
-    - name: create firmware version to deploy
-      if: (success() && !contains(matrix.target, 'linux_native') && startsWith(github.event.ref, 'refs/tags/v'))
-      run: |
-        cp .pio/build/${{ matrix.target }}/firmware.bin  ./deploy/firmware_${{ matrix.target }}_${{github.ref_name}}.bin
-
-    - name: copy linux binary to deploy folder
-      if: (success() && contains(matrix.target, 'linux_native'))
-      run: |
-        cp .pio/build/${{ matrix.target }}/program  ./deploy/${{ matrix.target }}.bin
-        cp .pio/build/${{ matrix.target }}/program  ./deploy/${{ matrix.target }}_$(git describe --abbrev=7 --always).bin
-
-    - name: create version to deploy
-      if: (success() && contains(matrix.target, 'linux_native') && startsWith(github.event.ref, 'refs/tags/v'))
-      run: |
-        cp .pio/build/${{ matrix.target }}/program  ./deploy/${{ matrix.target }}_${{github.ref_name}}.bin
-
-    - name: update version file
-      if: (success())
-      run: |
-        echo ${{github.ref_name}} | tee ./deploy/latest_version
-    
-    - name: Upload linux binary file
-      if: (success() && contains(matrix.target, 'linux_native'))
-      uses: actions/upload-artifact@v4
-      with:
-        name: indianavi
-        path: .pio/build/${{ matrix.target }}/program
         retention-days: 5
-    
-    - name: Deploy tagged version to S3
-      if: (success())
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read 
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_PRODUCTION_BUCKET_NAME }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        SOURCE_DIR: "./deploy"
