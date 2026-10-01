@@ -22,6 +22,8 @@
 #include <esp_system.h>
 #include <esp_timer.h>
 #include <ff.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "gui.h"
 #include "helper.h"
@@ -464,8 +466,10 @@ static esp_err_t api_firmware_put_handler(httpd_req_t* req)
     if (!buf)
         return send_error(req, "500 Internal Server Error", "out of memory");
 
+    // erase each sector when it is written instead of the whole image at
+    // once, so the flash is not blocked for seconds
     esp_ota_handle_t ota;
-    if (esp_ota_begin(part, content_len, &ota) != ESP_OK) {
+    if (esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &ota) != ESP_OK) {
         free(buf);
         return send_error(req, "500 Internal Server Error", "can not start update");
     }
@@ -487,6 +491,9 @@ static esp_err_t api_firmware_put_handler(httpd_req_t* req)
             break;
         }
         remaining -= received;
+        // every flash write stalls the other core, let its idle task run
+        // so the task watchdog does not trigger
+        vTaskDelay(1);
     }
     free(buf);
 
