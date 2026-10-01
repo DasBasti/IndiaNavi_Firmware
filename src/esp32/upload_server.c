@@ -18,8 +18,12 @@
 
 #include <esp_http_server.h>
 #include <esp_log.h>
+#include <esp_ota_ops.h>
+#include <esp_system.h>
 #include <esp_timer.h>
 #include <ff.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "gui.h"
 #include "helper.h"
@@ -296,7 +300,7 @@ static esp_err_t api_info_handler(httpd_req_t* req)
 
     char json[256];
     snprintf(json, sizeof(json),
-        "{\"id\":\"%s\",\"firmware\":\"%s\",\"api\":%d,"
+        "{\"id\":\"%s\",\"firmware\":\"%s\",\"api\":%d,\"ota\":true,"
         "\"sd\":{\"present\":%s,\"free\":%llu,\"total\":%llu}}",
         device_id, GIT_HASH, API_VERSION, present ? "true" : "false",
         (unsigned long long)free_bytes, (unsigned long long)total);
@@ -419,6 +423,107 @@ static esp_err_t api_reload_handler(httpd_req_t* req)
     ESP_LOGI(TAG, "reload track");
     gui_reload_track();
     return send_no_content(req);
+}
+
+/*
+ * Restart a moment after the answer of the request was sent
+ */
+static void restart_cb(void* arg)
+{
+    esp_restart();
+}
+
+static void restart_later(void)
+{
+    static esp_timer_handle_t timer;
+    if (!timer) {
+        const esp_timer_create_args_t args = { .callback = restart_cb, .name = "restart" };
+        if (esp_timer_create(&args, &timer) != ESP_OK)
+            return;
+    }
+    esp_timer_start_once(timer, 2000 * 1000);
+}
+
+/*
+ * PUT /api/firmware
+ * The body is the firmware image (the .bin of the app). It is written to the
+ * inactive OTA partition and checked. The device boots it after POST /api/restart.
+ */
+static esp_err_t api_firmware_put_handler(httpd_req_t* req)
+{
+    wifi_notify_activity(); // keeps WiFi on
+    size_t content_len = req->content_len;
+    if (content_len == 0)
+        return send_error(req, "411 Length Required", "Content-Length missing");
+
+    const esp_partition_t* part = esp_ota_get_next_update_partition(NULL);
+    if (!part)
+        return send_error(req, "500 Internal Server Error", "no update partition");
+    if (content_len > part->size)
+        return send_error(req, "507 Insufficient Storage", "firmware is too big");
+
+    char* buf = malloc(UPLOAD_CHUNK_SIZE);
+    if (!buf)
+        return send_error(req, "500 Internal Server Error", "out of memory");
+
+    // erase each sector when it is written instead of the whole image at
+    // once, so the flash is not blocked for seconds
+    esp_ota_handle_t ota;
+    if (esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &ota) != ESP_OK) {
+        free(buf);
+        return send_error(req, "500 Internal Server Error", "can not start update");
+    }
+    ESP_LOGI(TAG, "firmware update: %u bytes to %s", (unsigned)content_len, part->label);
+
+    size_t remaining = content_len;
+    bool write_ok = true;
+    uint8_t retries = 0;
+    while (remaining > 0) {
+        int received = httpd_req_recv(req, buf, remaining < UPLOAD_CHUNK_SIZE ? remaining : UPLOAD_CHUNK_SIZE);
+        if (received == HTTPD_SOCK_ERR_TIMEOUT && ++retries <= RECV_RETRIES)
+            continue;
+        if (received <= 0)
+            break;
+        retries = 0;
+        wifi_notify_activity();
+        if (esp_ota_write(ota, buf, received) != ESP_OK) {
+            write_ok = false;
+            break;
+        }
+        remaining -= received;
+        // every flash write stalls the other core, let its idle task run
+        // so the task watchdog does not trigger
+        vTaskDelay(1);
+    }
+    free(buf);
+
+    if (remaining > 0 || !write_ok) {
+        esp_ota_abort(ota);
+        if (write_ok)
+            return ESP_FAIL; // connection is broken, close the socket
+        return send_error(req, "500 Internal Server Error", "write failed");
+    }
+
+    // checks the image (magic byte, checksum, hash)
+    if (esp_ota_end(ota) != ESP_OK)
+        return send_error(req, "400 Bad Request", "not a valid firmware image");
+    if (esp_ota_set_boot_partition(part) != ESP_OK)
+        return send_error(req, "500 Internal Server Error", "can not select the new firmware");
+
+    ESP_LOGI(TAG, "firmware stored, boots after restart");
+    return send_no_content(req);
+}
+
+/*
+ * POST /api/restart
+ */
+static esp_err_t api_restart_handler(httpd_req_t* req)
+{
+    wifi_notify_activity();
+    ESP_LOGI(TAG, "restart requested");
+    esp_err_t res = send_no_content(req);
+    restart_later();
+    return res;
 }
 
 /*
@@ -671,6 +776,8 @@ static const httpd_uri_t uri_handlers[] = {
     { .uri = "/api/transfer", .method = HTTP_POST, .handler = api_transfer_post_handler },
     { .uri = "/api/transfer", .method = HTTP_GET, .handler = api_transfer_get_handler },
     { .uri = "/api/transfer", .method = HTTP_DELETE, .handler = api_transfer_delete_handler },
+    { .uri = "/api/firmware", .method = HTTP_PUT, .handler = api_firmware_put_handler },
+    { .uri = "/api/restart", .method = HTTP_POST, .handler = api_restart_handler },
     { .uri = "/sd/*", .method = HTTP_GET, .handler = sd_get_handler },
     { .uri = "/sd/*", .method = HTTP_PUT, .handler = sd_put_handler },
     { .uri = "/sd/*", .method = HTTP_DELETE, .handler = sd_delete_handler },
