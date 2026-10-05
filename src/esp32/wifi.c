@@ -53,7 +53,8 @@ static bool sta_enabled = false; // join the WiFi from the WIFI file as well
 static volatile bool ap_running = false;
 static volatile uint8_t ap_station_count = 0;
 
-/* WiFi is switched off when nobody uses it, it is not needed while out and about */
+/* WiFi is switched off when nobody uses it, it is not needed while out and about.
+ * It stays on while charging. */
 #define WIFI_IDLE_TIMEOUT_US (10LL * 60 * 1000 * 1000)
 static volatile int64_t last_activity_us;
 
@@ -293,11 +294,12 @@ const uint8_t* wifi_ap_qrcode(void)
 }
 
 /*
- * Stop WiFi when no phone is connected and nothing happened for a while
+ * Stop WiFi when no phone is connected and nothing happened for a while.
+ * WiFi stays on while a charger is connected, there is enough power.
  */
 static bool idle_timeout(void)
 {
-    if (ap_station_count)
+    if (is_charging || ap_station_count)
         return false;
     if (esp_timer_get_time() - last_activity_us < WIFI_IDLE_TIMEOUT_US)
         return false;
