@@ -383,6 +383,8 @@ void StartWiFiTask(void const* argument)
     esp_event_handler_instance_t instance_any_id = NULL;
     esp_event_handler_instance_t instance_got_ip = NULL;
     bool wifi_initialized = false;
+    // a failed update from the OTA file is not downloaded again in this WiFi session
+    bool ota_failed = false;
     // one more byte than the field so a too long ssid/password is detected
     char ssid[sizeof(wifi_config.sta.ssid) + 1] = { 0 };
     char password[sizeof(wifi_config.sta.password) + 1] = { 0 };
@@ -511,7 +513,10 @@ void StartWiFiTask(void const* argument)
             if (wait_or_stop(30000))
                 break;
 
-            do_background_ota(NULL);
+            if (!ota_failed && do_background_ota(NULL) == PM_FAIL) {
+                ESP_LOGW(TAG, "Firmware update failed, retry when WiFi starts again");
+                ota_failed = true;
+            }
         }
         ESP_LOGI(TAG, "Reconnect....");
     }

@@ -26,7 +26,6 @@
 #include "tasks.h"
 
 static const char* TAG = "OTA";
-#define FIRMWARE_UPGRADE_URL "http://laptop.local:8070/firmware.bin"
 extern const uint8_t server_cert_pem_start[] asm("_binary_AmazonRootCA1_4_pem_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_AmazonRootCA1_4_pem_end");
 
@@ -84,6 +83,10 @@ error_code_t do_background_ota(void* pvParameter)
     }
     // only the first line contains the url
     readline_n(url, url, sizeof(url));
+    if (!url[0]) {
+        ESP_LOGE(TAG, "OTA file has no url");
+        return PM_FAIL;
+    }
 
     ESP_LOGI(TAG, "Starting OTA...");
 
@@ -97,7 +100,7 @@ error_code_t do_background_ota(void* pvParameter)
     }
 
     esp_http_client_config_t http_config = {
-        .url = FIRMWARE_UPGRADE_URL,
+        .url = url,
         .cert_pem = (char*)server_cert_pem_start,
         .event_handler = _http_event_handler,
         .keep_alive_enable = true,
@@ -107,17 +110,9 @@ error_code_t do_background_ota(void* pvParameter)
         .http_config = &http_config,
     };
 
-    esp_err_t ret = ESP_FAIL;
-    if (url[0]) {
-        http_config.url = url;
-        ESP_LOGI(TAG, "Download from: %s", http_config.url);
-        ret = esp_https_ota(&ota_config);
-    }
-    if (ret != ESP_OK) {
-        http_config.url = FIRMWARE_UPGRADE_URL;
-        ESP_LOGI(TAG, "Download from internal url: %s", http_config.url);
-        ret = esp_https_ota(&ota_config);
-    }
+    // esp_https_ota only accepts https:// urls
+    ESP_LOGI(TAG, "Download from: %s", http_config.url);
+    esp_err_t ret = esp_https_ota(&ota_config);
 
     if (ret == ESP_OK) {
         deleteFile(ota);
