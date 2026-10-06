@@ -188,7 +188,9 @@ error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* ima
 void turn_to_on()
 {
     gui_set_app_mode(APP_MODE_GPS_CREATE);
-    wifi_request_stop();
+    // while charging WiFi keeps running, the map screen shows the AP QR code
+    if (!is_charging)
+        wifi_request_stop();
     trigger_rendering();
 }
 
