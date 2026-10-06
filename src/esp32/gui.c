@@ -578,6 +578,9 @@ static void recover_display_if_needed(void)
     }
 }
 
+/* battery level in percent needed to start the display without a charger */
+#define DISPLAY_MIN_BATTERY_LEVEL 65
+
 void StartGuiTask(void const* argument)
 {
     ESP_LOGI(TAG, "init");
@@ -589,9 +592,12 @@ void StartGuiTask(void const* argument)
     // eeprom->onValue = GPIO_RESET;
     // gpio_write(eeprom, GPIO_SET);
 
-    while (current_battery_level < 65) {
-        ESP_LOGE(TAG, "wait for battery charge. Current value: %ld%%", current_battery_level);
-        vTaskDelay(30000 / portTICK_PERIOD_MS);
+    // an e-ink refresh on a low battery can cause a brown-out. With a charger
+    // connected there is enough power, so the charge screen is shown.
+    for (uint32_t i = 0; current_battery_level < DISPLAY_MIN_BATTERY_LEVEL && !is_charging; i++) {
+        if (i % 30 == 0)
+            ESP_LOGE(TAG, "wait for battery charge or charger. Current value: %ld%%", current_battery_level);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
     ESP_LOGI(TAG, "init Display regualtor");
