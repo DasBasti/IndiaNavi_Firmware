@@ -22,7 +22,7 @@
 
 #include <driver/gpio.h>
 
-#include <icons_32.h>
+#include <icons_16.h>
 #include <qrcodegen.h>
 
 #define GPS_VIEW_STRLEN 5 // number of satellites

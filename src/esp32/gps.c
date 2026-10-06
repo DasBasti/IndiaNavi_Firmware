@@ -28,7 +28,7 @@
 
 #include <driver/uart.h>
 #include <esp_log.h>
-#include <icons_32.h>
+#include <icons_16.h>
 
 static const char* TAG = "GPS";
 char timeString[26]; // ctime_r() writes up to 26 bytes

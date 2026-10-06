@@ -29,7 +29,7 @@
 #include "gui.h"
 #include "helper.h"
 #include "tasks.h"
-#include <icons_32.h>
+#include <icons_16.h>
 #include <string.h>
 char wifi_file[32 + 1 + 64];
 wifi_config_t wifi_config;
