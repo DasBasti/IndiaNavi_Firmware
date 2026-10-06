@@ -2,6 +2,7 @@
 .vscode/
 build
 sdkconfig*
+!sdkconfig.defaults*
 
 logs/*
 

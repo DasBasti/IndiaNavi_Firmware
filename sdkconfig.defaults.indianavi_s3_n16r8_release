@@ -1,0 +1,3 @@
+# Only the indianavi_s3_n16r8_release build, see sdkconfig.defaults
+
+CONFIG_HEAP_POISONING_COMPREHENSIVE=y

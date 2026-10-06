@@ -1,0 +1,4 @@
+# Only the esp32dev_release build, see sdkconfig.defaults
+
+CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
+CONFIG_LOG_DEFAULT_LEVEL_ERROR=y
