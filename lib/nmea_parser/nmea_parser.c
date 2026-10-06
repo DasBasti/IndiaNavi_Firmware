@@ -62,6 +62,9 @@ static inline uint8_t convert_two_digit2number(const char* digit_char)
  */
 static void parse_utc_time(esp_gps_t* esp_gps)
 {
+    // the field is empty while the module has no time
+    if (strlen(esp_gps->item_str) < 6)
+        return;
     esp_gps->parent.tim.hour = convert_two_digit2number(esp_gps->item_str + 0);
     esp_gps->parent.tim.minute = convert_two_digit2number(esp_gps->item_str + 2);
     esp_gps->parent.tim.second = convert_two_digit2number(esp_gps->item_str + 4);
@@ -247,6 +250,8 @@ static void parse_rmc(esp_gps_t* esp_gps)
         esp_gps->parent.cog = strtof(esp_gps->item_str, NULL);
         break;
     case 9: /* Process date */
+        if (strlen(esp_gps->item_str) < 6)
+            break; // empty while the module has no date
         esp_gps->parent.date.day = convert_two_digit2number(esp_gps->item_str + 0);
         esp_gps->parent.date.month = convert_two_digit2number(esp_gps->item_str + 2);
         esp_gps->parent.date.year = convert_two_digit2number(esp_gps->item_str + 4);

@@ -42,6 +42,8 @@ uint32_t gps_ticks = 0;
 #define TRACK_LOG_INTERVAL_S 5
 /* time between attempts to open the track log if it failed */
 #define TRACK_LOG_RETRY_S 60
+/* the clock was never set before 2020-01-01 */
+#define VALID_TIME_MIN 1577836800
 
 QueueHandle_t gpstrack_queue;
 
@@ -87,6 +89,39 @@ bool gps_is_position_known()
     return current_position.fix != GPS_FIX_INVALID;
 }
 
+/* days since 1970-01-01 of a date in the proleptic Gregorian calendar */
+static int32_t days_from_civil(int32_t y, uint32_t m, uint32_t d)
+{
+    y -= m <= 2;
+    const int32_t era = (y >= 0 ? y : y - 399) / 400;
+    const uint32_t yoe = (uint32_t)(y - era * 400);
+    const uint32_t doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const uint32_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + (int32_t)doe - 719468;
+}
+
+/*
+ * Epoch time from the UTC date and time of the GPS module
+ *
+ * Returns false while the module has no valid time, the fields are empty
+ * then and hold garbage.
+ */
+static bool gps_utc_time(const gps_t* gps, time_t* utc)
+{
+    if (!gps->valid)
+        return false;
+    // years are 2 digits counted from 2000
+    if (gps->date.year < 20 || gps->date.year > 99
+        || gps->date.month < 1 || gps->date.month > 12
+        || gps->date.day < 1 || gps->date.day > 31
+        || gps->tim.hour > 23 || gps->tim.minute > 59 || gps->tim.second > 60)
+        return false;
+
+    int32_t days = days_from_civil(2000 + gps->date.year, gps->date.month, gps->date.day);
+    *utc = (time_t)days * 86400 + gps->tim.hour * 3600 + gps->tim.minute * 60 + gps->tim.second;
+    return true;
+}
+
 /**
  * @brief GPS Event Handler
  *
@@ -113,20 +148,17 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         current_position.satellites_in_use = _gps->sats_in_use;
         current_position.satellites_in_view = _gps->sats_in_view;
 
-        struct tm t = { 0 };               // Initalize to all 0's
-        t.tm_year = _gps->date.year + 100; // This is year+100, so 121 = 2021
-        t.tm_mon = _gps->date.month - 1;
-        t.tm_mday = _gps->date.day;
-        t.tm_hour = _gps->tim.hour + 1;
-        t.tm_min = _gps->tim.minute;
-        t.tm_sec = _gps->tim.second;
-
-        struct timeval tv = { mktime(&t), 0 }; // epoch time (seconds)
-        settimeofday(&tv, NULL);
+        time_t utc;
+        if (gps_utc_time(_gps, &utc)) {
+            struct timeval tv = { utc, 0 };
+            settimeofday(&tv, NULL);
+        } else {
+            utc = time(NULL);
+        }
 
         gps_ticks++;
         if (gpstrack_queue != NULL) {
-            log_position_t log_position = { .position = current_position, .timestamp = mktime(&t) };
+            log_position_t log_position = { .position = current_position, .timestamp = utc };
             // called from the parser task, not from an ISR
             xQueueSend(gpstrack_queue, &log_position, 0);
         }
@@ -357,7 +389,7 @@ void StartGpsTask(void const* argument)
         }
         if (xQueueReceive(gpstrack_queue, &position, pdMS_TO_TICKS(1000)) != pdTRUE)
             continue;
-        if (position.position.fix == GPS_FIX_INVALID)
+        if (position.position.fix == GPS_FIX_INVALID || position.timestamp < VALID_TIME_MIN)
             continue;
         if (position.timestamp - last_logged < TRACK_LOG_INTERVAL_S)
             continue;
