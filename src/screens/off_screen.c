@@ -180,6 +180,9 @@ error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* ima
     image_t* i = (image_t*)image;
 
     i->data = wifi_indicator_image_data;
+    // not joined to a WiFi, but phones can join the access point
+    if (i->data == WIFI_0 && wifi_ap_running())
+        i->data = WIFI_AP;
     if (!is_charging)
         i->data = NULL;
     return PM_OK;

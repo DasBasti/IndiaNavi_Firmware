@@ -56,6 +56,7 @@ font_t f8x8, f8x16;
 label_t* clock_label;
 battery_indicator_t* battery_indicator;
 label_t* north_indicator_label;
+label_t* wifi_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
@@ -184,6 +185,15 @@ static int sprint_battery_percent(char* buffer, const char* format, ...)
 static label_t* top_bar;
 
 /*
+ * Show the access point icon while phones can join the WiFi of the device
+ */
+static error_code_t wifi_ap_icon_onBeforeRender(const display_t* dsp, void* image)
+{
+    ((image_t*)image)->data = wifi_ap_running() ? WIFI_AP : NULL;
+    return PM_OK;
+}
+
+/*
  * Add the icon label and its image to the render pipeline
  */
 static void add_icon_with_text_to_pipeline(label_t* il)
@@ -229,6 +239,14 @@ static error_code_t create_top_bar_components(const display_t* dsp)
         bat->label.box.left + bat->label.box.width + margin_horizontal,
         margin_top, "", &f8x8);
 
+    if (north_indicator_label) {
+        wifi_indicator_label = create_icon_with_text(dsp, WIFI_AP,
+            north_indicator_label->box.left + north_indicator_label->box.width + margin_horizontal,
+            margin_top, "", &f8x8);
+        if (wifi_indicator_label)
+            ((image_t*)wifi_indicator_label->child)->onBeforeRender = wifi_ap_icon_onBeforeRender;
+    }
+
     char* GPSView = RTOS_Malloc(GPS_VIEW_STRLEN);
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
         dsp->size.width - ICON_SIZE - (2 * margin_right) - 16, margin_top, GPSView, &f8x8);
@@ -270,6 +288,7 @@ static void create_top_bar(const display_t* dsp)
     // render image after Label is rendered
     add_to_render_pipeline(image_render, &battery_indicator->image, RL_GUI_ELEMENTS);
     add_icon_with_text_to_pipeline(north_indicator_label);
+    add_icon_with_text_to_pipeline(wifi_indicator_label);
     add_icon_with_text_to_pipeline(gps_indicator_label);
     add_icon_with_text_to_pipeline(sd_indicator_label);
 #ifdef CLOCK

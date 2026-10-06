@@ -28,6 +28,7 @@ extern uint8_t WIFI_0[];
 extern uint8_t WIFI_1[];
 extern uint8_t WIFI_2[];
 extern uint8_t WIFI_3[];
+extern uint8_t WIFI_AP[];
 
 #define ICON_SIZE 16
 
