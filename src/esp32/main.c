@@ -78,6 +78,8 @@ int32_t is_charging;
 gpio_t* led;
 
 esp_timer_handle_t button_timer;
+// set by the long press timer, the following button up is not a short press
+static volatile bool long_press_handled;
 void (*_short_press)(void);
 void (*_long_press)(void);
 
@@ -192,11 +194,14 @@ static void IRAM_ATTR handleButtonPress(void* arg)
 }
 
 /**
- * Remove ISR trigger from Button and change application to shut down
+ * Long press: change application to shut down
+ *
+ * The button keeps its interrupt. While charging the device stays on the off
+ * screen and a short press has to turn it on again.
  */
 void button_timer_trigger(void* arg)
 {
-    gpio_isr_handler_remove(BTN);
+    long_press_handled = true;
     if (_long_press)
         _long_press();
     else
@@ -359,11 +364,14 @@ void app_main()
         if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
             if (event_num == TASK_EVENT_BUTTON_DOWN) {
                 ESP_LOGI(TAG, "Button down");
+                long_press_handled = false;
                 esp_timer_start_once(button_timer, 3000000); // 3 Seconds timeout for long press
             } else if (event_num == TASK_EVENT_BUTTON_UP) {
                 ESP_LOGI(TAG, "Button up");
                 esp_timer_stop(button_timer); // stop long press timer
-                if (_short_press)
+                if (long_press_handled)
+                    long_press_handled = false; // releasing the long press
+                else if (_short_press)
                     _short_press();
             }
 #ifdef WITH_ACC
