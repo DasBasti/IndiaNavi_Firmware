@@ -25,6 +25,7 @@
 void ble_if_start(void) { }
 void ble_if_stop(void) { }
 bool ble_if_is_running(void) { return false; }
+bool ble_if_is_connected(void) { return false; }
 int32_t ble_if_passkey(void) { return -1; }
 void ble_if_wifi_status_changed(void) { }
 #else
@@ -57,6 +58,7 @@ static const char* TAG = "BLE";
 #define NO_CONNECTION BLE_HS_CONN_HANDLE_NONE
 /* a phone that is not paired yet can pair for this long after Bluetooth started */
 #define PAIRING_WINDOW_US (120LL * 1000 * 1000)
+#define PASSKEY_SHOWN_US (120LL * 1000 * 1000)
 #define PREFERRED_MTU 247
 #define POSITION_INTERVAL_US (5LL * 1000 * 1000)
 #define WORKER_STACK_SIZE 3072
@@ -70,6 +72,7 @@ static uint8_t own_addr_type;
 static volatile uint16_t conn_handle = NO_CONNECTION;
 static volatile int32_t passkey = -1;            /// shown on the display while a phone pairs
 static volatile int64_t pairing_until_us;        /// a new phone can pair until then
+static volatile int64_t passkey_until_us;        /// the passkey stays on the display until then
 static char device_name[24];
 
 /* the phone subscribed to the notifications of these characteristics */
@@ -119,6 +122,20 @@ static bool pairing_allowed(void)
 static void open_pairing_window(void)
 {
     pairing_until_us = esp_timer_get_time() + PAIRING_WINDOW_US;
+}
+
+/*
+ * The e-ink display needs about 17 s for a new image, the phone has 30 s to pair. So the passkey is
+ * chosen when the phone connects, before it asks to pair, and kept for another try when the phone
+ * was too slow.
+ */
+static void show_passkey(void)
+{
+    passkey_until_us = esp_timer_get_time() + PASSKEY_SHOWN_US;
+    if (passkey < 0) {
+        passkey = (int32_t)(esp_random() % 1000000);
+        trigger_rendering(); // show the code on the display
+    }
 }
 
 static void clear_passkey(void)
@@ -466,17 +483,18 @@ static int gap_event(struct ble_gap_event* event, void* arg)
         conn_handle = event->connect.conn_handle;
         clear_subscriptions();
         ESP_LOGI(TAG, "phone connected");
-        // longer packets for the firmware update
-        ble_gap_set_data_len(conn_handle, 251, 2120);
+        if (pairing_allowed())
+            show_passkey(); // it might want to pair
+        trigger_rendering(); // the icon shows the connection
         break;
 
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "phone disconnected: %d", event->disconnect.reason);
         conn_handle = NO_CONNECTION;
         clear_subscriptions();
-        clear_passkey();
         ble_ota_disconnected();
         advertise();
+        trigger_rendering(); // the icon shows the connection
         break;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -510,9 +528,8 @@ static int gap_event(struct ble_gap_event* event, void* arg)
         struct ble_sm_io io;
         memset(&io, 0, sizeof(io));
         io.action = BLE_SM_IOACT_DISP;
-        io.passkey = esp_random() % 1000000;
-        passkey = (int32_t)io.passkey;
-        trigger_rendering(); // show the code on the display
+        show_passkey();
+        io.passkey = (uint32_t)passkey;
         int rc = ble_sm_inject_io(handle, &io);
         if (rc != 0)
             ESP_LOGE(TAG, "passkey not accepted: %d", rc);
@@ -530,9 +547,13 @@ static int gap_event(struct ble_gap_event* event, void* arg)
     }
 
     case BLE_GAP_EVENT_ENC_CHANGE:
-        clear_passkey();
         if (event->enc_change.status == 0) {
             ESP_LOGI(TAG, "link is encrypted");
+            clear_passkey();
+            // longer packets for the firmware update. Not when the phone connects: a paired phone starts
+            // the encryption at once and the controller does not answer the command until the host
+            // answered the key request, the host waits for the command.
+            ble_gap_set_data_len(event->enc_change.conn_handle, 251, 2120);
             pairing_until_us = 0; // a phone is paired now
         } else {
             ESP_LOGW(TAG, "encryption failed: %d", event->enc_change.status);
@@ -567,6 +588,9 @@ static void worker(void* arg)
         }
 
         int64_t now = esp_timer_get_time();
+        if (passkey >= 0 && conn_handle == NO_CONNECTION && now > passkey_until_us)
+            clear_passkey(); // nobody tried again
+
         if (subscribed_position && now - last_position_us >= POSITION_INTERVAL_US) {
             last_position_us = now;
             if (gps_is_position_known()) {
@@ -606,6 +630,11 @@ static void host_task(void* param)
 bool ble_if_is_running(void)
 {
     return running;
+}
+
+bool ble_if_is_connected(void)
+{
+    return running && conn_handle != NO_CONNECTION;
 }
 
 /**

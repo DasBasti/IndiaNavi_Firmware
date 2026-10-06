@@ -58,6 +58,7 @@ label_t* clock_label;
 battery_indicator_t* battery_indicator;
 label_t* north_indicator_label;
 label_t* wifi_indicator_label;
+label_t* ble_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
@@ -195,6 +196,20 @@ static error_code_t wifi_ap_icon_onBeforeRender(const display_t* dsp, void* imag
 }
 
 /*
+ * Show the Bluetooth icon while the device advertises, with dots while a phone is connected
+ */
+static error_code_t ble_icon_onBeforeRender(const display_t* dsp, void* image)
+{
+    uint8_t* data = NULL;
+    if (ble_if_is_connected())
+        data = BLE_conn;
+    else if (ble_if_is_running())
+        data = BLE;
+    ((image_t*)image)->data = data;
+    return PM_OK;
+}
+
+/*
  * Add the icon label and its image to the render pipeline
  */
 static void add_icon_with_text_to_pipeline(label_t* il)
@@ -244,8 +259,14 @@ static error_code_t create_top_bar_components(const display_t* dsp)
         wifi_indicator_label = create_icon_with_text(dsp, WIFI_AP,
             north_indicator_label->box.left + north_indicator_label->box.width + margin_horizontal,
             margin_top, "", &f8x8);
-        if (wifi_indicator_label)
+        if (wifi_indicator_label) {
             ((image_t*)wifi_indicator_label->child)->onBeforeRender = wifi_ap_icon_onBeforeRender;
+            ble_indicator_label = create_icon_with_text(dsp, BLE,
+                wifi_indicator_label->box.left + wifi_indicator_label->box.width + margin_horizontal,
+                margin_top, "", &f8x8);
+            if (ble_indicator_label)
+                ((image_t*)ble_indicator_label->child)->onBeforeRender = ble_icon_onBeforeRender;
+        }
     }
 
     char* GPSView = RTOS_Malloc(GPS_VIEW_STRLEN);
@@ -290,6 +311,7 @@ static void create_top_bar(const display_t* dsp)
     add_to_render_pipeline(image_render, &battery_indicator->image, RL_GUI_ELEMENTS);
     add_icon_with_text_to_pipeline(north_indicator_label);
     add_icon_with_text_to_pipeline(wifi_indicator_label);
+    add_icon_with_text_to_pipeline(ble_indicator_label);
     add_icon_with_text_to_pipeline(gps_indicator_label);
     add_icon_with_text_to_pipeline(sd_indicator_label);
 #ifdef CLOCK

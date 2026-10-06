@@ -220,6 +220,7 @@ void fw_update_result_shown(void);
 void ble_if_start(void);
 void ble_if_stop(void);
 bool ble_if_is_running(void);
+bool ble_if_is_connected(void);
 int32_t ble_if_passkey(void);
 void ble_if_wifi_status_changed(void);
 #endif

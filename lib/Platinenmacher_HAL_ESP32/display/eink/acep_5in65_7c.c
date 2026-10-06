@@ -10,11 +10,13 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "acep_5in65_7c.h"
+#include <esp_attr.h>
 #include <esp_log.h>
 const char *TAG = "eink";
 // The framebuffer for the display
 #define FB_SIZE (ACEP_5IN65_WIDTH * ACEP_5IN65_HEIGHT / 2)
-uint8_t fb[FB_SIZE] = {0};
+// in PSRAM, it is sent byte by byte without DMA. The internal RAM is needed for WiFi and Bluetooth.
+EXT_RAM_BSS_ATTR uint8_t fb[FB_SIZE];
 // SPI handle
 spi_device_handle_t spi;
 acep_5in65_dev_t * dev;
