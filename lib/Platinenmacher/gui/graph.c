@@ -10,6 +10,7 @@
 #include "font.h"
 #include "memory.h"
 
+#include <stdint.h>
 #include <stdio.h>
 
 char min_str[10], max_str[10];
@@ -58,7 +59,7 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
     uint16_t last_x = 0, last_y = 0;
 
     for (uint16_t i = 0; i < graph->data_len; i++) {
-        int32_t val = (uint32_t)(graph->data[i].value) - graph->min;
+        float val = graph->data[i].value - graph->min;
         if (val < 0)
             val = 0;
         uint16_t new_x = inner_box_left + (uint16_t)(i * x_step);                          // x values grow in step;
@@ -72,9 +73,12 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
     }
 
     if (graph->current_position && graph->current_position < graph->data_len) {
+        float val = graph->data[graph->current_position].value - graph->min;
+        if (val < 0)
+            val = 0;
         display_circle_fill(dsp,
             inner_box_left + (uint16_t)(graph->current_position * x_step),
-            inner_box_top + inner_box_height - (uint16_t)(ceilf(graph->data[graph->current_position].value - graph->min) * y_step),
+            inner_box_top + inner_box_height - (uint16_t)ceilf(val * y_step),
             3, graph->current_position_color);
     }
 
@@ -86,11 +90,22 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
 
 error_code_t graph_set_range(graph_t* graph, float min, float max)
 {
+    if (min < INT16_MIN)
+        min = INT16_MIN;
+    if (max > INT16_MAX)
+        max = INT16_MAX;
     graph->min = floorf(min);
     graph->max = ceilf(max);
+    // a flat track still gets a line
+    if (graph->max <= graph->min) {
+        if (graph->min < INT16_MAX)
+            graph->max = graph->min + 1;
+        else
+            graph->min = graph->max - 1;
+    }
     // TODO: deuglify this!!!!
-    snprintf(min_str, 10, "%um", graph->min);
-    snprintf(max_str, 10, "%um", graph->max);
+    snprintf(min_str, sizeof(min_str), "%dm", graph->min);
+    snprintf(max_str, sizeof(max_str), "%dm", graph->max);
 
     return PM_OK;
 }

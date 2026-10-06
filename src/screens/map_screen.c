@@ -49,7 +49,7 @@ uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
 char* zoom_level_scaleBox_text[] = { "100m", "500m" };
 graph_point_t* height_graph_data;
 static uint16_t height_graph_data_len;
-float height_min = __FLT_MAX__, height_max = 0;
+float height_min = __FLT_MAX__, height_max = -__FLT_MAX__;
 
 #define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
 static const uint8_t offset_x = 159;
@@ -235,7 +235,7 @@ void load_waypoint_file(char* filename)
 
         // populate height data
         height_min = __FLT_MAX__;
-        height_max = 0;
+        height_max = -__FLT_MAX__;
         if (gpx_data->waypoints_num) {
             height_graph_data = RTOS_Malloc_Large(sizeof(graph_point_t) * gpx_data->waypoints_num);
             if (height_graph_data)

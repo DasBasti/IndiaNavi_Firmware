@@ -22,8 +22,8 @@ typedef struct {
 
 typedef struct {
     rect_t box;
-    uint16_t min;
-    uint16_t max;
+    int16_t min; // heights can be below sea level
+    int16_t max;
     uint16_t data_len;
     graph_point_t *data;
     uint16_t current_position;
