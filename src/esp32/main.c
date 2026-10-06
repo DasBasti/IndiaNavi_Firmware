@@ -296,6 +296,7 @@ void app_main()
     get_sha256_of_partitions();
     // before the power task uses the ADC, password creation needs it as entropy source
     wifi_ap_credentials_init();
+    display_settings_init();
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -420,6 +421,10 @@ void app_main()
             } else if (event_num == TASK_EVENT_DISABLE_WIFI || event_num == TASK_EVENT_STOP_CHARGING) {
                 wifi_request_stop();
                 trigger_rendering();
+            } else if (event_num == TASK_EVENT_ENABLE_BLE) {
+                ble_if_start();
+            } else if (event_num == TASK_EVENT_DISABLE_BLE) {
+                ble_if_stop();
             }
         }
     }

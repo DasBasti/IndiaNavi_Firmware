@@ -42,6 +42,11 @@ static waypoint_t* closest_wp;
 static float closest_wp_distance;
 static float longitude_scale; // cos(latitude), a degree of longitude is shorter than one of latitude
 
+/* scale box and copyright notice sit above the height graph, and lower without it */
+#define HEIGHT_GRAPH_SHIFT 29
+static int16_t scaleBox_top_with_graph;
+static int16_t map_copyright_top_with_graph;
+
 static uint8_t zoom_level_selected = 0;
 static volatile bool zoom_toggle_requested = false;
 uint8_t zoom_level[] = { 16, 14 };
@@ -155,8 +160,34 @@ static void apply_zoom_toggle(void)
     scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
 }
 
+/**
+ * The height graph can be switched off in the app, the notices move down then
+ */
+static bool height_graph_visible(void)
+{
+    return graph && display_settings_show_height_graph();
+}
+
+static void update_height_graph_layout(void)
+{
+    int16_t shift = height_graph_visible() ? 0 : HEIGHT_GRAPH_SHIFT;
+    if (scaleBox)
+        scaleBox->box.top = scaleBox_top_with_graph + shift;
+    if (map_copyright)
+        map_copyright->box.top = map_copyright_top_with_graph + shift;
+}
+
+static error_code_t height_graph_render(const display_t* dsp, void* component)
+{
+    if (!height_graph_visible())
+        return NOT_NEEDED;
+    return graph_renderer(dsp, component);
+}
+
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 {
+    update_height_graph_layout();
+
     // zoom is changed from the button task, apply it in the render task
     if (zoom_toggle_requested && map && scaleBox) {
         zoom_toggle_requested = false;
@@ -175,7 +206,9 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     map_update_waypoint_path(map);
 
     free_render_pipeline(RL_PATH);
-    map_run_on_waypoints(add_waypoints_to_renderer);
+    // the track can be hidden in the app, the position marker stays
+    if (display_settings_show_track())
+        map_run_on_waypoints(add_waypoints_to_renderer);
 
     closest_wp_distance = __FLT_MAX__;
     longitude_scale = cosf(map_position->latitude * (float)M_PI / 180.0f);
@@ -359,12 +392,12 @@ void map_screen_create(const display_t* display)
         graph->line_color = BLACK;
         graph->background_color = WHITE;
 
-        add_to_render_pipeline(graph_renderer, graph, RL_GUI_ELEMENTS);
-    } else {
-        // move scalebox and copyright notice down
-        map_copyright->box.top += 29;
-        scaleBox->box.top += 29;
+        add_to_render_pipeline(height_graph_render, graph, RL_GUI_ELEMENTS);
     }
+    // without a graph the scalebox and copyright notice move down
+    scaleBox_top_with_graph = scaleBox->box.top;
+    map_copyright_top_with_graph = map_copyright->box.top;
+    update_height_graph_layout();
 
     infoBox = label_create("", &f8x8, 0, dsp->size.height - 14,
         dsp->size.width - 1, 13);

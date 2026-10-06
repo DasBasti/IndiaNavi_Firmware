@@ -49,6 +49,7 @@ extern void vTaskGetRunTimeStats(char* pcWriteBuffer);
 render_t* render_pipeline[RL_MAX]; // maximum number of rendered items
 render_t* render_last[RL_MAX];     // pointer to end of render pipeline
 static volatile uint8_t render_needed = 0;
+static int64_t last_refresh_us; // end of the last refresh of the display
 
 app_mode_t _app_mode = INITIAL_APP_MODE;
 static volatile app_mode_t current_screen = APP_MODE_NONE; // screen that is shown
@@ -317,6 +318,33 @@ static bool upload_progress_visible(const upload_progress_t* p)
     return (p->state == UPLOAD_DONE || p->state == UPLOAD_ABORTED) && !p->result_shown;
 }
 
+/*
+ * Box with a text and a progress bar below the top bar
+ */
+static void draw_progress_box(const display_t* dsp, const char* text, uint64_t done, uint64_t total, color_t bar_color)
+{
+    int16_t left = margin_left;
+    int16_t width = dsp->size.width - margin_horizontal;
+    int16_t top = PROGRESS_BOX_TOP;
+    display_rect_fill(dsp, left, top, width, PROGRESS_BOX_HEIGHT, WHITE);
+    display_rect_draw(dsp, left, top, width, PROGRESS_BOX_HEIGHT, BLACK);
+
+    int16_t text_width = font_text_pixel_width(&f8x16, text);
+    display_text_draw(dsp, &f8x16, left + (width - text_width) / 2, top + 4, text, BLACK);
+
+    // progress bar below the text
+    int16_t bar_left = left + margin_left;
+    int16_t bar_top = top + 26;
+    int16_t bar_width = width - margin_horizontal;
+    int16_t bar_height = 12;
+    if (done > total)
+        done = total;
+    display_rect_draw(dsp, bar_left, bar_top, bar_width, bar_height, BLACK);
+    if (total)
+        display_rect_fill(dsp, bar_left + 1, bar_top + 1,
+            (uint32_t)((uint64_t)(bar_width - 2) * done / total), bar_height - 2, bar_color);
+}
+
 /**
  * Draw upload progress on top of every screen while the app transfers files
  */
@@ -343,25 +371,40 @@ static void render_upload_progress(const display_t* dsp)
         bar_color = RED;
         break;
     }
+    draw_progress_box(dsp, text, p.files_done, p.files_total, bar_color);
+}
 
-    int16_t left = margin_left;
-    int16_t width = dsp->size.width - margin_horizontal;
-    int16_t top = PROGRESS_BOX_TOP;
-    display_rect_fill(dsp, left, top, width, PROGRESS_BOX_HEIGHT, WHITE);
-    display_rect_draw(dsp, left, top, width, PROGRESS_BOX_HEIGHT, BLACK);
+/* the failure of a firmware update drawn in the refresh that is committed next */
+static fw_state_t fw_result_drawn = FW_IDLE;
 
-    int16_t text_width = font_text_pixel_width(&f8x16, text);
-    display_text_draw(dsp, &f8x16, left + (width - text_width) / 2, top + 4, text, BLACK);
+/*
+ * Updates that take a while show their progress. The failure of an update only in one refresh.
+ */
+static bool fw_progress_visible(const fw_progress_t* p)
+{
+    return (p->state == FW_ACTIVE && p->visible) || (p->state == FW_ERROR && !p->result_shown);
+}
 
-    // progress bar below the text
-    int16_t bar_left = left + margin_left;
-    int16_t bar_top = top + 26;
-    int16_t bar_width = width - margin_horizontal;
-    int16_t bar_height = 12;
-    uint32_t done = p.files_done > p.files_total ? p.files_total : p.files_done;
-    display_rect_draw(dsp, bar_left, bar_top, bar_width, bar_height, BLACK);
-    display_rect_fill(dsp, bar_left + 1, bar_top + 1,
-        (uint32_t)(bar_width - 2) * done / p.files_total, bar_height - 2, bar_color);
+/**
+ * Draw the progress of a firmware update on top of every screen
+ */
+static void render_fw_progress(const display_t* dsp)
+{
+    fw_progress_t p = fw_update_get_progress();
+    fw_result_drawn = FW_IDLE;
+    if (!fw_progress_visible(&p))
+        return;
+
+    char text[PROGRESS_TEXT_LEN];
+    if (p.state == FW_ERROR) {
+        fw_result_drawn = FW_ERROR;
+        snprintf(text, sizeof(text), "Firmware update failed");
+        draw_progress_box(dsp, text, 0, p.bytes_total, RED);
+        return;
+    }
+    snprintf(text, sizeof(text), "Firmware update %u%%",
+        p.bytes_total ? (unsigned)((uint64_t)p.bytes_done * 100 / p.bytes_total) : 0u);
+    draw_progress_box(dsp, text, p.bytes_done, p.bytes_total, GREEN);
 }
 
 #define WIFI_BOX_WIDTH 160
@@ -411,6 +454,92 @@ static void render_wifi_qr(const display_t* dsp)
                     WIFI_QR_MODULE_SIZE, WIFI_QR_MODULE_SIZE, BLACK);
 }
 
+#define PASSKEY_DIGITS 6
+#define PASSKEY_DIGIT_WIDTH 40
+#define PASSKEY_DIGIT_HEIGHT 80
+#define PASSKEY_SEGMENT 8 // thickness of a segment
+#define PASSKEY_DIGIT_GAP 12
+#define PASSKEY_BOX_WIDTH 400
+#define PASSKEY_BOX_HEIGHT 200
+#define PASSKEY_BORDER 4
+
+/* segments of a seven segment digit: bit 0 = top, then clockwise, bit 6 = middle */
+static const uint8_t segment_masks[10] = {
+    0x3f, // 0
+    0x06, // 1
+    0x5b, // 2
+    0x4f, // 3
+    0x66, // 4
+    0x6d, // 5
+    0x7d, // 6
+    0x07, // 7
+    0x7f, // 8
+    0x6f, // 9
+};
+
+/*
+ * The 8x16 font is too small to read from a distance and can not be scaled,
+ * so the digits of the passkey are drawn as big segments.
+ */
+static void draw_seven_segment_digit(const display_t* dsp, int16_t x, int16_t y, uint8_t digit)
+{
+    const int16_t w = PASSKEY_DIGIT_WIDTH;
+    const int16_t h = PASSKEY_DIGIT_HEIGHT;
+    const int16_t t = PASSKEY_SEGMENT;
+    const int16_t mid = h / 2 - t / 2;
+    uint8_t mask = segment_masks[digit % 10];
+
+    if (mask & 0x01) // top
+        display_rect_fill(dsp, x + t, y, w - 2 * t, t, BLACK);
+    if (mask & 0x02) // upper right
+        display_rect_fill(dsp, x + w - t, y, t, mid + t, BLACK);
+    if (mask & 0x04) // lower right
+        display_rect_fill(dsp, x + w - t, y + mid, t, h - mid, BLACK);
+    if (mask & 0x08) // bottom
+        display_rect_fill(dsp, x + t, y + h - t, w - 2 * t, t, BLACK);
+    if (mask & 0x10) // lower left
+        display_rect_fill(dsp, x, y + mid, t, h - mid, BLACK);
+    if (mask & 0x20) // upper left
+        display_rect_fill(dsp, x, y, t, mid + t, BLACK);
+    if (mask & 0x40) // middle
+        display_rect_fill(dsp, x + t, y + mid, w - 2 * t, t, BLACK);
+}
+
+/**
+ * The code the phone has to enter while it pairs with the device, in a box in the middle of every screen
+ */
+static void render_ble_passkey(const display_t* dsp)
+{
+    int32_t passkey = ble_if_passkey();
+    if (passkey < 0)
+        return;
+
+    int16_t left = (dsp->size.width - PASSKEY_BOX_WIDTH) / 2;
+    int16_t top = (dsp->size.height - PASSKEY_BOX_HEIGHT) / 2;
+
+    display_rect_fill(dsp, left, top, PASSKEY_BOX_WIDTH, PASSKEY_BOX_HEIGHT, WHITE);
+    for (int16_t i = 0; i < PASSKEY_BORDER; i++)
+        display_rect_draw(dsp, left + i, top + i, PASSKEY_BOX_WIDTH - 2 * i, PASSKEY_BOX_HEIGHT - 2 * i, BLACK);
+
+    const char* title = "Bluetooth pairing";
+    display_text_draw(dsp, &f8x16, left + (PASSKEY_BOX_WIDTH - font_text_pixel_width(&f8x16, title)) / 2,
+        top + 16, title, BLACK);
+
+    int16_t digits_width = PASSKEY_DIGITS * PASSKEY_DIGIT_WIDTH + (PASSKEY_DIGITS - 1) * PASSKEY_DIGIT_GAP;
+    int16_t x = left + (PASSKEY_BOX_WIDTH - digits_width) / 2;
+    int16_t y = top + 52;
+    // the least significant digit is the last one
+    uint32_t rest = (uint32_t)passkey % 1000000u;
+    for (int i = PASSKEY_DIGITS - 1; i >= 0; i--) {
+        draw_seven_segment_digit(dsp, x + i * (PASSKEY_DIGIT_WIDTH + PASSKEY_DIGIT_GAP), y, rest % 10);
+        rest /= 10;
+    }
+
+    const char* hint = "Enter this code in the app";
+    display_text_draw(dsp, &f8x16, left + (PASSKEY_BOX_WIDTH - font_text_pixel_width(&f8x16, hint)) / 2,
+        top + 156, hint, BLACK);
+}
+
 /**
  * Render all App components.
  */
@@ -431,13 +560,24 @@ static error_code_t app_render()
         vTaskDelay(0);
     }
     render_upload_progress(eink);
+    render_fw_progress(eink);
     render_wifi_qr(eink);
+    render_ble_passkey(eink); // on top of everything, the phone waits for it
 
     uint64_t end = esp_timer_get_time();
 
     ESP_LOGI(TAG, "render time %lu ms", (uint32_t)(end - start) / 1000);
 
     return PM_OK;
+}
+
+/*
+ * Bluetooth is on in every mode but the off screen. The main task starts and stops it.
+ */
+static void request_ble(bool enable)
+{
+    uint32_t event = enable ? TASK_EVENT_ENABLE_BLE : TASK_EVENT_DISABLE_BLE;
+    xQueueSend(eventQueueHandle, &event, 0);
 }
 
 /**
@@ -514,12 +654,14 @@ void app_screen(const display_t* dsp)
     case APP_START_SCREEN:
         free_screen();
         current_screen = APP_START_SCREEN;
+        request_ble(true);
         picture_screen_create(dsp);
         set_post_rendering_hook(start_screen_transition_hook, 0);
         break;
     case APP_TEST_SCREEN:
         free_screen();
         current_screen = APP_TEST_SCREEN;
+        request_ble(true);
         create_top_bar(dsp);
         test_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
@@ -534,6 +676,7 @@ void app_screen(const display_t* dsp)
     case APP_MODE_GPS_CREATE:
         free_screen();
         current_screen = APP_MODE_GPS_CREATE;
+        request_ble(true);
         create_top_bar(dsp);
         map_screen_create(dsp);
         gui_set_app_mode(APP_MODE_RUNNING);
@@ -541,6 +684,7 @@ void app_screen(const display_t* dsp)
     case APP_MODE_TURN_OFF:
         free_screen();
         current_screen = APP_MODE_TURN_OFF;
+        request_ble(false);
         off_screen_create(dsp);
         set_post_rendering_hook(deep_sleep_post_render_hook, 0);
         gps_enter_standby();
@@ -651,6 +795,10 @@ void StartGuiTask(void const* argument)
     trigger_rendering();
 
     for (;;) {
+        // the screen is updated every few minutes without anything that triggers it,
+        // so the clock and the position stay current. The interval is a setting of the app.
+        if (!render_needed && esp_timer_get_time() - last_refresh_us >= (int64_t)display_settings_update_interval() * 1000000LL)
+            trigger_rendering();
         if (render_needed) {
             if (xSemaphoreTake(gui_semaphore, 0) == pdTRUE) {
                 while (render_needed) {
@@ -669,6 +817,12 @@ void StartGuiTask(void const* argument)
                     upload_progress_result_shown(upload_result_drawn);
                     upload_result_drawn = UPLOAD_IDLE;
                 }
+                // same for the failure of a firmware update
+                if (fw_result_drawn != FW_IDLE && !ACEP_5IN65_NeedsRecovery()) {
+                    fw_update_result_shown();
+                    fw_result_drawn = FW_IDLE;
+                }
+                last_refresh_us = esp_timer_get_time();
                 recover_display_if_needed();
                 // vTaskPrioritySet(NULL, 5);
                 ESP_LOGI(TAG, "Refresh finished.");

@@ -90,6 +90,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "station " MACSTR " joined the access point", MAC2STR(event->mac));
         ap_station_count++;
         wifi_notify_activity();
+        ble_if_wifi_status_changed();
         trigger_rendering(); // remove the QR code
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED) {
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*)event_data;
@@ -98,6 +99,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             ap_station_count--;
         // the idle timeout starts again when the last phone left
         wifi_notify_activity();
+        ble_if_wifi_status_changed();
         if (!ap_station_count)
             trigger_rendering(); // show the QR code again
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -456,6 +458,7 @@ void StartWiFiTask(void const* argument)
     ap_station_count = 0;
     wifi_notify_activity(); // the idle timeout starts now
     ap_running = true;
+    ble_if_wifi_status_changed();
     // the access point is up now, the app can connect directly
     start_mdns_service();
     upload_server_start();
@@ -529,6 +532,7 @@ exit:
     ESP_LOGI(TAG, "Stop");
     ap_running = false;
     ap_station_count = 0;
+    ble_if_wifi_status_changed();
     upload_server_stop();
     mdns_free();
     _is_connected = false;

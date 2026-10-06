@@ -89,6 +89,15 @@ bool gps_is_position_known()
     return current_position.fix != GPS_FIX_INVALID;
 }
 
+/*
+ * The GPS module has a fix. The position of the phone is known as well when
+ * it has none, but it is replaced by the first fix of the module.
+ */
+bool gps_has_satellite_fix(void)
+{
+    return current_position.fix != GPS_FIX_INVALID && current_position.fix != GPS_FIX_PHONE;
+}
+
 /* days since 1970-01-01 of a date in the proleptic Gregorian calendar */
 static int32_t days_from_civil(int32_t y, uint32_t m, uint32_t d)
 {
@@ -140,11 +149,15 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
     switch (event_id) {
     case GPS_UPDATE:
         _gps = (gps_t*)event_data;
-        current_position.longitude = _gps->longitude;
-        current_position.latitude = _gps->latitude;
-        current_position.altitude = _gps->altitude;
-        current_position.hdop = _gps->dop_h;
-        current_position.fix = _gps->fix;
+        // the module reports an empty position until it has a fix, that must
+        // not replace the position the phone sent
+        if (_gps->fix != GPS_FIX_INVALID || current_position.fix != GPS_FIX_PHONE) {
+            current_position.longitude = _gps->longitude;
+            current_position.latitude = _gps->latitude;
+            current_position.altitude = _gps->altitude;
+            current_position.hdop = _gps->dop_h;
+            current_position.fix = _gps->fix;
+        }
         current_position.satellites_in_use = _gps->sats_in_use;
         current_position.satellites_in_view = _gps->sats_in_view;
 
@@ -157,7 +170,8 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
         }
 
         gps_ticks++;
-        if (gpstrack_queue != NULL) {
+        // the position of the phone is not a track point
+        if (gpstrack_queue != NULL && current_position.fix != GPS_FIX_PHONE) {
             log_position_t log_position = { .position = current_position, .timestamp = utc };
             // called from the parser task, not from an ISR
             xQueueSend(gpstrack_queue, &log_position, 0);
@@ -290,6 +304,75 @@ static void log_track_point(async_file_t* log, const log_position_t* position)
 static volatile bool gps_stop_requested;
 
 /*
+ * Tell the GPS module the time or position the phone sent. It starts with
+ * this information instead of searching the whole sky, which shortens the
+ * time to the first fix.
+ */
+static void send_assist_sentence(const char* sentence, size_t len)
+{
+    if (!nmea_hdl || len == 0)
+        return;
+    char cmd[BLEP_PMTK_MAX_LEN];
+    if (len >= sizeof(cmd))
+        return;
+    memcpy(cmd, sentence, len);
+    cmd[len] = 0;
+    if (nmea_send_command(nmea_hdl, cmd) != ESP_OK)
+        ESP_LOGW(TAG, "assist data not sent to GPS module");
+}
+
+/**
+ * Set the clock from the phone. Ignored when the GPS module has a fix, its time is exact.
+ *
+ * @return true if the clock was set
+ */
+bool gps_set_time_from_phone(int64_t epoch)
+{
+    if (gps_has_satellite_fix())
+        return false;
+
+    struct timeval tv = { .tv_sec = (time_t)epoch, .tv_usec = 0 };
+    settimeofday(&tv, NULL);
+    ESP_LOGI(TAG, "clock set by phone to %lld", (long long)epoch);
+
+    blep_utc_t utc;
+    blep_epoch_to_utc(epoch, &utc);
+    char sentence[BLEP_PMTK_MAX_LEN];
+    send_assist_sentence(sentence, blep_pmtk_time(sentence, sizeof(sentence), &utc));
+    return true;
+}
+
+/**
+ * Use the position of the phone until the GPS module has a fix. It is never written to the track log.
+ *
+ * @return true if the position was taken over
+ */
+bool gps_set_position_from_phone(const blep_position_in_t* position)
+{
+    if (gps_has_satellite_fix())
+        return false;
+
+    current_position.latitude = (float)blep_e7_to_degrees(position->latitude_e7);
+    current_position.longitude = (float)blep_e7_to_degrees(position->longitude_e7);
+    current_position.altitude = position->altitude_m;
+    // the accuracy is a radius in meters, one HDOP unit is about 5 m
+    current_position.hdop = position->accuracy_m / 5.0f;
+    current_position.fix = GPS_FIX_PHONE;
+    ESP_LOGI(TAG, "position set by phone: %f, %f (%u m)", current_position.latitude, current_position.longitude, position->accuracy_m);
+
+    time_t now = time(NULL);
+    blep_utc_t utc;
+    blep_epoch_to_utc(now >= VALID_TIME_MIN ? (int64_t)now : (int64_t)position->timestamp, &utc);
+    char sentence[BLEP_PMTK_MAX_LEN];
+    send_assist_sentence(sentence, blep_pmtk_position(sentence, sizeof(sentence),
+        blep_e7_to_degrees(position->latitude_e7), blep_e7_to_degrees(position->longitude_e7),
+        position->altitude_m, &utc));
+
+    trigger_rendering(); // the map can be shown now
+    return true;
+}
+
+/*
  * Ask the GPS task to stop. The task is never deleted from outside, it could
  * hold the SD or print mutex and has the track log open.
  */
@@ -301,7 +384,6 @@ void gps_request_stop(void)
 void StartGpsTask(void const* argument)
 {
     static regulator_t* reg;
-    uint8_t minute = 0;
     gps_stop_requested = false;
     /* make current gps position known globally */
     map_position = &current_position;
@@ -387,15 +469,6 @@ void StartGpsTask(void const* argument)
     TickType_t last_open_attempt = xTaskGetTickCount();
 
     while (!gps_stop_requested) {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        struct tm timeinfo;
-        localtime_r(&tv.tv_sec, &timeinfo);
-        if (clock_label && minute != timeinfo.tm_min) {
-            minute = timeinfo.tm_min;
-            trigger_rendering();
-        }
-
         log_position_t position;
         if (!gpstrack_queue) {
             vTaskDelay(pdMS_TO_TICKS(1000));
