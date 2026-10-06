@@ -402,24 +402,19 @@ void app_main()
                 // gpio_isr_handler_add(I2C_INT, handleButtonPress, (void*) I2C_INT);
             }
 #endif
-            // Never call vTaskDelete() with a NULL handle, it would delete this task.
+            // Tasks are never deleted from outside, they could hold a mutex
             else if (event_num == TASK_EVENT_ENABLE_GPS) {
                 if (!gpsTask_h)
                     xTaskCreate(&StartGpsTask, "gps", taskGPSStackSize, NULL, tskIDLE_PRIORITY, &gpsTask_h);
             } else if (event_num == TASK_EVENT_DISABLE_GPS) {
-                if (gpsTask_h) {
-                    gps_stop_parser();
-                    vTaskDelete(gpsTask_h);
-                    gpsTask_h = NULL;
-                }
+                if (gpsTask_h)
+                    gps_request_stop(); // the task clears gpsTask_h when it is gone
             } else if (event_num == TASK_EVENT_ENABLE_DISPLAY) {
                 if (!guiTask_h)
                     xTaskCreate(&StartGuiTask, "gui", taskGUIStackSize, NULL, 6, &guiTask_h);
             } else if (event_num == TASK_EVENT_DISABLE_DISPLAY) {
-                if (guiTask_h) {
-                    vTaskDelete(guiTask_h);
-                    guiTask_h = NULL;
-                }
+                // the GUI task can not be stopped safely, it holds the GUI and SD mutex while rendering
+                ESP_LOGW(TAG, "Disabling the display is not supported");
             } else if (event_num == TASK_EVENT_ENABLE_WIFI || event_num == TASK_EVENT_START_CHARGING) {
                 wifi_start_task();
             } else if (event_num == TASK_EVENT_DISABLE_WIFI || event_num == TASK_EVENT_STOP_CHARGING) {

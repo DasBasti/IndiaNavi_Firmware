@@ -138,6 +138,7 @@ void upload_progress_result_shown(upload_state_t shown);
 void gps_screen_element(const display_t* dsp);
 bool gps_is_position_known();
 void gps_stop_parser();
+void gps_request_stop(void);
 void gps_enter_standby();
 
 // From main.c

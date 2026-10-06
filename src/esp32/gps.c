@@ -287,20 +287,34 @@ static void log_track_point(async_file_t* log, const log_position_t* position)
     ESP_LOGI(TAG, "GPS log: %f, %f %s", position->position.latitude, position->position.longitude, ok ? "written" : "failed");
 }
 
+static volatile bool gps_stop_requested;
+
+/*
+ * Ask the GPS task to stop. The task is never deleted from outside, it could
+ * hold the SD or print mutex and has the track log open.
+ */
+void gps_request_stop(void)
+{
+    gps_stop_requested = true;
+}
+
 void StartGpsTask(void const* argument)
 {
+    static regulator_t* reg;
     uint8_t minute = 0;
+    gps_stop_requested = false;
     /* make current gps position known globally */
     map_position = &current_position;
 
-    ESP_LOGI(TAG, "init gpio %d\n\r", GPS_VCC_nEN);
-    /* create power regulator */
-    regulator_t* reg;
-    gpio_t* reg_gpio = gpio_create(OUTPUT, 0, GPS_VCC_nEN);
-    reg_gpio->onValue = GPIO_RESET;
+    if (!reg) {
+        ESP_LOGI(TAG, "init gpio %d", GPS_VCC_nEN);
+        /* create power regulator */
+        gpio_t* reg_gpio = gpio_create(OUTPUT, 0, GPS_VCC_nEN);
+        reg_gpio->onValue = GPIO_RESET;
 
-    ESP_LOGI(TAG, "init regulator\n\r");
-    reg = regulator_gpio_create(reg_gpio);
+        ESP_LOGI(TAG, "init regulator");
+        reg = regulator_gpio_create(reg_gpio);
+    }
 
     /* L96 module can be restarted by driving the RESET to a low level voltage for at least 10ms and then releasing it.*/
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -372,7 +386,7 @@ void StartGpsTask(void const* argument)
     time_t last_logged = 0;
     TickType_t last_open_attempt = xTaskGetTickCount();
 
-    for (;;) {
+    while (!gps_stop_requested) {
         struct timeval tv;
         gettimeofday(&tv, NULL);
         struct tm timeinfo;
@@ -402,4 +416,18 @@ void StartGpsTask(void const* argument)
             last_logged = position.timestamp;
         }
     }
+
+    ESP_LOGI(TAG, "Stop");
+    gps_stop_parser(); // no more events, the queue is not used any more
+    if (track_log_open)
+        closeFile(gps_track);
+    if (gpstrack_queue) {
+        QueueHandle_t queue = gpstrack_queue;
+        gpstrack_queue = NULL;
+        vQueueDelete(queue);
+    }
+    reg->disable(reg);
+    current_position.fix = GPS_FIX_INVALID;
+    gpsTask_h = NULL;
+    vTaskDelete(NULL);
 }
