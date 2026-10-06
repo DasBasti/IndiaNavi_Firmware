@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <math.h>
+
 #include "gui/graph.h"
 #include "gui/label.h"
 #include "gui/map.h"
@@ -37,7 +39,8 @@ static label_t* infoBox;
 static graph_t* graph;
 static gpx_t* gpx_data;
 static waypoint_t* closest_wp;
-static int32_t dlat_min = INT32_MAX, dlon_min = INT32_MAX;
+static float closest_wp_distance;
+static float longitude_scale; // cos(latitude), a degree of longitude is shorter than one of latitude
 
 static uint8_t zoom_level_selected = 0;
 static volatile bool zoom_toggle_requested = false;
@@ -124,11 +127,12 @@ void find_closest_waypoint(waypoint_t* wp)
 {
     // ignore inactive waypoints
     if (wp->active) {
-        int32_t dlat = abs((int)((wp->lat - map_position->latitude) * 1000000));
-        int32_t dlon = abs((int)((wp->lon - map_position->longitude) * 1000000));
-        if (dlat < dlat_min && dlon < dlon_min) {
-            dlat_min = dlat;
-            dlon_min = dlon;
+        // equirectangular approximation, squared distance in degrees of latitude
+        float dlat = wp->lat - map_position->latitude;
+        float dlon = (wp->lon - map_position->longitude) * longitude_scale;
+        float distance = dlat * dlat + dlon * dlon;
+        if (distance < closest_wp_distance) {
+            closest_wp_distance = distance;
             closest_wp = wp;
         }
     }
@@ -173,8 +177,8 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     free_render_pipeline(RL_PATH);
     map_run_on_waypoints(add_waypoints_to_renderer);
 
-    dlat_min = INT32_MAX;
-    dlon_min = INT32_MAX;
+    closest_wp_distance = __FLT_MAX__;
+    longitude_scale = cosf(map_position->latitude * (float)M_PI / 180.0f);
     closest_wp = NULL;
     map_run_on_waypoints(find_closest_waypoint);
 
