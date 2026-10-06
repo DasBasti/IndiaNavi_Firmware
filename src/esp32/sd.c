@@ -258,7 +258,7 @@ out:
     RTOS_Free(path);
 }
 
-error_code_t openFileForWriting(async_file_t* file)
+static error_code_t openFile(async_file_t* file, BYTE mode)
 {
     if (!file || !file->filename)
         return PM_FAIL;
@@ -272,15 +272,61 @@ error_code_t openFileForWriting(async_file_t* file)
     if (!takeSD())
         return PM_FAIL;
     // try to open file
-    FRESULT res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_ALWAYS | FA_OPEN_ALWAYS | FA_OPEN_APPEND);
+    FRESULT res = f_open(file->file, file->filename, mode);
     if (FR_NO_PATH == res) {
         createPathToFile(file->filename);
-        // Retry to open file for writing
-        res = f_open(file->file, file->filename, FA_WRITE | FA_CREATE_NEW);
+        // Retry to open file
+        res = f_open(file->file, file->filename, mode);
     }
     giveSD();
 
     ESP_LOGD(TAG, "File %s -> %d", file->filename, res);
+    if (FR_OK == res)
+        return PM_OK;
+    return PM_FAIL;
+}
+
+/*
+ * Create the file, or truncate it if it exists
+ */
+error_code_t openFileForWriting(async_file_t* file)
+{
+    return openFile(file, FA_WRITE | FA_CREATE_ALWAYS);
+}
+
+/*
+ * Open the file for reading and writing without truncating it. The file is
+ * created if it does not exist. The read/write pointer is at the start.
+ */
+error_code_t openFileForUpdate(async_file_t* file)
+{
+    return openFile(file, FA_READ | FA_WRITE | FA_OPEN_ALWAYS);
+}
+
+error_code_t seekFile(async_file_t* file, uint32_t offset)
+{
+    if (!file || !file->file)
+        return PM_FAIL;
+    if (!takeSD())
+        return PM_FAIL;
+    FRESULT res = f_lseek(file->file, offset);
+    giveSD();
+    if (FR_OK == res)
+        return PM_OK;
+    return PM_FAIL;
+}
+
+error_code_t readFromFile(async_file_t* file, void* out_data, uint32_t count, uint32_t* read)
+{
+    *read = 0;
+    if (!file || !file->file)
+        return PM_FAIL;
+    if (!takeSD())
+        return PM_FAIL;
+    UINT br = 0;
+    FRESULT res = f_read(file->file, out_data, count, &br);
+    giveSD();
+    *read = br;
     if (FR_OK == res)
         return PM_OK;
     return PM_FAIL;
