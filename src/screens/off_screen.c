@@ -9,7 +9,7 @@
 #include "gui.h"
 #include "tasks.h"
 
-#include <icons_32.h>
+#include <icons_16.h>
 
 #include <esp_mac.h>
 #include <esp_random.h>
@@ -289,7 +289,7 @@ void off_screen_create(const display_t* display)
 
     create_wifi_qr(dsp);
 
-    wifi_indicator_image = image_create(WIFI_0, 3, 0, 32, 32);
+    wifi_indicator_image = image_create(WIFI_0, 3, 0, ICON_SIZE, ICON_SIZE);
     wifi_indicator_image->onBeforeRender = wifi_indicator_image_onBeforeRender;
     add_to_render_pipeline(image_render, wifi_indicator_image, RL_GUI_ELEMENTS);
 

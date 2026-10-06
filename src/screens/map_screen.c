@@ -21,7 +21,7 @@
 #include "esp_timer.h"
 #endif
 
-#include <icons_32.h>
+#include <icons_16.h>
 
 #if !defined(TESTING) && !defined(LINUX)
     #include "esp_timer.h"

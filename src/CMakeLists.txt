@@ -3,7 +3,7 @@
 
 FILE(GLOB_RECURSE app_sources 
     ${CMAKE_SOURCE_DIR}/src/esp32/*.*
-    ${CMAKE_SOURCE_DIR}/src/icons_32/*.*
+    ${CMAKE_SOURCE_DIR}/src/icons_16/*.*
     ${CMAKE_SOURCE_DIR}/src/keys/*.*
     ${CMAKE_SOURCE_DIR}/src/screens/*.*)
 

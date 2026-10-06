@@ -25,7 +25,7 @@
 #include "helper.h"
 #include "pins.h"
 #include "tasks.h"
-#include <icons_32.h>
+#include <icons_16.h>
 
 uint8_t sd_status = UNAVAILABLE;
 char fn[30];

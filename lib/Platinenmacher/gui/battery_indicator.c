@@ -45,8 +45,8 @@ battery_indicator_t* create_battery_indicator(int16_t left, int16_t top, uint8_t
 
     battery->image.box.left = left;
     battery->image.box.top = top;
-    battery->image.box.width = 32;
-    battery->image.box.height = 32;
+    battery->image.box.width = ICON_SIZE;
+    battery->image.box.height = ICON_SIZE;
 
     battery->label.box.left = left + battery->image.box.width;
     battery->label.box.top = top;

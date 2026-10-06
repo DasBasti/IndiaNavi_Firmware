@@ -1,5 +1,5 @@
 /*
- * icons_32.h
+ * icons_16.h
  *
  *  Created on: Jan 7, 2021
  *      Author: bastian
@@ -29,6 +29,6 @@ extern uint8_t WIFI_1[];
 extern uint8_t WIFI_2[];
 extern uint8_t WIFI_3[];
 
-#define ICON_SIZE 32
+#define ICON_SIZE 16
 
 #endif /* GUI_ICONS_H_ */
