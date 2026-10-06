@@ -69,10 +69,15 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
     if (!map_position || !infoBox->text)
         return UNAVAILABLE;
 
-    if (gpx_data && gpx_data->track_name) {
+    // a hidden track hides its name, the line shows the position as without a track
+    if (gpx_data && gpx_data->track_name && display_settings_show_track()) {
         save_snprintf(infoBox->text, INFOBOX_STRLEN, "%s", gpx_data->track_name);
         infoBox->backgroundColor = TRANSPARENT;
-    } else if (map_position->fix != GPS_FIX_INVALID) {
+        return PM_OK;
+    }
+
+    infoBox->backgroundColor = WHITE;
+    if (map_position->fix != GPS_FIX_INVALID) {
         char lat = 'N';
         if (map_position->latitude < 0)
             lat = 'S';
