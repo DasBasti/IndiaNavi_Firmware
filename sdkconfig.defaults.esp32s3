@@ -16,7 +16,10 @@ CONFIG_BT_NIMBLE_MAX_BONDS=1
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
 CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT=24
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
-CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+# the GATT client (needs the central role) confirms the indication a paired Android
+# phone sends after it reconnected. Without it the device answers with an error that
+# Android takes as the answer to the MTU request of the app, the app disconnects.
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
 CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
 
 # System and WiFi
