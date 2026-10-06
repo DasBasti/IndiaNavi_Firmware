@@ -442,7 +442,8 @@ static void render_fw_progress(const display_t* dsp)
  */
 static void render_wifi_qr(const display_t* dsp)
 {
-    if (!wifi_ap_running() || wifi_ap_station_count() || current_screen == APP_MODE_TURN_OFF)
+    if (!wifi_ap_running() || wifi_ap_station_count() || current_screen == APP_MODE_TURN_OFF
+        || current_screen == APP_MODE_BATTERY_EMPTY)
         return;
     upload_progress_t p = upload_get_progress();
     if (upload_progress_visible(&p))
@@ -698,6 +699,8 @@ void app_screen(const display_t* dsp)
     case APP_MODE_GPS_CREATE:
         free_screen();
         current_screen = APP_MODE_GPS_CREATE;
+        // the off screens wait with deep sleep until the charger is gone, the map has to stay on
+        set_post_rendering_hook(NULL, 0);
         request_ble(true);
         create_top_bar(dsp);
         map_screen_create(dsp);
@@ -712,7 +715,19 @@ void app_screen(const display_t* dsp)
         gps_enter_standby();
         ESP_LOGI(TAG, "Starting Power Down Mode");
         gui_set_app_mode(APP_MODE_RUNNING);
-        __attribute__((fallthrough));
+        break;
+    case APP_MODE_BATTERY_EMPTY:
+        free_screen();
+        current_screen = APP_MODE_BATTERY_EMPTY;
+        request_ble(false);
+        battery_empty_screen_create(dsp);
+        // the screen stays on the e-ink display while the device sleeps
+        set_post_rendering_hook(deep_sleep_post_render_hook, 0);
+        // the GPS module keeps its clock with the charge that is left
+        gps_enter_standby();
+        ESP_LOGW(TAG, "Battery empty, power down");
+        gui_set_app_mode(APP_MODE_RUNNING);
+        break;
     case APP_MODE_RUNNING:
     default:
         break;
@@ -728,6 +743,12 @@ void gui_reload_track(void)
 {
     if (current_screen == APP_MODE_GPS_CREATE)
         gui_set_app_mode(APP_MODE_GPS_CREATE);
+}
+
+/** true when the e-ink display is started, it waits for a charged battery or a charger */
+bool gui_display_ready(void)
+{
+    return eink != NULL;
 }
 
 void trigger_rendering()

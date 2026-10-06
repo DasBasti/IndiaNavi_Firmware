@@ -29,6 +29,7 @@
 
 #include <lsm303.h>
 
+#include "battery_state.h"
 #include "gui.h"
 #include "pins.h"
 #include "tasks.h"
@@ -490,6 +491,37 @@ __weak void StartMapDownloaderTask(void* argument)
     }
 }
 
+/* time the battery empty screen may take, then the device sleeps without it */
+#define BATTERY_EMPTY_SCREEN_TIMEOUT_US (120LL * 1000 * 1000)
+
+static void sleep_with_empty_battery(void)
+{
+    gps_enter_standby();
+    enter_deep_sleep_if_not_charging();
+}
+
+/**
+ * The battery is empty: show it on the display and power down. Called after every reading while it is empty.
+ */
+static void power_down_battery_empty(int64_t* empty_since_us)
+{
+    if (!gui_display_ready()) {
+        // the display waits for a charged battery and still shows the screen from before
+        ESP_LOGW(TAG, "Battery empty, the display is off, sleep");
+        sleep_with_empty_battery();
+        return;
+    }
+    int64_t now = esp_timer_get_time();
+    if (*empty_since_us < 0) {
+        ESP_LOGW(TAG, "Battery empty (%ld%%), show it and power down", current_battery_level);
+        *empty_since_us = now;
+        gui_set_app_mode(APP_MODE_BATTERY_EMPTY);
+    } else if (now - *empty_since_us > BATTERY_EMPTY_SCREEN_TIMEOUT_US) {
+        ESP_LOGE(TAG, "Battery empty screen was not shown, sleep without it");
+        sleep_with_empty_battery();
+    }
+}
+
 /**
  * @brief Function implementing the powerTask thread.
  * @param argument: Not used
@@ -512,13 +544,22 @@ __weak void StartPowerTask(void* argument)
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VBAT_ADC, &config));
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VIN_ADC, &config));
 
+    battery_state_t battery_state = { 0 };
+    int64_t battery_empty_since_us = -1;
     for (;;) {
         current_battery_level = readBatteryPercent(adc1_handle);
         if (battery_indicator) {
             battery_indicator_set_level(battery_indicator, current_battery_level);
         }
+        if (battery_state_update(&battery_state, current_battery_level, is_charging))
+            power_down_battery_empty(&battery_empty_since_us);
+        else
+            battery_empty_since_us = -1;
+
         if (is_charging)
             delay_time = 1000;
+        else if (battery_state_is_low(&battery_state))
+            delay_time = BATTERY_EMPTY_CHECK_INTERVAL_MS;
         else
             delay_time = 60000;
         vTaskDelay(pdMS_TO_TICKS(delay_time));

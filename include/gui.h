@@ -29,6 +29,7 @@ typedef enum {
     APP_MODE_CONWAY,
     APP_MODE_TURN_OFF,
     APP_MODE_OFF,
+    APP_MODE_BATTERY_EMPTY,
     APP_MODE_RUNNING,
 } app_mode_t;
 
@@ -73,6 +74,7 @@ enum RenderLayer {
 };
 
 void trigger_rendering();
+bool gui_display_ready(void);
 void free_render_pipeline(enum RenderLayer layer);
 void free_all_render_pipelines();
 void free_screen(void);
@@ -90,6 +92,7 @@ void test_screen_create(const display_t* display);
 void map_screen_create(const display_t* display);
 void conway_screen_create(const display_t* display);
 void off_screen_create(const display_t* display);
+void battery_empty_screen_create(const display_t* display);
 
 void picture_screen_create(const display_t* display);
 void picture_set_image_path(const char* path);
