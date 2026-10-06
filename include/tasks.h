@@ -56,8 +56,7 @@ typedef enum {
     TASK_EVENT_DISABLE_DISPLAY,
     TASK_EVENT_ENABLE_WIFI,
     TASK_EVENT_DISABLE_WIFI,
-    TASK_EVENT_BUTTON_DOWN,
-    TASK_EVENT_BUTTON_UP,
+    TASK_EVENT_BUTTON, /// the button changed, the main task reads it when the contacts settled
     TASK_EVENT_START_CHARGING,
     TASK_EVENT_STOP_CHARGING,
     TASK_EVENT_ENABLE_BLE,

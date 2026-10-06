@@ -79,6 +79,11 @@ int32_t is_charging;
 gpio_t* led;
 
 esp_timer_handle_t button_timer;
+/* the contacts bounce, the button is read when they settled */
+#define BUTTON_DEBOUNCE_MS 30
+// one button event in the queue at a time, a bouncing button would fill it and push out other events
+static volatile bool button_event_pending;
+static bool button_pressed; // state after debouncing
 // set by the long press timer, the following button up is not a short press
 static volatile bool long_press_handled;
 void (*_short_press)(void);
@@ -180,18 +185,48 @@ static void get_sha256_of_partitions(void)
 
 static void IRAM_ATTR handleButtonPress(void* arg)
 {
-    uint32_t gpio_num = UINT32_MAX;
+    uint32_t event;
 #ifdef WITH_ACC
     if (gpio_get_level(I2C_INT) == I2C_INT_LEVEL) {
-        gpio_num = I2C_INT;
+        event = I2C_INT;
+        xQueueSendFromISR(eventQueueHandle, &event, NULL);
+        return;
     }
 #endif
-    if (gpio_get_level(BTN) == BTN_LEVEL) {
-        gpio_num = TASK_EVENT_BUTTON_DOWN;
+    if (button_event_pending)
+        return;
+    // the level is read by the main task when the contacts settled
+    button_event_pending = true;
+    event = TASK_EVENT_BUTTON;
+    if (xQueueSendFromISR(eventQueueHandle, &event, NULL) != pdTRUE)
+        button_event_pending = false; // the next edge tries again
+}
+
+/**
+ * The button changed: wait until the contacts settled and act if the state is a new one
+ */
+static void handle_button(void)
+{
+    vTaskDelay(pdMS_TO_TICKS(BUTTON_DEBOUNCE_MS));
+    // an edge after this reads the button again
+    button_event_pending = false;
+    bool pressed = gpio_get_level(BTN) == BTN_LEVEL;
+    if (pressed == button_pressed)
+        return; // bounces that ended in the same state
+    button_pressed = pressed;
+
+    if (pressed) {
+        ESP_LOGI(TAG, "Button down");
+        long_press_handled = false;
+        esp_timer_start_once(button_timer, 3000000); // 3 Seconds timeout for long press
     } else {
-        gpio_num = TASK_EVENT_BUTTON_UP;
+        ESP_LOGI(TAG, "Button up");
+        esp_timer_stop(button_timer); // stop long press timer
+        if (long_press_handled)
+            long_press_handled = false; // releasing the long press
+        else if (_short_press)
+            _short_press();
     }
-    xQueueSendFromISR(eventQueueHandle, &gpio_num, NULL);
 }
 
 /**
@@ -202,6 +237,11 @@ static void IRAM_ATTR handleButtonPress(void* arg)
  */
 void button_timer_trigger(void* arg)
 {
+    // a release that got lost must not switch the device off
+    if (gpio_get_level(BTN) != BTN_LEVEL) {
+        ESP_LOGW(TAG, "Long press timer ran out, but the button is not pressed");
+        return;
+    }
     long_press_handled = true;
     if (_long_press)
         _long_press();
@@ -386,17 +426,8 @@ void app_main()
         confirm_firmware();
 
         if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
-            if (event_num == TASK_EVENT_BUTTON_DOWN) {
-                ESP_LOGI(TAG, "Button down");
-                long_press_handled = false;
-                esp_timer_start_once(button_timer, 3000000); // 3 Seconds timeout for long press
-            } else if (event_num == TASK_EVENT_BUTTON_UP) {
-                ESP_LOGI(TAG, "Button up");
-                esp_timer_stop(button_timer); // stop long press timer
-                if (long_press_handled)
-                    long_press_handled = false; // releasing the long press
-                else if (_short_press)
-                    _short_press();
+            if (event_num == TASK_EVENT_BUTTON) {
+                handle_button();
             }
 #ifdef WITH_ACC
             else if (event_num == I2C_INT) {
