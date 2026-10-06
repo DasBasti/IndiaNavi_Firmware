@@ -227,6 +227,27 @@ error_code_t enter_deep_sleep_if_not_charging()
     return PM_OK;
 }
 
+/*
+ * A new firmware has to confirm that it runs, otherwise the bootloader goes
+ * back to the previous one on the next reset. It is confirmed when it ran
+ * for a while without crashing.
+ */
+#define FIRMWARE_VALID_AFTER_US (60LL * 1000 * 1000)
+static void confirm_firmware(void)
+{
+    static bool confirmed = false;
+    if (confirmed || esp_timer_get_time() < FIRMWARE_VALID_AFTER_US)
+        return;
+    confirmed = true;
+
+    esp_ota_img_states_t state;
+    if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &state) == ESP_OK
+        && state == ESP_OTA_IMG_PENDING_VERIFY) {
+        ESP_LOGI(TAG, "New firmware runs, cancel rollback");
+        esp_ota_mark_app_valid_cancel_rollback();
+    }
+}
+
 void set_short_press_event(void (*event)(void))
 {
     _short_press = event;
@@ -360,6 +381,7 @@ void app_main()
             cnt = 0;
             ESP_LOGI(TAG, "current_battery_level %ld", current_battery_level);
         }
+        confirm_firmware();
 
         if (xQueueReceive(eventQueueHandle, &event_num, ledDelay / portTICK_PERIOD_MS)) {
             if (event_num == TASK_EVENT_BUTTON_DOWN) {

@@ -5,6 +5,9 @@
  * IndiaNavi_App/docs/wifi_upload_api.md. The server only runs while WiFi
  * is connected, which is the case in charge mode.
  *
+ * Requests that change the device need the access point password as token
+ * when they do not come in over the access point, see is_write_allowed().
+ *
  * Copyright (c) 2026, Bastian Neumann <info@platinenmacher.tech>
  *
  * SPDX-License-Identifier: MIT
@@ -18,12 +21,14 @@
 
 #include <esp_http_server.h>
 #include <esp_log.h>
+#include <esp_netif.h>
 #include <esp_ota_ops.h>
 #include <esp_system.h>
 #include <esp_timer.h>
 #include <ff.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <lwip/sockets.h>
 
 #include "gui.h"
 #include "helper.h"
@@ -770,17 +775,82 @@ static esp_err_t sd_delete_handler(httpd_req_t* req)
     return send_error(req, "500 Internal Server Error", "delete failed");
 }
 
+/*
+ * True if the request came in over the access point of the device
+ */
+static bool is_access_point_request(httpd_req_t* req)
+{
+    struct sockaddr_storage local;
+    socklen_t len = sizeof(local);
+    if (getsockname(httpd_req_to_sockfd(req), (struct sockaddr*)&local, &len) != 0
+        || local.ss_family != AF_INET)
+        return false;
+
+    esp_netif_ip_info_t ap_ip;
+    esp_netif_t* ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+    if (!ap || esp_netif_get_ip_info(ap, &ap_ip) != ESP_OK)
+        return false;
+    return ((struct sockaddr_in*)&local)->sin_addr.s_addr == ap_ip.ip.addr;
+}
+
+/*
+ * Compare without leaking the position of the first difference
+ */
+static bool token_matches(const char* token, const char* expected)
+{
+    size_t len = strlen(expected);
+    if (len == 0 || strlen(token) != len)
+        return false;
+    uint8_t diff = 0;
+    for (size_t i = 0; i < len; i++)
+        diff |= token[i] ^ expected[i];
+    return diff == 0;
+}
+
+/*
+ * Requests that change the device are allowed in the access point, which is
+ * protected by its WPA2 password. In the WiFi of a router everybody in the
+ * network could send them, so there the AP password has to be sent as token:
+ * "Authorization: Bearer <AP password>". The app knows it from the QR code.
+ */
+static bool is_write_allowed(httpd_req_t* req)
+{
+    if (is_access_point_request(req))
+        return true;
+
+    char auth[64];
+    static const char bearer[] = "Bearer ";
+    if (httpd_req_get_hdr_value_str(req, "Authorization", auth, sizeof(auth)) != ESP_OK)
+        return false;
+    if (strncasecmp(auth, bearer, sizeof(bearer) - 1) != 0)
+        return false;
+    return token_matches(auth + sizeof(bearer) - 1, wifi_ap_password());
+}
+
+/*
+ * Wrapper for handlers that change the device, user_ctx is the real handler
+ */
+static esp_err_t write_guard(httpd_req_t* req)
+{
+    if (!is_write_allowed(req))
+        return send_error(req, "401 Unauthorized", "send the access point password as Bearer token");
+    esp_err_t (*handler)(httpd_req_t*) = req->user_ctx;
+    return handler(req);
+}
+
+#define GUARDED(h) .handler = write_guard, .user_ctx = (void*)(h)
+
 static const httpd_uri_t uri_handlers[] = {
     { .uri = "/api/info", .method = HTTP_GET, .handler = api_info_handler },
-    { .uri = "/api/reload", .method = HTTP_POST, .handler = api_reload_handler },
-    { .uri = "/api/transfer", .method = HTTP_POST, .handler = api_transfer_post_handler },
+    { .uri = "/api/reload", .method = HTTP_POST, GUARDED(api_reload_handler) },
+    { .uri = "/api/transfer", .method = HTTP_POST, GUARDED(api_transfer_post_handler) },
     { .uri = "/api/transfer", .method = HTTP_GET, .handler = api_transfer_get_handler },
-    { .uri = "/api/transfer", .method = HTTP_DELETE, .handler = api_transfer_delete_handler },
-    { .uri = "/api/firmware", .method = HTTP_PUT, .handler = api_firmware_put_handler },
-    { .uri = "/api/restart", .method = HTTP_POST, .handler = api_restart_handler },
+    { .uri = "/api/transfer", .method = HTTP_DELETE, GUARDED(api_transfer_delete_handler) },
+    { .uri = "/api/firmware", .method = HTTP_PUT, GUARDED(api_firmware_put_handler) },
+    { .uri = "/api/restart", .method = HTTP_POST, GUARDED(api_restart_handler) },
     { .uri = "/sd/*", .method = HTTP_GET, .handler = sd_get_handler },
-    { .uri = "/sd/*", .method = HTTP_PUT, .handler = sd_put_handler },
-    { .uri = "/sd/*", .method = HTTP_DELETE, .handler = sd_delete_handler },
+    { .uri = "/sd/*", .method = HTTP_PUT, GUARDED(sd_put_handler) },
+    { .uri = "/sd/*", .method = HTTP_DELETE, GUARDED(sd_delete_handler) },
 };
 
 /**
