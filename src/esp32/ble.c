@@ -253,7 +253,7 @@ void ble_if_notify_ota_status(const uint8_t status[BLEP_OTA_STATUS_SIZE])
 
 static size_t info_value(uint8_t* out, size_t size)
 {
-    uint8_t flags = BLEP_INFO_FLAG_OTA;
+    uint8_t flags = BLEP_INFO_FLAG_OTA | BLEP_INFO_FLAG_TRACK_COLOR;
     if (is_charging)
         flags |= BLEP_INFO_FLAG_CHARGING;
     int32_t battery = current_battery_level;

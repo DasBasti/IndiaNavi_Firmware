@@ -53,6 +53,7 @@ typedef enum {
 
 #define BLEP_INFO_FLAG_OTA 0x01      /// firmware can be updated over WiFi and BLE
 #define BLEP_INFO_FLAG_CHARGING 0x02 /// a charger is connected
+#define BLEP_INFO_FLAG_TRACK_COLOR 0x04 /// the settings carry the color of the track
 #define BLEP_INFO_HEADER_SIZE 4
 
 /**
@@ -151,12 +152,20 @@ size_t blep_wifi_status_encode(uint8_t* out, size_t size, uint8_t running, uint8
 #define BLEP_UPDATE_INTERVAL_MAX_S 600
 #define BLEP_UPDATE_INTERVAL_DEFAULT_S 60
 
+/* Colors of the display (color_t): 0 black, 1 white, 2 green, 3 blue, 4 red, 5 yellow, 6 orange */
+#define BLEP_TRACK_COLOR_MAX 6
+#define BLEP_TRACK_COLOR_DEFAULT 3 /// blue
+
 typedef struct {
     uint8_t flags;
+    uint8_t track_color;        /// color of the track on the map, 0..BLEP_TRACK_COLOR_MAX
     uint16_t update_interval_s; /// time between two automatic screen updates
 } blep_settings_t;
 
-/** Flags, 0, interval in seconds (u16). An interval outside of 30..600 is rejected. */
+/**
+ * Flags, track color + 1 (0 = default), interval in seconds (u16).
+ * An interval outside of 30..600 or an unknown color is rejected.
+ */
 blep_err_t blep_settings_decode(const uint8_t* in, size_t len, blep_settings_t* settings);
 void blep_settings_encode(uint8_t* out, const blep_settings_t* settings);
 uint16_t blep_clamp_update_interval(uint32_t seconds);

@@ -197,17 +197,39 @@ void test_wifi_status_has_ssid_but_no_password()
 
 void test_settings_round_trip()
 {
-    blep_settings_t in = { BLEP_SETTING_SHOW_TRACK | BLEP_SETTING_SHOW_HEIGHT_GRAPH, 600 };
+    blep_settings_t in = { .flags = BLEP_SETTING_SHOW_TRACK | BLEP_SETTING_SHOW_HEIGHT_GRAPH, .track_color = 4, .update_interval_s = 600 };
     uint8_t raw[BLEP_SETTINGS_SIZE];
     blep_settings_encode(raw, &in);
     TEST_ASSERT_EQUAL_UINT8(3, raw[0]);
-    TEST_ASSERT_EQUAL_UINT8(0, raw[1]);
+    TEST_ASSERT_EQUAL_UINT8(5, raw[1]);
     TEST_ASSERT_EQUAL_UINT8(600 & 0xff, raw[2]);
     TEST_ASSERT_EQUAL_UINT8(600 >> 8, raw[3]);
     blep_settings_t out;
     TEST_ASSERT_EQUAL(BLEP_OK, blep_settings_decode(raw, sizeof(raw), &out));
     TEST_ASSERT_EQUAL_UINT8(3, out.flags);
+    TEST_ASSERT_EQUAL_UINT8(4, out.track_color);
     TEST_ASSERT_EQUAL_UINT16(600, out.update_interval_s);
+}
+
+void test_settings_track_color()
+{
+    blep_settings_t s;
+    uint8_t raw[BLEP_SETTINGS_SIZE] = { 1, 0, 60, 0 };
+    // 0 is the default, as written by an app that does not know the color
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_settings_decode(raw, sizeof(raw), &s));
+    TEST_ASSERT_EQUAL_UINT8(BLEP_TRACK_COLOR_DEFAULT, s.track_color);
+    raw[1] = 1;
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_settings_decode(raw, sizeof(raw), &s));
+    TEST_ASSERT_EQUAL_UINT8(0, s.track_color);
+    raw[1] = BLEP_TRACK_COLOR_MAX + 1;
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_settings_decode(raw, sizeof(raw), &s));
+    TEST_ASSERT_EQUAL_UINT8(BLEP_TRACK_COLOR_MAX, s.track_color);
+    raw[1] = BLEP_TRACK_COLOR_MAX + 2;
+    TEST_ASSERT_EQUAL(BLEP_ERR_RANGE, blep_settings_decode(raw, sizeof(raw), &s));
+
+    blep_settings_t invalid = { .flags = 1, .track_color = BLEP_TRACK_COLOR_MAX + 1, .update_interval_s = 60 };
+    blep_settings_encode(raw, &invalid);
+    TEST_ASSERT_EQUAL_UINT8(0, raw[1]);
 }
 
 void test_settings_interval_is_limited_to_30_to_600_seconds()
@@ -230,9 +252,6 @@ void test_settings_rejects_reserved_bits_and_length()
     uint8_t raw[BLEP_SETTINGS_SIZE] = { 4, 0, 60, 0 };
     TEST_ASSERT_EQUAL(BLEP_ERR_FORMAT, blep_settings_decode(raw, sizeof(raw), &s));
     raw[0] = 1;
-    raw[1] = 1;
-    TEST_ASSERT_EQUAL(BLEP_ERR_FORMAT, blep_settings_decode(raw, sizeof(raw), &s));
-    raw[1] = 0;
     TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_settings_decode(raw, 3, &s));
 }
 
@@ -361,6 +380,7 @@ int main(int argc, char** argv)
     RUN_TEST(test_wifi_status_has_ssid_but_no_password);
     RUN_TEST(test_settings_round_trip);
     RUN_TEST(test_settings_interval_is_limited_to_30_to_600_seconds);
+    RUN_TEST(test_settings_track_color);
     RUN_TEST(test_settings_rejects_reserved_bits_and_length);
     RUN_TEST(test_clamp_update_interval);
     RUN_TEST(test_device_control_only_knows_forget);

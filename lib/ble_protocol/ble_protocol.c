@@ -209,12 +209,16 @@ blep_err_t blep_settings_decode(const uint8_t* in, size_t len, blep_settings_t* 
 {
     if (!in || !settings || len != BLEP_SETTINGS_SIZE)
         return BLEP_ERR_LENGTH;
-    if ((in[0] & ~BLEP_SETTING_FLAGS_MASK) || in[1] != 0)
+    if (in[0] & ~BLEP_SETTING_FLAGS_MASK)
         return BLEP_ERR_FORMAT;
     uint16_t interval = get_u16(in + 2);
     if (interval < BLEP_UPDATE_INTERVAL_MIN_S || interval > BLEP_UPDATE_INTERVAL_MAX_S)
         return BLEP_ERR_RANGE;
+    // 0 is the default, so an app that does not know the color keeps it blue
+    if (in[1] > BLEP_TRACK_COLOR_MAX + 1)
+        return BLEP_ERR_RANGE;
     settings->flags = in[0];
+    settings->track_color = in[1] ? in[1] - 1 : BLEP_TRACK_COLOR_DEFAULT;
     settings->update_interval_s = interval;
     return BLEP_OK;
 }
@@ -222,7 +226,7 @@ blep_err_t blep_settings_decode(const uint8_t* in, size_t len, blep_settings_t* 
 void blep_settings_encode(uint8_t* out, const blep_settings_t* settings)
 {
     out[0] = settings->flags & BLEP_SETTING_FLAGS_MASK;
-    out[1] = 0;
+    out[1] = settings->track_color <= BLEP_TRACK_COLOR_MAX ? settings->track_color + 1 : 0;
     put_u16(out + 2, settings->update_interval_s);
 }
 

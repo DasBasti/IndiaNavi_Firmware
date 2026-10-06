@@ -145,8 +145,11 @@ void find_closest_waypoint(waypoint_t* wp)
 
 void add_waypoints_to_renderer(waypoint_t* wp)
 {
-    if (wp->active)
+    if (wp->active) {
+        // the color can be changed in the app
+        wp->color = display_settings_track_color();
         add_to_render_pipeline(waypoint_render_marker, wp, RL_PATH);
+    }
 }
 
 static void apply_zoom_toggle(void)
