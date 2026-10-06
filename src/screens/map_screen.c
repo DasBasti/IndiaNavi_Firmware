@@ -157,6 +157,13 @@ void add_waypoints_to_renderer(waypoint_t* wp)
     }
 }
 
+/* the arrows are drawn after the whole track, so its line does not cover them */
+static void add_arrows_to_renderer(waypoint_t* wp)
+{
+    if (wp->active && wp->arrow_to)
+        add_to_render_pipeline(waypoint_render_arrow, wp, RL_PATH);
+}
+
 static void apply_zoom_toggle(void)
 {
     ESP_LOGI(TAG, "Zoom level was: %d", zoom_level[zoom_level_selected]);
@@ -215,8 +222,12 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 
     free_render_pipeline(RL_PATH);
     // the track can be hidden in the app, the position marker stays
-    if (display_settings_show_track())
+    if (display_settings_show_track()) {
         map_run_on_waypoints(add_waypoints_to_renderer);
+        // arrows show in which direction the track goes
+        waypoint_place_arrows(map_first_waypoint(), WAYPOINT_ARROW_SPACING, WAYPOINT_ARROW_LOOKAHEAD);
+        map_run_on_waypoints(add_arrows_to_renderer);
+    }
 
     closest_wp_distance = __FLT_MAX__;
     longitude_scale = cosf(map_position->latitude * (float)M_PI / 180.0f);

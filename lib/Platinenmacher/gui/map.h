@@ -65,6 +65,7 @@ void map_set_first_waypoint(waypoint_t* wp);
 error_code_t map_free_waypoints();
 error_code_t map_update_waypoint_path(map_t *map);
 error_code_t map_run_on_waypoints(void (*function)(waypoint_t *wp));
+waypoint_t* map_first_waypoint(void);
 
 error_code_t map_render(const display_t* dsp, void* component);
 error_code_t map_tile_render(const display_t* dsp, void* component);

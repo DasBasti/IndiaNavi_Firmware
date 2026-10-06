@@ -258,6 +258,11 @@ void map_set_first_waypoint(waypoint_t* wp)
     waypoints = wp;
 }
 
+waypoint_t* map_first_waypoint(void)
+{
+    return waypoints;
+}
+
 /**
  * Add a waypoint to the list of waypoints
  *

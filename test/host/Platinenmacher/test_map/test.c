@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <string.h>
 #include <unity.h>
 
 #include "../mock/mock_display.h"
@@ -170,6 +172,100 @@ void test_waypoints()
     map_free_waypoints();
 }
 
+/* a straight track along x, one waypoint every step pixels */
+#define LINE_POINTS 30
+static waypoint_t line[LINE_POINTS];
+
+static void make_line(int16_t step)
+{
+    memset(line, 0, sizeof(line));
+    for (int i = 0; i < LINE_POINTS; i++) {
+        line[i].pos_x = i * step;
+        line[i].pos_y = 100;
+        line[i].active = 1;
+        line[i].next = i + 1 < LINE_POINTS ? &line[i + 1] : NULL;
+    }
+}
+
+void test_arrows_are_placed_along_the_track()
+{
+    make_line(5);
+    waypoint_place_arrows(line, 80, 12);
+    for (int i = 0; i < LINE_POINTS; i++) {
+        if (i == 7) {
+            // half the spacing after the start, the direction is taken over 12 pixels (3 segments)
+            TEST_ASSERT_EQUAL_PTR(&line[10], line[i].arrow_to);
+        } else if (i == 23) {
+            // then one every 80 pixels
+            TEST_ASSERT_EQUAL_PTR(&line[26], line[i].arrow_to);
+        } else {
+            TEST_ASSERT_NULL_MESSAGE(line[i].arrow_to, "no arrow expected");
+        }
+    }
+}
+
+void test_arrows_only_on_the_screen()
+{
+    make_line(5);
+    line[3].arrow_to = &line[4]; // from an earlier placement
+    for (int i = 0; i < LINE_POINTS; i++)
+        line[i].active = i >= 20; // the start of the track is off the screen
+    waypoint_place_arrows(line, 80, 12);
+    TEST_ASSERT_NULL(line[3].arrow_to);
+    for (int i = 0; i < LINE_POINTS; i++)
+        TEST_ASSERT_TRUE(line[i].arrow_to == NULL || i >= 20);
+    // half the spacing after the first visible point, the look-ahead stops at the end of the track
+    TEST_ASSERT_EQUAL_PTR(&line[29], line[27].arrow_to);
+    waypoint_place_arrows(NULL, 80, 12); // an empty track
+}
+
+void test_arrow_is_drawn_in_the_direction_of_the_track()
+{
+    display_t* dsp = display_init(DISPLAY_WIDTH, DISPLAY_HEIGHT, 8, DISPLAY_ROTATE_0);
+    dsp->fb_size = DISPLAY_HEIGHT * DISPLAY_WIDTH;
+    dsp->fb = malloc(dsp->fb_size);
+    dsp->write_pixel = write_pixel;
+    dsp->decompress = decompress;
+    memset(dsp->fb, 0xaa, dsp->fb_size);
+
+    waypoint_t from = { .pos_x = 10, .pos_y = 10, .active = 1, .color = WHITE };
+    waypoint_t to = { .pos_x = 30, .pos_y = 10, .active = 1 };
+    from.arrow_to = &to;
+    TEST_ASSERT_EQUAL(ABORT, waypoint_render_arrow(dsp, &from));
+
+#define PIXEL(x, y) dsp->fb[(y) * DISPLAY_WIDTH + (x)]
+    // tip ahead of the waypoint, the base 10 pixels behind with a border
+    TEST_ASSERT_EQUAL_UINT8(BLACK, PIXEL(15, 10));
+    TEST_ASSERT_EQUAL_UINT8(BLACK, PIXEL(5, 5));
+    TEST_ASSERT_EQUAL_UINT8(BLACK, PIXEL(5, 15));
+    // filled with the color of the track
+    TEST_ASSERT_EQUAL_UINT8(WHITE, PIXEL(10, 10));
+    TEST_ASSERT_EQUAL_UINT8(WHITE, PIXEL(8, 8));
+    // nothing beyond the tip or behind the base
+    TEST_ASSERT_EQUAL_UINT8(0xaa, PIXEL(17, 10));
+    TEST_ASSERT_EQUAL_UINT8(0xaa, PIXEL(3, 10));
+    // the sides are narrow at the tip
+    TEST_ASSERT_EQUAL_UINT8(0xaa, PIXEL(14, 5));
+
+    // a black track gets a white border
+    memset(dsp->fb, 0xaa, dsp->fb_size);
+    from.color = BLACK;
+    to.pos_x = -10; // and the arrow points the other way
+    waypoint_render_arrow(dsp, &from);
+    TEST_ASSERT_EQUAL_UINT8(WHITE, PIXEL(5, 10));
+    TEST_ASSERT_EQUAL_UINT8(WHITE, PIXEL(15, 5));
+    TEST_ASSERT_EQUAL_UINT8(0xaa, PIXEL(17, 10));
+#undef PIXEL
+
+    // no arrow without a direction
+    memset(dsp->fb, 0xaa, dsp->fb_size);
+    from.arrow_to = NULL;
+    waypoint_render_arrow(dsp, &from);
+    for (uint32_t i = 0; i < dsp->fb_size; i++)
+        TEST_ASSERT_EQUAL_UINT8(0xaa, dsp->fb[i]);
+    free(dsp->fb);
+}
+
 int main(int argc, char** argv)
 {
     UNITY_BEGIN();
@@ -182,5 +278,8 @@ int main(int argc, char** argv)
     RUN_TEST(test_waypoints);
     RUN_TEST(test_map_free);
     RUN_TEST(test_waypoints_restart_after_free);
+    RUN_TEST(test_arrows_are_placed_along_the_track);
+    RUN_TEST(test_arrows_only_on_the_screen);
+    RUN_TEST(test_arrow_is_drawn_in_the_direction_of_the_track);
     UNITY_END();
 }

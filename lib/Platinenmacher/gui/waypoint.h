@@ -19,12 +19,23 @@ struct Waypoint {
     int16_t pos_y;
     uint16_t num;
     uint8_t active;
+    waypoint_t *arrow_to;   /// an arrow at this waypoint points towards this one, NULL for no arrow
     error_code_t (*onBeforeRender)(const display_t *dsp, void *label);
 	error_code_t (*onAfterRender)(const display_t *dsp, void *label);
 
     waypoint_t *next;
 };
 
+#define WAYPOINT_ARROW_SPACING 80   /// pixels along the track from one direction arrow to the next
+#define WAYPOINT_ARROW_LOOKAHEAD 12 /// pixels along the track the direction of an arrow is taken from
+
 error_code_t waypoint_render_marker(const display_t* dsp, void* comp);
+error_code_t waypoint_render_arrow(const display_t* dsp, void* comp);
+
+/**
+ * Choose the waypoints that get an arrow in the direction of the track.
+ * The positions on the screen (pos_x, pos_y, active) have to be up to date.
+ */
+void waypoint_place_arrows(waypoint_t* first, uint16_t spacing, uint16_t lookahead);
 
 #endif
