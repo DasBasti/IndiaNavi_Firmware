@@ -389,6 +389,22 @@ error_code_t deleteFile(async_file_t* file)
 }
 
 /*
+ * Rename a file, an existing file with the new name is replaced
+ */
+error_code_t renameFile(const char* from, const char* to)
+{
+    if (!takeSD())
+        return PM_FAIL;
+    // f_rename does not overwrite
+    f_unlink(to);
+    FRESULT res = f_rename(from, to);
+    giveSD();
+    if (FR_OK == res)
+        return PM_OK;
+    return PM_FAIL;
+}
+
+/*
  * Close file if still open and free all memory of the file
  */
 void closePhysicalFile(async_file_t* file)

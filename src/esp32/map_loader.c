@@ -21,6 +21,8 @@
 
 #define TRACK_FILE_SIZE 32768
 #define WP_LINE_SIZE 256
+#define RETRY_DELAY_MIN_MS 1000
+#define RETRY_DELAY_MAX_MS (5 * 60 * 1000)
 
 typedef struct tileset tileset_t;
 struct tileset {
@@ -36,10 +38,12 @@ struct tileset {
 };
 
 static const char* TAG = "DL";
-static async_file_t* downloadfile;
+static async_file_t* downloadfile; // the .tmp file of the running download
+static uint32_t download_bytes;
+static bool download_failed;
 label_t* download_status;
 char* download_status_text = "Downloader active";
-esp_err_t startDownloadFile(void* handler, const char* url);
+esp_err_t startDownloadFile(void* handler, const char* url, int* status, int64_t* content_length);
 
 static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
 {
@@ -55,26 +59,28 @@ static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
         break;
     case HTTP_EVENT_ON_HEADER:
         ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
-        const char* contentLength = "Content-Length";
-        if (0 == strcmp(evt->header_key, contentLength)) {
-            if (PM_OK != openFileForWriting(downloadfile))
-                return ESP_FAIL;
-            ESP_LOGD(TAG, "Create File to download: %s", downloadfile->filename);
-        }
         break;
     case HTTP_EVENT_ON_DATA:
         ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-        if (downloadfile && downloadfile->file != 0) {
-            uint32_t bytes_written = 0;
-            writeToFile(downloadfile, evt->data, evt->data_len, &bytes_written);
-            ESP_LOGD(TAG, "Wrote to download: %d/%lu", evt->data_len, bytes_written);
-            if (evt->data_len != bytes_written)
-                return ESP_FAIL;
+        // error pages are not stored
+        if (download_failed || esp_http_client_get_status_code(evt->client) != 200)
+            break;
+        if (!downloadfile->file || !downloadfile->file->obj.fs) {
+            if (PM_OK != openFileForWriting(downloadfile)) {
+                download_failed = true;
+                break;
+            }
+            ESP_LOGD(TAG, "Create File to download: %s", downloadfile->filename);
         }
+        uint32_t bytes_written = 0;
+        writeToFile(downloadfile, evt->data, evt->data_len, &bytes_written);
+        ESP_LOGD(TAG, "Wrote to download: %d/%lu", evt->data_len, bytes_written);
+        download_bytes += bytes_written;
+        if (evt->data_len != bytes_written)
+            download_failed = true;
         break;
     case HTTP_EVENT_ON_FINISH:
         ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
-        closeFile(downloadfile);
         break;
     case HTTP_EVENT_DISCONNECTED:
         ESP_LOGD(TAG, "HTTP_EVENT_DISCONNECTED");
@@ -92,14 +98,52 @@ static esp_err_t _http_event_handler(esp_http_client_event_t* evt)
     return ESP_OK;
 }
 
+/*
+ * Download one tile into {name}.tmp and rename it only when the server
+ * answered 200 and all data is on the card, so error pages and partial
+ * downloads never count as an existing tile.
+ *
+ * Returns ESP_FAIL if the request failed and should be retried.
+ */
+static esp_err_t downloadTile(const char* url, char* filename, char* tmp_filename)
+{
+    downloadfile->filename = tmp_filename;
+    download_bytes = 0;
+    download_failed = false;
+
+    int status = 0;
+    int64_t content_length = 0;
+    esp_err_t err = startDownloadFile(_http_event_handler, url, &status, &content_length);
+    bool open = downloadfile->file && downloadfile->file->obj.fs;
+    if (open && closeFile(downloadfile) != PM_OK)
+        download_failed = true;
+
+    bool complete = err == ESP_OK && status == 200 && !download_failed && download_bytes > 0
+        && (content_length < 0 || content_length == download_bytes);
+    if (complete && renameFile(tmp_filename, filename) == PM_OK)
+        return ESP_OK;
+
+    if (open)
+        deleteFile(downloadfile);
+    if (err == ESP_OK && status != 200) {
+        // the server does not have this tile, do not ask again
+        ESP_LOGW(TAG, "%s: HTTP %d, tile skipped", url, status);
+        return ESP_OK;
+    }
+    ESP_LOGE(TAG, "Download of %s failed: %s, %lu bytes", url, esp_err_to_name(err), download_bytes);
+    return ESP_FAIL;
+}
+
 static void downloadMapTilesForZoomLevel(tileset_t* t, async_file_t* wp_file)
 {
-    uint32_t fail_counter = 0;
+    uint32_t retry_delay = RETRY_DELAY_MIN_MS;
     size_t url_size = strlen(t->baseurl) + 40; // base+/zzz/xxxxxxxxxx/yyyyyyyyyy.raw
     char* url = RTOS_Malloc(url_size);
+    char* tmp_filename = RTOS_Malloc(WP_LINE_SIZE);
     downloadfile = createPhysicalFile();
-    if (!url || !downloadfile) {
+    if (!url || !tmp_filename || !downloadfile) {
         RTOS_Free(url);
+        RTOS_Free(tmp_filename);
         closePhysicalFile(downloadfile);
         downloadfile = NULL;
         return;
@@ -109,26 +153,24 @@ static void downloadMapTilesForZoomLevel(tileset_t* t, async_file_t* wp_file)
         for (uint32_t y = t->file_min; y <= t->file_max; y++) {
             save_snprintf(url, url_size, "%s/%u/%lu/%lu.raw", t->baseurl, t->zoom, x, y);
             save_snprintf(wp_file->filename, WP_LINE_SIZE, "//MAPS/%u/%lu/%lu.raw", t->zoom, x, y);
+            save_snprintf(tmp_filename, WP_LINE_SIZE, "//MAPS/%u/%lu/%lu.tmp", t->zoom, x, y);
             if (fileExists(wp_file) != PM_OK) {
                 // Get File because we can not find it on the SD card
-                downloadfile->filename = wp_file->filename;
-                esp_err_t err;
-                do {
+                for (;;) {
                     while (!isConnected()) {
                         ESP_LOGI(TAG, "Wait for WiFi connection");
                         vTaskDelay(3000 / portTICK_PERIOD_MS);
                     }
                     ESP_LOGI(TAG, "Get %s -> '%s'", url, wp_file->filename);
-                    err = startDownloadFile(_http_event_handler, url);
-                    if (err != ESP_OK) {
-                        ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
-                        if (++fail_counter == 10) {
-                            fail_counter = 0;
-                            esp_restart();
-                        }
-                        vTaskDelay(1000 / portTICK_PERIOD_MS);
-                    }
-                } while (err != ESP_OK);
+                    if (downloadTile(url, wp_file->filename, tmp_filename) == ESP_OK)
+                        break;
+                    // back off while the server can not be reached
+                    vTaskDelay(pdMS_TO_TICKS(retry_delay));
+                    retry_delay *= 2;
+                    if (retry_delay > RETRY_DELAY_MAX_MS)
+                        retry_delay = RETRY_DELAY_MAX_MS;
+                }
+                retry_delay = RETRY_DELAY_MIN_MS;
             } else {
                 ESP_LOGD(TAG, "File %s exists!", wp_file->filename);
             }
@@ -137,6 +179,7 @@ static void downloadMapTilesForZoomLevel(tileset_t* t, async_file_t* wp_file)
     }
     closePhysicalFile(downloadfile);
     downloadfile = NULL;
+    RTOS_Free(tmp_filename);
     RTOS_Free(url);
 }
 

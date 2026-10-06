@@ -168,12 +168,14 @@ static error_code_t updateConnectionInfo()
  * @param
  * handler  The handler function for processing HTTP events.
  * url      The location to get the data from.
+ * status   HTTP status code of the response
+ * content_length  Content-Length of the response, -1 for chunked responses
  *
  * @return
  *  - ESP_OK on successful
  *  - ESP_FAIL on error
  */
-esp_err_t startDownloadFile(void* handler, const char* url)
+esp_err_t startDownloadFile(void* handler, const char* url, int* status, int64_t* content_length)
 {
     esp_http_client_config_t client_config = {
         .url = url,
@@ -187,10 +189,12 @@ esp_err_t startDownloadFile(void* handler, const char* url)
         .user_agent = "IndiaNavi 1.0",
     };
     esp_http_client_handle_t client = esp_http_client_init(&client_config);
+    if (!client)
+        return ESP_FAIL;
     esp_err_t err = esp_http_client_perform(client);
-    ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %llu\n",
-        esp_http_client_get_status_code(client),
-        esp_http_client_get_content_length(client));
+    *status = esp_http_client_get_status_code(client);
+    *content_length = esp_http_client_is_chunked_response(client) ? -1 : esp_http_client_get_content_length(client);
+    ESP_LOGI(TAG, "HTTP GET Status = %d, content_length = %lld", *status, *content_length);
     esp_http_client_cleanup(client);
     return err;
 }
