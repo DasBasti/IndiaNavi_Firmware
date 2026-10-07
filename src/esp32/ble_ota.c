@@ -173,9 +173,10 @@ static void update_task(void* arg)
             set_state(BLEP_OTA_DONE, BLEP_OTA_NO_ERROR);
             notify_status();
 
-            // the image is selected for the next boot, wait for the restart
+            // the image is selected for the next boot, wait for the restart. An abort (phone or Bluetooth
+            // going off) ends the wait, the new firmware runs after the next restart anyway.
             int64_t deadline = esp_timer_get_time() + (int64_t)RESTART_WAIT_MS * 1000;
-            while (!ota.restart_requested && esp_timer_get_time() < deadline)
+            while (!ota.restart_requested && !ota.abort_requested && esp_timer_get_time() < deadline)
                 ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
             if (ota.restart_requested) {
                 ESP_LOGI(TAG, "restart for the new firmware");

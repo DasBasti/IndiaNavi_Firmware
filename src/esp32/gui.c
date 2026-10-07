@@ -791,6 +791,28 @@ static void recover_display_if_needed(void)
 
 /* battery level in percent needed to start the display without a charger */
 #define DISPLAY_MIN_BATTERY_LEVEL 65
+/* time the power task gets to read the battery and the charger */
+#define POWER_STATE_WAIT_MS 10000
+
+/*
+ * An e-ink refresh on a low battery can cause a brown-out. With a charger connected there is enough power,
+ * so the charge screen is shown. Without one the device goes back to sleep: waiting here would keep it on
+ * with GPS running and nothing on the display, and the button could not switch it off.
+ */
+static void sleep_if_battery_too_low(void)
+{
+    for (uint32_t waited = 0; !power_state_known && waited < POWER_STATE_WAIT_MS; waited += 100)
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+    while (current_battery_level < DISPLAY_MIN_BATTERY_LEVEL && !is_charging) {
+        ESP_LOGW(TAG, "Battery at %ld%% is too low for the display and no charger is connected, sleep",
+            current_battery_level);
+        gps_enter_standby();
+        // returns only if a charger was connected in the meantime
+        enter_deep_sleep_if_not_charging();
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
 
 void StartGuiTask(void const* argument)
 {
@@ -803,13 +825,7 @@ void StartGuiTask(void const* argument)
     // eeprom->onValue = GPIO_RESET;
     // gpio_write(eeprom, GPIO_SET);
 
-    // an e-ink refresh on a low battery can cause a brown-out. With a charger
-    // connected there is enough power, so the charge screen is shown.
-    for (uint32_t i = 0; current_battery_level < DISPLAY_MIN_BATTERY_LEVEL && !is_charging; i++) {
-        if (i % 30 == 0)
-            ESP_LOGE(TAG, "wait for battery charge or charger. Current value: %ld%%", current_battery_level);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    sleep_if_battery_too_low();
 
     ESP_LOGI(TAG, "init Display regualtor");
     gpio_t* reg_gpio = gpio_create(OUTPUT, 0, EINK_VCC_nEN);

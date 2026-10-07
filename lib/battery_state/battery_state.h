@@ -1,5 +1,5 @@
 /*
- * When the battery counts as empty
+ * When the battery counts as empty and when a charger is connected
  *
  * The device switches off while some charge is left, so the GPS module can
  * keep its clock running in standby and finds the satellites faster after
@@ -56,5 +56,32 @@ bool battery_state_is_low(const battery_state_t* state);
 
 /** true if a charger is connected and the battery has enough charge to leave the battery empty screen */
 bool battery_state_recovered(int32_t level_percent, bool charging);
+
+/* the charger input (ADC reading) has to be this much above the battery for a connected charger */
+#define CHARGER_MARGIN 5
+/* readings in a row that have to agree before a charger counts as connected or removed, a single noisy
+ * reading near the margin must not switch WiFi on and off */
+#define CHARGER_CONFIRM_READINGS 3
+
+typedef struct {
+    bool charging;            /// confirmed state
+    uint8_t changed_readings; /// readings in a row that disagree with charging
+} charger_state_t;
+
+typedef enum {
+    CHARGER_NO_CHANGE,
+    CHARGER_CONNECTED,
+    CHARGER_REMOVED,
+} charger_change_t;
+
+/**
+ * Take a new reading of the charger and battery input (raw ADC values).
+ *
+ * @return the change once CHARGER_CONFIRM_READINGS readings in a row showed it
+ */
+charger_change_t charger_state_update(charger_state_t* state, int charger, int battery);
+
+/** true while readings disagree with the confirmed state, the next reading should come soon */
+bool charger_state_is_pending(const charger_state_t* state);
 
 #endif /* BATTERY_STATE_H */

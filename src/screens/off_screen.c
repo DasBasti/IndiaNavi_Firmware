@@ -244,20 +244,22 @@ void off_screen_create(const display_t* display)
 
     infoBox = label_create(infoText, &f8x8, 0, dsp->size.height - 13,
         dsp->size.width, 13);
-    infoBox->borderWidth = 1;
-    infoBox->borderLines = ALL_SOLID;
-    infoBox->alignVertical = MIDDLE;
-    infoBox->backgroundColor = WHITE;
-
-    add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
+    if (infoBox) {
+        infoBox->borderWidth = 1;
+        infoBox->borderLines = ALL_SOLID;
+        infoBox->alignVertical = MIDDLE;
+        infoBox->backgroundColor = WHITE;
+        add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
+    }
 
     push_button = label_create(NULL, &f8x16, 0, 0, dsp->size.width, 32);
-    push_button->onBeforeRender = push_button_label_onBeforeRender;
-    push_button->alignHorizontal = RIGHT;
-    push_button->alignVertical = BOTTOM;
-    push_button->backgroundColor = WHITE;
-
-    add_to_render_pipeline(label_render, push_button, RL_GUI_ELEMENTS);
+    if (push_button) {
+        push_button->onBeforeRender = push_button_label_onBeforeRender;
+        push_button->alignHorizontal = RIGHT;
+        push_button->alignVertical = BOTTOM;
+        push_button->backgroundColor = WHITE;
+        add_to_render_pipeline(label_render, push_button, RL_GUI_ELEMENTS);
+    }
 
     add_to_render_pipeline(render_arrow, NULL, RL_GUI_ELEMENTS);
 
@@ -265,7 +267,7 @@ void off_screen_create(const display_t* display)
     ESP_ERROR_CHECK(esp_read_mac(derived_mac_addr, ESP_MAC_WIFI_STA));
     url = RTOS_Malloc(URL_LENGTH);
     if (url)
-        snprintf(url, URL_LENGTH, "https://platinenmacher.tech/navi/?device=%x%x%x%x%x%x",
+        snprintf(url, URL_LENGTH, "https://platinenmacher.tech/navi/?device=%02x%02x%02x%02x%02x%02x",
             derived_mac_addr[0], derived_mac_addr[1], derived_mac_addr[2],
             derived_mac_addr[3], derived_mac_addr[4], derived_mac_addr[5]);
     tempBuffer = RTOS_Malloc(qrcodegen_BUFFER_LEN_MAX);
@@ -285,18 +287,22 @@ void off_screen_create(const display_t* display)
         url_qr.visible = NULL;
         qr_label = label_create("Scan me", &f8x8, 2, QR_TOP - 13,
             qrcodegen_getSize(qrcode) * 3 + 6, 13 + qrcodegen_getSize(qrcode) * 3 + 3);
-        qr_label->alignVertical = TOP;
-        qr_label->alignHorizontal = CENTER;
-        qr_label->backgroundColor = WHITE;
-        add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
+        if (qr_label) {
+            qr_label->alignVertical = TOP;
+            qr_label->alignHorizontal = CENTER;
+            qr_label->backgroundColor = WHITE;
+            add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
+        }
         add_to_render_pipeline(render_qr, &url_qr, RL_GUI_ELEMENTS);
     }
 
     create_wifi_qr(dsp);
 
     wifi_indicator_image = image_create(WIFI_0, 3, 0, ICON_SIZE, ICON_SIZE);
-    wifi_indicator_image->onBeforeRender = wifi_indicator_image_onBeforeRender;
-    add_to_render_pipeline(image_render, wifi_indicator_image, RL_GUI_ELEMENTS);
+    if (wifi_indicator_image) {
+        wifi_indicator_image->onBeforeRender = wifi_indicator_image_onBeforeRender;
+        add_to_render_pipeline(image_render, wifi_indicator_image, RL_GUI_ELEMENTS);
+    }
 
     set_screen_free_function(off_screen_free);
     set_short_press_event(turn_to_on);

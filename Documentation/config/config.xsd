@@ -13,7 +13,6 @@
             </xs:simpleContent>
           </xs:complexType>
         </xs:element>
-        <xs:element type="xs:anyURI" name="ota"/>
         <xs:element type="xs:string" name="timezone"/>
         <xs:element name="gui">
           <xs:complexType>
