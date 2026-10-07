@@ -49,6 +49,8 @@ extern map_position_t* map_position;
 /* battery level */
 extern int32_t current_battery_level;
 extern int32_t is_charging;
+/* the power task read the battery level and knows if a charger is connected */
+extern volatile bool power_state_known;
 
 typedef struct Render render_t;
 struct Render {

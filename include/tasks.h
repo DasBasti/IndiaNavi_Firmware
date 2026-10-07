@@ -229,6 +229,5 @@ void ble_if_wifi_status_changed(void);
 // From map_loader.c
 void maploader_screen_element(const display_t* dsp);
 
-error_code_t do_background_ota(void* pvParameter);
 
 #endif /* INC_TASKS_H_ */

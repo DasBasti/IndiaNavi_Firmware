@@ -285,7 +285,13 @@ static bool open_track_log(async_file_t* log)
     return ok;
 }
 
-static void log_track_point(async_file_t* log, const log_position_t* position)
+/*
+ * Append a point to the track log
+ *
+ * returns false if it could not be written. The file is not usable any more then, e.g. the SD card was
+ * removed, and has to be opened again.
+ */
+static bool log_track_point(async_file_t* log, const log_position_t* position)
 {
     char time_buf[GPX_TIME_LEN];
     char trkpt_buf[255];
@@ -296,9 +302,12 @@ static void log_track_point(async_file_t* log, const log_position_t* position)
     uint32_t pos = f_tell(log->file);
     bool ok = write_track_log(log, trkpt_buf);
     // the next point overwrites the footer
-    if (seekFile(log, ok ? f_tell(log->file) - strlen(gpx_footer) : pos) != PM_OK)
+    if (seekFile(log, ok ? f_tell(log->file) - strlen(gpx_footer) : pos) != PM_OK) {
         ESP_LOGE(TAG, "Cannot seek in %s", log->filename);
+        ok = false;
+    }
     ESP_LOGI(TAG, "GPS log: %f, %f %s", position->position.latitude, position->position.longitude, ok ? "written" : "failed");
+    return ok;
 }
 
 static volatile bool gps_stop_requested;
@@ -485,8 +494,15 @@ void StartGpsTask(void const* argument)
             track_log_open = open_track_log(gps_track);
         }
         if (track_log_open) {
-            log_track_point(gps_track, &position);
-            last_logged = position.timestamp;
+            if (log_track_point(gps_track, &position)) {
+                last_logged = position.timestamp;
+            } else {
+                // e.g. the SD card was changed, the open file belongs to the old card. Open it again later.
+                ESP_LOGW(TAG, "Track log not writable, open it again in %d s", TRACK_LOG_RETRY_S);
+                closeFile(gps_track);
+                track_log_open = false;
+                last_open_attempt = xTaskGetTickCount();
+            }
         }
     }
 

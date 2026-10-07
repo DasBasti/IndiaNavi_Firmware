@@ -2,8 +2,8 @@
  * HTTP upload server for the IndiaNavi app
  *
  * Implements the WiFi upload API (version 1) of the app, see
- * IndiaNavi_App/docs/wifi_upload_api.md. The server only runs while WiFi
- * is connected, which is the case in charge mode.
+ * IndiaNavi_App/docs/wifi_upload_api.md. The server runs while WiFi is on:
+ * while charging, or when the app switched it on over Bluetooth.
  *
  * Requests that change the device need the access point password as token
  * when they do not come in over the access point, see is_write_allowed().

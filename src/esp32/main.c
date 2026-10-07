@@ -38,7 +38,6 @@
 
 static const char* TAG = "MAIN";
 #define HASH_LEN 32
-extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
 
 #define taskGenericStackSize 1024 * 2
 #define taskPowerStackSize 1024 * 6
@@ -76,6 +75,8 @@ gpio_config_t esp_btn = {};
 gpio_config_t esp_acc = {};
 int32_t current_battery_level = 0;
 int32_t is_charging;
+volatile bool power_state_known; // battery level and charger were read
+
 gpio_t* led;
 
 esp_timer_handle_t button_timer;
@@ -126,29 +127,37 @@ static void print_sha256(const uint8_t* image_hash, const char* label)
  * @param none
  * @retval int: battery voltage in mV
  */
-int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle)
+/*
+ * The charger was connected or removed. The event starts or stops WiFi, it must not get lost in a full queue.
+ */
+static void set_charging(bool charging)
+{
+    uint32_t event = charging ? TASK_EVENT_START_CHARGING : TASK_EVENT_STOP_CHARGING;
+    xQueueSend(eventQueueHandle, &event, portMAX_DELAY);
+    is_charging = charging;
+    if (battery_indicator)
+        battery_indicator->charging = charging;
+}
+
+int readBatteryPercent(adc_oneshot_unit_handle_t adc_handle, charger_state_t* charger)
 {
     int batteryVoltage;
     int chargerVoltage;
-    task_events_e chargingTrigger = TASK_EVENT_NO_EVENT;
 
     ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, VBAT_ADC, &batteryVoltage));
     ESP_LOGI(TAG, "Battery Voltage: %d", batteryVoltage);
     ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, VIN_ADC, &chargerVoltage));
     ESP_LOGI(TAG, "Charger Voltage: %d", chargerVoltage);
 
-    if (chargerVoltage - 5 > batteryVoltage && !is_charging) {
-        chargingTrigger = TASK_EVENT_START_CHARGING;
-        xQueueSend(eventQueueHandle, &chargingTrigger, 0);
-        is_charging = true;
-        if (battery_indicator)
-            battery_indicator->charging = true;
-    } else if (chargerVoltage - 5 < batteryVoltage && is_charging) {
-        chargingTrigger = TASK_EVENT_STOP_CHARGING;
-        xQueueSend(eventQueueHandle, &chargingTrigger, 0);
-        is_charging = false;
-        if (battery_indicator)
-            battery_indicator->charging = false;
+    switch (charger_state_update(charger, chargerVoltage, batteryVoltage)) {
+    case CHARGER_CONNECTED:
+        set_charging(true);
+        break;
+    case CHARGER_REMOVED:
+        set_charging(false);
+        break;
+    default:
+        break;
     }
 
     const int min = 1550;
@@ -576,9 +585,12 @@ __weak void StartPowerTask(void* argument)
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, VIN_ADC, &config));
 
     battery_state_t battery_state = { 0 };
+    charger_state_t charger_state = { 0 };
     int64_t battery_empty_since_us = -1;
     for (;;) {
-        current_battery_level = readBatteryPercent(adc1_handle);
+        current_battery_level = readBatteryPercent(adc1_handle, &charger_state);
+        if (!charger_state_is_pending(&charger_state))
+            power_state_known = true;
         if (battery_indicator) {
             battery_indicator_set_level(battery_indicator, current_battery_level);
         }
@@ -587,7 +599,7 @@ __weak void StartPowerTask(void* argument)
         else
             battery_empty_since_us = -1;
 
-        if (is_charging)
+        if (is_charging || charger_state_is_pending(&charger_state))
             delay_time = 1000;
         else if (battery_state_is_low(&battery_state))
             delay_time = BATTERY_EMPTY_CHECK_INTERVAL_MS;

@@ -2,7 +2,7 @@
  * Downloads missing Files if WiFi is available
 */
 #include "esp_event.h"
-#include "esp_https_ota.h"
+#include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -307,66 +307,6 @@ void StartMapDownloaderTask(void* pvParameter)
         ESP_LOGI(TAG, "Connected. Start downloading maps");
         downloadMapTilesForZoomLevel(tileset, wp_file);
     }
-#if 0
-
-    esp_http_client_config_t config = {
-        .url = FIRMWARE_UPGRADE_URL,
-        .event_handler = _http_event_handler,
-        .cert_pem = server_cert_pem_start,
-        //.keep_alive_enable = true,
-    };
-
-    async_file_t AFILE;
-    async_file_t *ota = &AFILE;
-    ota->filename = "//OTA";
-    ota->dest = ota_update_url;
-    ota->loaded = false;
-    loadFile(ota);
-    uint8_t timeout = 0;
-    while (!ota->loaded)
-    {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-        if (timeout++ > 100)
-        {
-            ESP_LOGI(TAG, "timeout loading OTA url");
-            break;
-        }
-    }
-    // Blink Housekeeping LED frequency
-    extern uint32_t ledDelay;
-    ledDelay = 200;
-    esp_err_t ret = ESP_FAIL;
-    if (ota_update_url[0] != 0)
-    {
-        char *url = RTOS_Malloc(sizeof(ota_update_url));
-        readline(ota_update_url, url);
-        config.url = url;
-        ESP_LOGI(TAG, "Download from: %s", config.url);
-        ret = esp_https_ota(&config);
-        if (ret != ESP_OK)
-        {
-            config.url = FIRMWARE_UPGRADE_URL;
-            ESP_LOGI(TAG, "Download from internal url: %s", config.url);
-            ret = esp_https_ota(&config);
-        }
-    }
-    if (ret == ESP_OK)
-    {
-        esp_restart();
-    }
-    else
-    {
-        ESP_LOGE(TAG, "Firmware upgrade failed");
-        /*
-         * TODO:
-         * 
-         * Restart GUI Task
-         * Update info bar
-         * redraw
-         */
-    }
-
-#endif
 fail_url:
     RTOS_Free(baseurl);
     RTOS_Free(base_tileset);

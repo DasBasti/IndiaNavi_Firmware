@@ -464,6 +464,30 @@ static const struct ble_gatt_svc_def gatt_services[] = {
 
 /* ---- GAP events ---- */
 
+/*
+ * One phone only: the phone of this encrypted link is bonded, the keys of every other phone are removed.
+ *
+ * Called when the link is encrypted, the stack stored the keys of a new phone before. A pairing that
+ * fails does not get here, so a stranger without the passkey can not remove the paired phone.
+ */
+static void forget_other_phones(uint16_t handle)
+{
+    struct ble_gap_conn_desc desc;
+    if (ble_gap_conn_find(handle, &desc) != 0)
+        return;
+
+    ble_addr_t peers[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+    int count = 0;
+    if (ble_store_util_bonded_peers(peers, &count, MYNEWT_VAL(BLE_STORE_MAX_BONDS)) != 0)
+        return;
+    for (int i = 0; i < count; i++) {
+        if (ble_addr_cmp(&peers[i], &desc.peer_id_addr) != 0) {
+            ESP_LOGI(TAG, "new phone paired, the old one is forgotten");
+            ble_store_util_delete_peer(&peers[i]);
+        }
+    }
+}
+
 static void clear_subscriptions(void)
 {
     subscribed_position = false;
@@ -522,9 +546,7 @@ static int gap_event(struct ble_gap_event* event, void* arg)
             ble_gap_terminate(handle, BLE_ERR_REM_USER_CONN_TERM);
             break;
         }
-        // one phone only, the new one replaces the one that was paired
-        ble_store_clear();
-
+        // the paired phone is only forgotten when the new one is bonded, see forget_other_phones()
         struct ble_sm_io io;
         memset(&io, 0, sizeof(io));
         io.action = BLE_SM_IOACT_DISP;
@@ -550,6 +572,7 @@ static int gap_event(struct ble_gap_event* event, void* arg)
         if (event->enc_change.status == 0) {
             ESP_LOGI(TAG, "link is encrypted");
             clear_passkey();
+            forget_other_phones(event->enc_change.conn_handle);
             // longer packets for the firmware update. Not when the phone connects: a paired phone starts
             // the encryption at once and the controller does not answer the command until the host
             // answered the key request, the host waits for the command.
