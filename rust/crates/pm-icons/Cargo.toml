@@ -1,0 +1,10 @@
+[package]
+name = "pm-icons"
+description = "32x32 status icons as compile-time image data"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+

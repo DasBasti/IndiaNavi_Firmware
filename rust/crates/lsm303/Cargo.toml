@@ -1,0 +1,13 @@
+[package]
+name = "lsm303"
+description = "LSM303 accelerometer/magnetometer driver over embedded-hal I2C"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+pm-core.workspace = true
+embedded-hal.workspace = true

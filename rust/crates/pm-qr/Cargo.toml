@@ -1,0 +1,12 @@
+[package]
+name = "pm-qr"
+description = "QR Code generator (port of Nayuki's qrcodegen)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+pm-core.workspace = true
