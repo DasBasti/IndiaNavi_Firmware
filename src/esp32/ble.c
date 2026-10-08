@@ -68,6 +68,7 @@ static const char* TAG = "BLE";
 #define ADV_INTERVAL_MAX_MS 600
 
 static volatile bool running;
+static volatile bool advertising;                /// the stack advertises, a phone can find the device
 static uint8_t own_addr_type;
 static volatile uint16_t conn_handle = NO_CONNECTION;
 static volatile int32_t passkey = -1;            /// shown on the display while a phone pairs
@@ -156,8 +157,18 @@ int32_t ble_if_passkey(void)
 
 /* ---- advertising and link ---- */
 
+/* the icon on the display shows if the device can be found */
+static void set_advertising(bool on)
+{
+    if (advertising != on) {
+        advertising = on;
+        trigger_rendering();
+    }
+}
+
 static void advertise(void)
 {
+    set_advertising(false);
     if (!running)
         return;
 
@@ -192,8 +203,11 @@ static void advertise(void)
     params.itvl_min = BLE_GAP_ADV_ITVL_MS(ADV_INTERVAL_MIN_MS);
     params.itvl_max = BLE_GAP_ADV_ITVL_MS(ADV_INTERVAL_MAX_MS);
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &params, gap_event, NULL);
-    if (rc != 0 && rc != BLE_HS_EALREADY)
+    if (rc != 0 && rc != BLE_HS_EALREADY) {
         ESP_LOGE(TAG, "advertising failed: %d", rc);
+        return;
+    }
+    set_advertising(true);
 }
 
 /**
@@ -505,6 +519,7 @@ static int gap_event(struct ble_gap_event* event, void* arg)
             break;
         }
         conn_handle = event->connect.conn_handle;
+        advertising = false; // the stack stops advertising for the connection
         clear_subscriptions();
         ESP_LOGI(TAG, "phone connected");
         if (pairing_allowed())
@@ -631,7 +646,12 @@ static void worker(void* arg)
 
 static void on_reset(int reason)
 {
+    // the link and the advertising are gone, on_sync() starts advertising again
     ESP_LOGW(TAG, "stack reset: %d", reason);
+    conn_handle = NO_CONNECTION;
+    clear_subscriptions();
+    ble_ota_disconnected();
+    set_advertising(false);
 }
 
 static void on_sync(void)
@@ -650,9 +670,12 @@ static void host_task(void* param)
     nimble_port_freertos_deinit();
 }
 
+/**
+ * Bluetooth is active: the device advertises or a phone is connected
+ */
 bool ble_if_is_running(void)
 {
-    return running;
+    return running && (advertising || conn_handle != NO_CONNECTION);
 }
 
 bool ble_if_is_connected(void)
@@ -703,6 +726,7 @@ void ble_if_start(void)
     }
 
     conn_handle = NO_CONNECTION;
+    advertising = false;
     clear_subscriptions();
     passkey = -1;
     open_pairing_window();
@@ -728,6 +752,7 @@ void ble_if_stop(void)
     if (!running)
         return;
     running = false; // no more advertising
+    set_advertising(false);
 
     ble_ota_stop();
 
