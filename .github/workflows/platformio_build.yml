@@ -13,6 +13,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
+        # the version in the firmware comes from git describe, it needs the tags
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -30,15 +32,27 @@ jobs:
     - name: Install pio and its dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install platformio
+        pip install platformio esptool==4.11.0
 
     - name: Run PlatformIO build on embedded platforms
       run: platformio run -e ${{ matrix.target }}
 
-    - name: Upload firmware binary
+    # the application for an update over Bluetooth or WiFi, and the complete flash image for USB at offset 0x0.
+    # The offsets are the ones of partitions_16M.csv.
+    - name: Create the flash image
+      run: |
+        build=.pio/build/${{ matrix.target }}
+        mkdir -p out
+        cp $build/firmware.bin out/indianavi.bin
+        esptool.py --chip esp32s3 merge_bin -o out/indianavi-full.bin \
+          --flash_mode keep --flash_freq keep --flash_size keep \
+          0x0 $build/bootloader.bin 0x8000 $build/partitions.bin \
+          0xe000 $build/ota_data_initial.bin 0x10000 $build/firmware.bin
+
+    - name: Upload firmware binaries
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: firmware_${{ matrix.target }}.bin
-        path: .pio/build/${{ matrix.target }}/firmware.bin
+        name: firmware_${{ matrix.target }}
+        path: out/
         retention-days: 5

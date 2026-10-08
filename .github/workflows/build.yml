@@ -18,3 +18,48 @@ jobs:
     
   linting:
     uses: ./.github/workflows/lint.yml
+  # A tag vX.Y.Z gets a release with the application of the release build (the app offers it for the update),
+  # its complete flash image and a zip with the binaries of the debug and the release build.
+  # A release that exists already (written by hand) keeps its text, the files are replaced.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [platformio_run_native_tests, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: firmware_*
+        path: artifacts
+
+    - name: Collect the files
+      run: |
+        mkdir -p dist zip/debug zip/release
+        for type in debug release; do
+          cp artifacts/firmware_indianavi_s3_n16r8_$type/indianavi.bin zip/$type/indianavi-$TAG.bin
+          cp artifacts/firmware_indianavi_s3_n16r8_$type/indianavi-full.bin zip/$type/indianavi-$TAG-full.bin
+        done
+        cp zip/release/indianavi-$TAG.bin zip/release/indianavi-$TAG-full.bin dist/
+        (cd zip && zip -r ../dist/indianavi-$TAG-binaries.zip debug release)
+        ls -l dist
+
+    - name: Create the release or update its files
+      run: |
+        if gh release view "$TAG" > /dev/null 2>&1; then
+          gh release upload "$TAG" dist/* --clobber
+        else
+          cat > notes.md <<NOTES
+        ## Files
+        - \`indianavi-$TAG.bin\`: the application, for an update from the app over Bluetooth or WiFi
+        - \`indianavi-$TAG-full.bin\`: complete flash image for USB, write it at offset 0x0:
+          \`esptool.py --chip esp32s3 write_flash 0x0 indianavi-$TAG-full.bin\`
+          It erases the settings and the Bluetooth pairing.
+        - \`indianavi-$TAG-binaries.zip\`: both files of the release and of the debug build
+        NOTES
+          gh release create "$TAG" dist/* --title "IndiaNavi ${TAG#v}" --notes-file notes.md --generate-notes --verify-tag
+        fi
