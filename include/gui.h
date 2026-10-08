@@ -75,6 +75,9 @@ enum RenderLayer {
 
 void trigger_rendering();
 bool gui_display_ready(void);
+
+/** true while the battery empty screen is shown */
+bool gui_battery_empty_shown(void);
 void free_render_pipeline(enum RenderLayer layer);
 void free_all_render_pipelines();
 void free_screen(void);

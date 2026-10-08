@@ -48,6 +48,14 @@ void test_never_empty_while_charging()
     TEST_ASSERT_FALSE(battery_state_is_low(&s));
 }
 
+void test_recovered_needs_charger_and_level()
+{
+    TEST_ASSERT_FALSE(battery_state_recovered(BATTERY_RECOVERED_LEVEL, false));
+    TEST_ASSERT_FALSE(battery_state_recovered(BATTERY_RECOVERED_LEVEL - 1, true));
+    TEST_ASSERT_TRUE(battery_state_recovered(BATTERY_RECOVERED_LEVEL, true));
+    TEST_ASSERT_TRUE(battery_state_recovered(100, true));
+}
+
 int main(int argc, char** argv)
 {
     UNITY_BEGIN();
@@ -55,5 +63,6 @@ int main(int argc, char** argv)
     RUN_TEST(test_empty_after_readings_in_a_row);
     RUN_TEST(test_a_good_reading_starts_again);
     RUN_TEST(test_never_empty_while_charging);
+    RUN_TEST(test_recovered_needs_charger_and_level);
     UNITY_END();
 }

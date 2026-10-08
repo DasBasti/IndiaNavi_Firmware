@@ -249,10 +249,17 @@ void button_timer_trigger(void* arg)
         gui_set_app_mode(APP_MODE_TURN_OFF);
 }
 
+/* set while the battery is empty: the device then wakes up regularly to look for a charger */
+static volatile bool wake_up_for_charger;
+
 error_code_t enter_deep_sleep_if_not_charging()
 {
     if (is_charging)
         return DEFERRED;
+
+    // no GPIO signals a charger in deep sleep (VIN is an analog input), so look for it from time to time
+    if (wake_up_for_charger)
+        ESP_ERROR_CHECK(esp_sleep_enable_timer_wakeup(BATTERY_EMPTY_WAKEUP_INTERVAL_S * 1000000ULL));
 
     const gpio_config_t config = {
         .pin_bit_mask = BIT(BTN),
@@ -287,6 +294,35 @@ static void confirm_firmware(void)
         ESP_LOGI(TAG, "New firmware runs, cancel rollback");
         esp_ota_mark_app_valid_cancel_rollback();
     }
+}
+
+/**
+ * Short look at the charger after a timer wakeup, before anything is started.
+ * The power task uses the ADC later, so the unit is released again.
+ */
+static bool charger_connected(void)
+{
+    adc_oneshot_unit_handle_t adc;
+    adc_oneshot_unit_init_cfg_t init_config = {
+        .unit_id = ADC_UNIT_1,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = ADC_ATTEN_DB_12,
+    };
+    int battery = 0, charger = 0;
+    if (adc_oneshot_new_unit(&init_config, &adc) != ESP_OK)
+        return false;
+    if (adc_oneshot_config_channel(adc, VBAT_ADC, &config) == ESP_OK
+        && adc_oneshot_config_channel(adc, VIN_ADC, &config) == ESP_OK
+        && adc_oneshot_read(adc, VBAT_ADC, &battery) == ESP_OK
+        && adc_oneshot_read(adc, VIN_ADC, &charger) == ESP_OK) {
+        adc_oneshot_del_unit(adc);
+        return charger - 5 > battery;
+    }
+    adc_oneshot_del_unit(adc);
+    return false;
 }
 
 void set_short_press_event(void (*event)(void))
@@ -326,6 +362,16 @@ void app_main()
         ESP_LOGI(TAG, "Wake up from deep sleep. Reset Button GPIO");
         // after deep sleep we want to go into appliaction mode
         gui_set_app_mode(APP_MODE_GPS_CREATE);
+    }
+    if (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_TIMER)) {
+        // the battery was empty, start only if there is energy again
+        wake_up_for_charger = true;
+        if (!charger_connected()) {
+            enter_deep_sleep_if_not_charging();
+        }
+        ESP_LOGI(TAG, "Charger found after battery empty, start");
+        // the empty screen is shown until the battery has charge for the device
+        gui_set_app_mode(APP_MODE_BATTERY_EMPTY);
     }
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -582,10 +628,20 @@ __weak void StartPowerTask(void* argument)
         if (battery_indicator) {
             battery_indicator_set_level(battery_indicator, current_battery_level);
         }
-        if (battery_state_update(&battery_state, current_battery_level, is_charging))
+        if (battery_state_update(&battery_state, current_battery_level, is_charging)) {
+            wake_up_for_charger = true;
             power_down_battery_empty(&battery_empty_since_us);
-        else
+        } else {
             battery_empty_since_us = -1;
+            if (!gui_battery_empty_shown())
+                wake_up_for_charger = false;
+            // charging on the battery empty screen: turn on as soon as the battery has some charge
+            if (gui_battery_empty_shown() && battery_state_recovered(current_battery_level, is_charging)) {
+                ESP_LOGI(TAG, "Battery charged to %ld%%, turn on", current_battery_level);
+                gui_set_app_mode(APP_MODE_GPS_CREATE);
+                trigger_rendering();
+            }
+        }
 
         if (is_charging)
             delay_time = 1000;

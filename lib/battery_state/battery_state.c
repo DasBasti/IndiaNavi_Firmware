@@ -23,3 +23,8 @@ bool battery_state_is_low(const battery_state_t* state)
 {
     return state->low_readings > 0;
 }
+
+bool battery_state_recovered(int32_t level_percent, bool charging)
+{
+    return charging && level_percent >= BATTERY_RECOVERED_LEVEL;
+}
