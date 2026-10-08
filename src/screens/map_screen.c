@@ -109,7 +109,8 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
         uint16_t label_left = label->box.left + (label->box.width /2);
         uint16_t label_top = label->box.top + (label->box.height /2);
 
-        display_circle_fill(dsp, label_left, label_top, 6, BLUE);
+        // same color as the track, it can be changed in the app
+        display_circle_fill(dsp, label_left, label_top, 6, display_settings_track_color());
         display_circle_fill(dsp, label_left, label_top, 2, WHITE);
         display_circle_draw(dsp, label_left, label_top, hdop, BLACK);
         return PM_OK;
