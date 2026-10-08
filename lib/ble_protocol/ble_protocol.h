@@ -38,6 +38,8 @@
 #define BLEP_UUID_OTA_CONTROL 0x09
 #define BLEP_UUID_OTA_DATA 0x0a
 #define BLEP_UUID_DEVICE_CONTROL 0x0b
+#define BLEP_UUID_RECORDING 0x0c
+#define BLEP_UUID_RECORDINGS 0x0d
 
 /* ATT error for a value the device does not accept (Value Not Allowed) */
 #define BLEP_ATT_ERR_VALUE_NOT_ALLOWED 0x13
@@ -54,6 +56,7 @@ typedef enum {
 #define BLEP_INFO_FLAG_OTA 0x01      /// firmware can be updated over WiFi and BLE
 #define BLEP_INFO_FLAG_CHARGING 0x02 /// a charger is connected
 #define BLEP_INFO_FLAG_TRACK_COLOR 0x04 /// the settings carry the color of the track
+#define BLEP_INFO_FLAG_RECORDING 0x08 /// tracks can be recorded, see Recording and Recordings
 #define BLEP_INFO_HEADER_SIZE 4
 
 /**
@@ -227,6 +230,63 @@ uint32_t blep_ota_estimate_seconds(uint32_t size);
 
 /** An update that is estimated to take longer than BLEP_OTA_PROGRESS_SCREEN_S shows the progress on the display */
 int blep_ota_needs_progress_screen(uint32_t size);
+
+/* ---- Track recording ---- */
+
+/*
+ * A recording is a GPX file TRACKS/XXXXXXXX.GPX on the SD card. Its id is the
+ * start time (seconds since 1970-01-01 UTC), the name is the id as 8 hex digits,
+ * so it fits into an 8.3 name.
+ */
+#define BLEP_RECORD_CMD_START 0x01  /// start a new recording
+#define BLEP_RECORD_CMD_STOP 0x02   /// stop the running recording
+#define BLEP_RECORD_CMD_DELETE 0x03 /// + u32 id: delete a recording that is not running
+#define BLEP_RECORD_DELETE_SIZE 5
+
+#define BLEP_RECORDING_STATUS_SIZE 16
+#define BLEP_RECORDINGS_HEADER_SIZE 4
+#define BLEP_RECORDINGS_ENTRY_SIZE 8
+/* 4 + 28 * 8 = 228 bytes, one read with the MTU the app asks for */
+#define BLEP_RECORDINGS_MAX_ENTRIES 28
+#define BLEP_RECORDINGS_SELECT_SIZE 2
+
+#define BLEP_RECORDING_FOLDER "TRACKS"
+#define BLEP_RECORDING_NAME_LEN 12 /// "XXXXXXXX.GPX"
+
+typedef struct {
+    uint8_t recording;   /// 1 while a recording runs
+    uint32_t id;         /// start time of the running recording, 0 if none
+    uint32_t size;       /// bytes of the running recording
+    uint32_t last_point; /// time of the last point that was written, 0 if none since the start or the restart
+} blep_recording_status_t;
+
+typedef struct {
+    uint32_t id;
+    uint32_t size; /// bytes
+} blep_recording_entry_t;
+
+/** First byte is the command, DELETE carries the id */
+blep_err_t blep_recording_command_decode(const uint8_t* in, size_t len, uint8_t* command, uint32_t* id);
+
+/** recording, 3 bytes 0, u32 id, u32 size, u32 last point */
+void blep_recording_status_encode(uint8_t* out, const blep_recording_status_t* status);
+
+/** u16 index of the first recording the next read of Recordings returns */
+blep_err_t blep_recordings_select_decode(const uint8_t* in, size_t len, uint16_t* first);
+
+/**
+ * u16 number of recordings, u16 index of the first entry, then the entries (u32 id, u32 size)
+ *
+ * @return number of bytes written, 0 if out is too small
+ */
+size_t blep_recordings_encode(uint8_t* out, size_t size, uint16_t total, uint16_t first,
+    const blep_recording_entry_t* entries, size_t count);
+
+/** "XXXXXXXX.GPX" of the id, out needs BLEP_RECORDING_NAME_LEN + 1 bytes */
+void blep_recording_file_name(char* out, uint32_t id);
+
+/** The id of a file name, upper or lower case. Returns 0 if it is not the name of a recording. */
+int blep_recording_id_from_name(const char* name, uint32_t* id);
 
 /* ---- GPS module ---- */
 

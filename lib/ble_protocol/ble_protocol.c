@@ -8,6 +8,7 @@
 
 #include "ble_protocol.h"
 
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -283,6 +284,93 @@ uint32_t blep_ota_estimate_seconds(uint32_t size)
 int blep_ota_needs_progress_screen(uint32_t size)
 {
     return blep_ota_estimate_seconds(size) > BLEP_OTA_PROGRESS_SCREEN_S;
+}
+
+/* ---- Track recording ---- */
+
+blep_err_t blep_recording_command_decode(const uint8_t* in, size_t len, uint8_t* command, uint32_t* id)
+{
+    if (!in || !command || !id || len < 1)
+        return BLEP_ERR_LENGTH;
+    switch (in[0]) {
+    case BLEP_RECORD_CMD_START:
+    case BLEP_RECORD_CMD_STOP:
+        if (len != 1)
+            return BLEP_ERR_LENGTH;
+        *id = 0;
+        break;
+    case BLEP_RECORD_CMD_DELETE:
+        if (len != BLEP_RECORD_DELETE_SIZE)
+            return BLEP_ERR_LENGTH;
+        *id = get_u32(in + 1);
+        if (*id == 0)
+            return BLEP_ERR_RANGE;
+        break;
+    default:
+        return BLEP_ERR_FORMAT;
+    }
+    *command = in[0];
+    return BLEP_OK;
+}
+
+void blep_recording_status_encode(uint8_t* out, const blep_recording_status_t* status)
+{
+    memset(out, 0, BLEP_RECORDING_STATUS_SIZE);
+    out[0] = status->recording ? 1 : 0;
+    put_u32(out + 4, status->id);
+    put_u32(out + 8, status->size);
+    put_u32(out + 12, status->last_point);
+}
+
+blep_err_t blep_recordings_select_decode(const uint8_t* in, size_t len, uint16_t* first)
+{
+    if (!in || !first || len != BLEP_RECORDINGS_SELECT_SIZE)
+        return BLEP_ERR_LENGTH;
+    *first = get_u16(in);
+    return BLEP_OK;
+}
+
+size_t blep_recordings_encode(uint8_t* out, size_t size, uint16_t total, uint16_t first,
+    const blep_recording_entry_t* entries, size_t count)
+{
+    size_t len = BLEP_RECORDINGS_HEADER_SIZE + count * BLEP_RECORDINGS_ENTRY_SIZE;
+    if (!out || size < len || count > BLEP_RECORDINGS_MAX_ENTRIES)
+        return 0;
+    put_u16(out, total);
+    put_u16(out + 2, first);
+    for (size_t i = 0; i < count; i++) {
+        uint8_t* entry = out + BLEP_RECORDINGS_HEADER_SIZE + i * BLEP_RECORDINGS_ENTRY_SIZE;
+        put_u32(entry, entries[i].id);
+        put_u32(entry + 4, entries[i].size);
+    }
+    return len;
+}
+
+void blep_recording_file_name(char* out, uint32_t id)
+{
+    snprintf(out, BLEP_RECORDING_NAME_LEN + 1, "%08lX.GPX", (unsigned long)id);
+}
+
+int blep_recording_id_from_name(const char* name, uint32_t* id)
+{
+    if (!name || strlen(name) != BLEP_RECORDING_NAME_LEN || (name[8] != '.')
+        || toupper((unsigned char)name[9]) != 'G' || toupper((unsigned char)name[10]) != 'P'
+        || toupper((unsigned char)name[11]) != 'X')
+        return 0;
+    uint32_t value = 0;
+    for (int i = 0; i < 8; i++) {
+        int c = toupper((unsigned char)name[i]);
+        if (c >= '0' && c <= '9')
+            value = (value << 4) | (uint32_t)(c - '0');
+        else if (c >= 'A' && c <= 'F')
+            value = (value << 4) | (uint32_t)(c - 'A' + 10);
+        else
+            return 0;
+    }
+    if (value == 0)
+        return 0;
+    *id = value;
+    return 1;
 }
 
 /* ---- GPS module ---- */

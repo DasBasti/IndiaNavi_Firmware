@@ -275,6 +275,82 @@ void test_device_control_only_knows_forget()
     TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_device_control_decode(&v, 0, &cmd));
 }
 
+void test_recording_commands()
+{
+    uint8_t cmd = 0;
+    uint32_t id = 99;
+    uint8_t start = BLEP_RECORD_CMD_START;
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_recording_command_decode(&start, 1, &cmd, &id));
+    TEST_ASSERT_EQUAL_UINT8(BLEP_RECORD_CMD_START, cmd);
+    TEST_ASSERT_EQUAL_UINT32(0, id);
+    uint8_t stop = BLEP_RECORD_CMD_STOP;
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_recording_command_decode(&stop, 1, &cmd, &id));
+    TEST_ASSERT_EQUAL_UINT8(BLEP_RECORD_CMD_STOP, cmd);
+
+    uint8_t del[] = { BLEP_RECORD_CMD_DELETE, 0x78, 0x56, 0x34, 0x12 };
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_recording_command_decode(del, sizeof(del), &cmd, &id));
+    TEST_ASSERT_EQUAL_UINT8(BLEP_RECORD_CMD_DELETE, cmd);
+    TEST_ASSERT_EQUAL_HEX32(0x12345678, id);
+
+    uint8_t del_zero[] = { BLEP_RECORD_CMD_DELETE, 0, 0, 0, 0 };
+    TEST_ASSERT_EQUAL(BLEP_ERR_RANGE, blep_recording_command_decode(del_zero, sizeof(del_zero), &cmd, &id));
+    TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_recording_command_decode(del, 4, &cmd, &id));
+    TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_recording_command_decode(del, 2, &cmd, &id));
+    TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_recording_command_decode(&start, 0, &cmd, &id));
+    uint8_t unknown = 4;
+    TEST_ASSERT_EQUAL(BLEP_ERR_FORMAT, blep_recording_command_decode(&unknown, 1, &cmd, &id));
+}
+
+void test_recording_status_layout()
+{
+    blep_recording_status_t status = { .recording = 1, .id = 0x6704a1b0, .size = 0x00010203, .last_point = 0x6704a1ff };
+    uint8_t raw[BLEP_RECORDING_STATUS_SIZE];
+    memset(raw, 0xaa, sizeof(raw));
+    blep_recording_status_encode(raw, &status);
+    const uint8_t expected[] = { 1, 0, 0, 0, 0xb0, 0xa1, 0x04, 0x67, 0x03, 0x02, 0x01, 0x00, 0xff, 0xa1, 0x04, 0x67 };
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, raw, sizeof(expected));
+}
+
+void test_recordings_list_layout()
+{
+    uint16_t first = 0;
+    uint8_t select[] = { 0x1c, 0x00 };
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_recordings_select_decode(select, sizeof(select), &first));
+    TEST_ASSERT_EQUAL_UINT16(28, first);
+    TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_recordings_select_decode(select, 1, &first));
+
+    blep_recording_entry_t entries[] = { { 0x11223344, 1000 }, { 0x55667788, 70000 } };
+    uint8_t out[BLEP_RECORDINGS_HEADER_SIZE + BLEP_RECORDINGS_MAX_ENTRIES * BLEP_RECORDINGS_ENTRY_SIZE];
+    size_t len = blep_recordings_encode(out, sizeof(out), 30, 28, entries, 2);
+    TEST_ASSERT_EQUAL(4 + 2 * 8, len);
+    const uint8_t expected[] = { 30, 0, 28, 0, 0x44, 0x33, 0x22, 0x11, 0xe8, 0x03, 0, 0, 0x88, 0x77, 0x66, 0x55, 0x70, 0x11, 0x01, 0 };
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, out, len);
+
+    TEST_ASSERT_EQUAL(4, blep_recordings_encode(out, sizeof(out), 0, 0, NULL, 0));
+    TEST_ASSERT_EQUAL(0, blep_recordings_encode(out, 10, 2, 0, entries, 2));
+    TEST_ASSERT_TRUE(sizeof(out) <= 244); // fits into one read with an MTU of 247
+}
+
+void test_recording_file_names()
+{
+    char name[BLEP_RECORDING_NAME_LEN + 1];
+    blep_recording_file_name(name, 0x6704a1b0);
+    TEST_ASSERT_EQUAL_STRING("6704A1B0.GPX", name);
+
+    uint32_t id = 0;
+    TEST_ASSERT_TRUE(blep_recording_id_from_name("6704A1B0.GPX", &id));
+    TEST_ASSERT_EQUAL_HEX32(0x6704a1b0, id);
+    TEST_ASSERT_TRUE(blep_recording_id_from_name("6704a1b0.gpx", &id));
+    TEST_ASSERT_EQUAL_HEX32(0x6704a1b0, id);
+
+    TEST_ASSERT_FALSE(blep_recording_id_from_name("LOG.GPX", &id));
+    TEST_ASSERT_FALSE(blep_recording_id_from_name("6704A1B0.TMP", &id));
+    TEST_ASSERT_FALSE(blep_recording_id_from_name("6704A1BG.GPX", &id));
+    TEST_ASSERT_FALSE(blep_recording_id_from_name("00000000.GPX", &id));
+    TEST_ASSERT_FALSE(blep_recording_id_from_name("6704A1B0X.GPX", &id));
+    TEST_ASSERT_FALSE(blep_recording_id_from_name(NULL, &id));
+}
+
 void test_ota_start_carries_the_size()
 {
     uint8_t raw[BLEP_OTA_START_SIZE] = { BLEP_OTA_CMD_START };
@@ -384,6 +460,10 @@ int main(int argc, char** argv)
     RUN_TEST(test_settings_rejects_reserved_bits_and_length);
     RUN_TEST(test_clamp_update_interval);
     RUN_TEST(test_device_control_only_knows_forget);
+    RUN_TEST(test_recording_commands);
+    RUN_TEST(test_recording_status_layout);
+    RUN_TEST(test_recordings_list_layout);
+    RUN_TEST(test_recording_file_names);
     RUN_TEST(test_ota_start_carries_the_size);
     RUN_TEST(test_ota_simple_commands);
     RUN_TEST(test_ota_status_layout);

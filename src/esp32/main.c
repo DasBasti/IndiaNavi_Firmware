@@ -393,6 +393,7 @@ void app_main()
     // before the power task uses the ADC, password creation needs it as entropy source
     wifi_ap_credentials_init();
     display_settings_init();
+    recorder_init();
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());

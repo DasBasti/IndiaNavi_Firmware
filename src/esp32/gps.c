@@ -469,21 +469,43 @@ void StartGpsTask(void const* argument)
         ESP_LOGE(TAG, "NMEA parser init failed");
     }
 
+    // the points go into the recording the app started, see recorder.c
     async_file_t* gps_track = &BFILE;
-    gps_track->filename = "//log.gpx";
-    bool track_log_open = open_track_log(gps_track);
-    if (!track_log_open)
-        ESP_LOGE(TAG, "Cannot open log file for writing");
+    static char track_path[RECORDER_PATH_LEN];
+    gps_track->filename = track_path;
+    bool track_log_open = false;
+    uint32_t recording = 0;
+    uint32_t recording_generation = 0; // the recorder starts with 1, the first check opens the file
     time_t last_logged = 0;
     TickType_t last_open_attempt = xTaskGetTickCount();
 
     while (!gps_stop_requested) {
+        uint32_t generation;
+        uint32_t active = recorder_active(&generation);
+        if (generation != recording_generation) {
+            // started or stopped
+            if (track_log_open)
+                closeFile(gps_track);
+            track_log_open = false;
+            recording_generation = generation;
+            recording = active;
+            if (recording) {
+                recorder_path(track_path, sizeof(track_path), recording);
+                last_open_attempt = xTaskGetTickCount();
+                track_log_open = open_track_log(gps_track);
+                if (!track_log_open)
+                    ESP_LOGE(TAG, "Cannot open %s for writing", track_path);
+            }
+        }
+
         log_position_t position;
         if (!gpstrack_queue) {
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
         if (xQueueReceive(gpstrack_queue, &position, pdMS_TO_TICKS(1000)) != pdTRUE)
+            continue;
+        if (!recording)
             continue;
         if (position.position.fix == GPS_FIX_INVALID || position.timestamp < VALID_TIME_MIN)
             continue;
@@ -496,6 +518,7 @@ void StartGpsTask(void const* argument)
         if (track_log_open) {
             if (log_track_point(gps_track, &position)) {
                 last_logged = position.timestamp;
+                recorder_point_written(recording, f_tell(gps_track->file) + strlen(gpx_footer), (uint32_t)position.timestamp);
             } else {
                 // e.g. the SD card was changed, the open file belongs to the old card. Open it again later.
                 ESP_LOGW(TAG, "Track log not writable, open it again in %d s", TRACK_LOG_RETRY_S);

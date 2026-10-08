@@ -550,8 +550,88 @@ static bool listing_append(char** buf, size_t* size, size_t* len, const char* te
     return true;
 }
 
+static bool is_write_allowed(httpd_req_t* req);
+
 /*
- * GET /sd/{dir}/
+ * The id of "TRACKS/XXXXXXXX.gpx", the file of a recording
+ */
+static bool get_recording_id(const char* path, uint32_t* id)
+{
+    static const char folder[] = BLEP_RECORDING_FOLDER "/";
+    return strncasecmp(path, folder, sizeof(folder) - 1) == 0
+        && blep_recording_id_from_name(path + sizeof(folder) - 1, id);
+}
+
+/*
+ * GET /sd/TRACKS/XXXXXXXX.gpx
+ *
+ * Sends a recorded track. The body is chunked, the file is read while it is sent.
+ * Tracks tell where somebody was, so they need the same rights as a write.
+ */
+static esp_err_t send_recording(httpd_req_t* req, uint32_t id)
+{
+    if (!is_write_allowed(req))
+        return send_error(req, "401 Unauthorized", "send the access point password as Bearer token");
+    if (recorder_status().id == id)
+        return send_error(req, "409 Conflict", "the track is still recorded, stop the recording first");
+
+    char path[RECORDER_PATH_LEN];
+    recorder_path(path, sizeof(path), id);
+    char* buf = malloc(UPLOAD_CHUNK_SIZE);
+    FIL* file = calloc(1, sizeof(FIL));
+    if (!buf || !file) {
+        free(buf);
+        free(file);
+        return send_error(req, "500 Internal Server Error", "out of memory");
+    }
+    if (!sd_lock()) {
+        free(buf);
+        free(file);
+        return send_error(req, "503 Service Unavailable", "no SD card or card busy");
+    }
+    FRESULT res = f_open(file, path, FA_READ);
+    sd_unlock();
+    if (res != FR_OK) {
+        free(buf);
+        free(file);
+        if (res == FR_NO_FILE || res == FR_NO_PATH)
+            return send_error(req, "404 Not Found", "track does not exist");
+        return send_error(req, "500 Internal Server Error", "can not open track");
+    }
+
+    httpd_resp_set_type(req, "application/gpx+xml");
+    esp_err_t err = ESP_OK;
+    while (err == ESP_OK) {
+        UINT read = 0;
+        if (!sd_lock()) {
+            err = ESP_FAIL;
+            break;
+        }
+        res = f_read(file, buf, UPLOAD_CHUNK_SIZE, &read);
+        sd_unlock();
+        if (res != FR_OK) {
+            ESP_LOGE(TAG, "read %s: %d", path, res);
+            err = ESP_FAIL;
+            break;
+        }
+        if (read == 0)
+            break;
+        wifi_notify_activity();
+        err = httpd_resp_send_chunk(req, buf, read);
+    }
+    if (sd_lock()) {
+        f_close(file);
+        sd_unlock();
+    }
+    free(buf);
+    free(file);
+    if (err != ESP_OK)
+        return ESP_FAIL; // the answer is half sent, close the socket
+    return httpd_resp_send_chunk(req, NULL, 0);
+}
+
+/*
+ * GET /sd/{dir}/ and GET /sd/TRACKS/XXXXXXXX.gpx
  */
 static esp_err_t sd_get_handler(httpd_req_t* req)
 {
@@ -560,9 +640,13 @@ static esp_err_t sd_get_handler(httpd_req_t* req)
     if (!get_path_from_uri(req, "/sd/", path, sizeof(path)))
         return send_error(req, "400 Bad Request", "path too long");
 
+    uint32_t id;
+    if (get_recording_id(path, &id))
+        return send_recording(req, id);
+
     size_t path_len = strlen(path);
     if (path_len && path[path_len - 1] != '/')
-        return send_error(req, "400 Bad Request", "only folders can be read, path has to end with /");
+        return send_error(req, "400 Bad Request", "only folders and recorded tracks can be read");
     if (path_len)
         path[--path_len] = 0; // remove trailing '/'
     if (!is_dir_path_allowed(path))

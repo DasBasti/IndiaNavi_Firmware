@@ -3,7 +3,7 @@
  *
  * The device is a peripheral with one GATT service that lets the app set the
  * time, exchange positions, switch the WiFi access point, change display
- * settings and update the firmware. The values are described in
+ * settings, record tracks and update the firmware. The values are described in
  * IndiaNavi_App/docs/ble_api.md, their encoding is in lib/ble_protocol.
  *
  * Only one phone can be paired. It has to enter the passkey that is shown on
@@ -28,6 +28,7 @@ bool ble_if_is_running(void) { return false; }
 bool ble_if_is_connected(void) { return false; }
 int32_t ble_if_passkey(void) { return -1; }
 void ble_if_wifi_status_changed(void) { }
+void ble_if_recording_changed(void) { }
 #else
 
 #include <stdio.h>
@@ -63,7 +64,8 @@ static const char* TAG = "BLE";
 #define POSITION_INTERVAL_US (5LL * 1000 * 1000)
 #define WORKER_STACK_SIZE 3072
 #define MAX_WRITE_SIZE 256
-#define MAX_VALUE_SIZE 96
+/* the longest value is a page of the list of recordings */
+#define MAX_VALUE_SIZE (BLEP_RECORDINGS_HEADER_SIZE + BLEP_RECORDINGS_MAX_ENTRIES * BLEP_RECORDINGS_ENTRY_SIZE)
 #define ADV_INTERVAL_MIN_MS 500
 #define ADV_INTERVAL_MAX_MS 600
 
@@ -80,15 +82,20 @@ static char device_name[24];
 static volatile bool subscribed_position;
 static volatile bool subscribed_wifi;
 static volatile bool subscribed_ota;
+static volatile bool subscribed_recording;
 
 static uint16_t position_out_handle;
 static uint16_t wifi_status_handle;
 static uint16_t ota_control_handle;
+static uint16_t recording_handle;
+/* index of the first recording the next read of Recordings returns */
+static uint16_t recordings_first;
 
 static TaskHandle_t worker_task;
 static SemaphoreHandle_t worker_done;
 static volatile bool worker_stop;
 static volatile bool wifi_status_dirty;
+static volatile bool recording_dirty;
 
 #define DECLARE_UUID(name, id) static const ble_uuid128_t name = BLE_UUID128_INIT(BLEP_UUID128_BYTES(id))
 DECLARE_UUID(uuid_service, BLEP_UUID_SERVICE);
@@ -102,6 +109,8 @@ DECLARE_UUID(uuid_settings, BLEP_UUID_SETTINGS);
 DECLARE_UUID(uuid_ota_control, BLEP_UUID_OTA_CONTROL);
 DECLARE_UUID(uuid_ota_data, BLEP_UUID_OTA_DATA);
 DECLARE_UUID(uuid_device_control, BLEP_UUID_DEVICE_CONTROL);
+DECLARE_UUID(uuid_recording, BLEP_UUID_RECORDING);
+DECLARE_UUID(uuid_recordings, BLEP_UUID_RECORDINGS);
 
 static int gap_event(struct ble_gap_event* event, void* arg);
 
@@ -267,7 +276,7 @@ void ble_if_notify_ota_status(const uint8_t status[BLEP_OTA_STATUS_SIZE])
 
 static size_t info_value(uint8_t* out, size_t size)
 {
-    uint8_t flags = BLEP_INFO_FLAG_OTA | BLEP_INFO_FLAG_TRACK_COLOR;
+    uint8_t flags = BLEP_INFO_FLAG_OTA | BLEP_INFO_FLAG_TRACK_COLOR | BLEP_INFO_FLAG_RECORDING;
     if (is_charging)
         flags |= BLEP_INFO_FLAG_CHARGING;
     int32_t battery = current_battery_level;
@@ -309,6 +318,34 @@ void ble_if_wifi_status_changed(void)
     wifi_status_dirty = true;
     if (worker_task)
         xTaskNotifyGive(worker_task);
+}
+
+/**
+ * A recording started or stopped, or the GPS task wrote a point. Called from the BLE host and the GPS task.
+ */
+void ble_if_recording_changed(void)
+{
+    recording_dirty = true;
+    if (worker_task)
+        xTaskNotifyGive(worker_task);
+}
+
+static size_t recording_value(uint8_t* out)
+{
+    blep_recording_status_t status = recorder_status();
+    blep_recording_status_encode(out, &status);
+    return BLEP_RECORDING_STATUS_SIZE;
+}
+
+/* one page of the list of recordings, from recordings_first on */
+static size_t recordings_value(uint8_t* out, size_t size)
+{
+    blep_recording_entry_t entries[BLEP_RECORDINGS_MAX_ENTRIES];
+    uint16_t total = 0;
+    int count = recorder_list(recordings_first, entries, BLEP_RECORDINGS_MAX_ENTRIES, &total);
+    if (count < 0)
+        return 0;
+    return blep_recordings_encode(out, size, total, recordings_first, entries, (size_t)count);
 }
 
 static int att_error(blep_err_t err)
@@ -364,6 +401,28 @@ static int write_value(uint8_t id, const uint8_t* data, size_t len)
         return ble_ota_control_write(data, len);
     case BLEP_UUID_OTA_DATA:
         return ble_ota_data_write(data, len);
+    case BLEP_UUID_RECORDING: {
+        uint8_t command;
+        uint32_t id;
+        blep_err_t err = blep_recording_command_decode(data, len, &command, &id);
+        if (err != BLEP_OK)
+            return att_error(err);
+        recorder_result_t result = command == BLEP_RECORD_CMD_START ? recorder_start()
+            : command == BLEP_RECORD_CMD_STOP                       ? recorder_stop()
+                                                                    : recorder_delete(id);
+        // already running, not running, no time or no such recording
+        if (result == RECORDER_ERR_SD)
+            return BLE_ATT_ERR_UNLIKELY;
+        return result == RECORDER_OK ? 0 : BLEP_ATT_ERR_VALUE_NOT_ALLOWED;
+    }
+    case BLEP_UUID_RECORDINGS: {
+        uint16_t first;
+        blep_err_t err = blep_recordings_select_decode(data, len, &first);
+        if (err != BLEP_OK)
+            return att_error(err);
+        recordings_first = first;
+        return 0;
+    }
     case BLEP_UUID_DEVICE_CONTROL: {
         uint8_t command;
         blep_err_t err = blep_device_control_decode(data, len, &command);
@@ -406,6 +465,12 @@ static int read_value(uint8_t id, uint8_t* out, size_t size, size_t* len)
     case BLEP_UUID_OTA_CONTROL:
         ble_ota_status_read(out);
         *len = BLEP_OTA_STATUS_SIZE;
+        break;
+    case BLEP_UUID_RECORDING:
+        *len = recording_value(out);
+        break;
+    case BLEP_UUID_RECORDINGS:
+        *len = recordings_value(out, size); // 0 if the SD card can not be read
         break;
     default:
         return BLE_ATT_ERR_UNLIKELY;
@@ -470,6 +535,10 @@ static const struct ble_gatt_svc_def gatt_services[] = {
                 .flags = WRITE_NO_RSP_FLAGS },
             { .uuid = &uuid_device_control.u, .access_cb = access_cb, .arg = (void*)(uintptr_t)BLEP_UUID_DEVICE_CONTROL,
                 .flags = WRITE_FLAGS },
+            { .uuid = &uuid_recording.u, .access_cb = access_cb, .arg = (void*)(uintptr_t)BLEP_UUID_RECORDING,
+                .val_handle = &recording_handle, .flags = READ_FLAGS | WRITE_FLAGS | BLE_GATT_CHR_F_NOTIFY },
+            { .uuid = &uuid_recordings.u, .access_cb = access_cb, .arg = (void*)(uintptr_t)BLEP_UUID_RECORDINGS,
+                .flags = READ_FLAGS | WRITE_FLAGS },
             { 0 },
         },
     },
@@ -507,6 +576,7 @@ static void clear_subscriptions(void)
     subscribed_position = false;
     subscribed_wifi = false;
     subscribed_ota = false;
+    subscribed_recording = false;
 }
 
 static int gap_event(struct ble_gap_event* event, void* arg)
@@ -521,6 +591,7 @@ static int gap_event(struct ble_gap_event* event, void* arg)
         conn_handle = event->connect.conn_handle;
         advertising = false; // the stack stops advertising for the connection
         clear_subscriptions();
+        recordings_first = 0;
         ESP_LOGI(TAG, "phone connected");
         if (pairing_allowed())
             show_passkey(); // it might want to pair
@@ -547,6 +618,8 @@ static int gap_event(struct ble_gap_event* event, void* arg)
             subscribed_wifi = event->subscribe.cur_notify;
         else if (event->subscribe.attr_handle == ota_control_handle)
             subscribed_ota = event->subscribe.cur_notify;
+        else if (event->subscribe.attr_handle == recording_handle)
+            subscribed_recording = event->subscribe.cur_notify;
         break;
 
     case BLE_GAP_EVENT_MTU:
@@ -622,6 +695,14 @@ static void worker(void* arg)
                 size_t len = wifi_status_value(value, sizeof(value));
                 if (len)
                     notify(wifi_status_handle, value, len);
+            }
+        }
+
+        if (recording_dirty) {
+            recording_dirty = false;
+            if (subscribed_recording) {
+                uint8_t value[BLEP_RECORDING_STATUS_SIZE];
+                notify(recording_handle, value, recording_value(value));
             }
         }
 
@@ -732,6 +813,8 @@ void ble_if_start(void)
     open_pairing_window();
     worker_stop = false;
     wifi_status_dirty = false;
+    recording_dirty = false;
+    recordings_first = 0;
     if (!worker_done)
         worker_done = xSemaphoreCreateBinary();
     if (xTaskCreate(worker, "ble_worker", WORKER_STACK_SIZE, NULL, 3, &worker_task) != pdPASS) {

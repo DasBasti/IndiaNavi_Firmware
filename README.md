@@ -12,9 +12,10 @@ The firmware runs on an ESP32-S3 (ESP-IDF via PlatformIO). A companion phone app
 - Map view with zoom levels 16 (100 m scale) and 14 (500 m scale), position marker, GPX track with direction
   arrows, waypoints and height graph
 - Quectel L96 GNSS (GPS, GLONASS, Galileo). The time and position from the phone can be used to get a faster first fix
-- GPX track log (`log.gpx`) written to the SD card, with a new segment for each boot
-- Bluetooth LE peripheral (ESP32-S3 only): time, position, WiFi on/off, display settings, firmware update
-  and pairing by passkey
+- Track recording, started and stopped from the app: one GPX file per recording in `TRACKS/` on the SD card,
+  with a new segment for each boot. The app lists, downloads and deletes them
+- Bluetooth LE peripheral (ESP32-S3 only): time, position, WiFi on/off, display settings, track recording,
+  firmware update and pairing by passkey
 - WiFi access point (`IndiaNavi-XXXX`) with an HTTP API for uploading maps and tracks, and for firmware updates
 - Firmware updates from the app over WiFi or Bluetooth, with automatic rollback
 - Power management: deep sleep with button wake-up, charge detection and a "battery empty" screen
