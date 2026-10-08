@@ -751,6 +751,11 @@ bool gui_display_ready(void)
     return eink != NULL;
 }
 
+bool gui_battery_empty_shown(void)
+{
+    return current_screen == APP_MODE_BATTERY_EMPTY;
+}
+
 void trigger_rendering()
 {
     render_needed = 1;

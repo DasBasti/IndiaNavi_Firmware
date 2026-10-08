@@ -29,6 +29,16 @@
 /* time between two readings while the battery is low, so it is decided fast */
 #define BATTERY_EMPTY_CHECK_INTERVAL_MS 5000
 
+/*
+ * Level in percent a charging device has to reach on the battery empty screen
+ * to turn on again. Above BATTERY_EMPTY_LEVEL, so it does not switch back and
+ * forth when the voltage drops for a moment.
+ */
+#define BATTERY_RECOVERED_LEVEL 10
+
+/* a device that sleeps with an empty battery looks for a charger this often */
+#define BATTERY_EMPTY_WAKEUP_INTERVAL_S 60
+
 typedef struct {
     uint8_t low_readings; /// empty readings in a row
 } battery_state_t;
@@ -43,5 +53,8 @@ bool battery_state_update(battery_state_t* state, int32_t level_percent, bool ch
 
 /** true while the battery is low, the next reading should come after BATTERY_EMPTY_CHECK_INTERVAL_MS */
 bool battery_state_is_low(const battery_state_t* state);
+
+/** true if a charger is connected and the battery has enough charge to leave the battery empty screen */
+bool battery_state_recovered(int32_t level_percent, bool charging);
 
 #endif /* BATTERY_STATE_H */
