@@ -1,3 +1,7 @@
 # Only the indianavi_s3_n16r8_release build, see sdkconfig.defaults
 
-CONFIG_HEAP_POISONING_COMPREHENSIVE=y
+# every allocation is slower with heap poisoning, the debug build keeps the default
+CONFIG_HEAP_POISONING_DISABLED=y
+
+# drawing the screen is up to 2x faster than with -Og
+CONFIG_COMPILER_OPTIMIZATION_PERF=y

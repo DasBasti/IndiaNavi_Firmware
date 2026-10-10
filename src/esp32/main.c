@@ -90,10 +90,18 @@ static volatile bool long_press_handled;
 void (*_short_press)(void);
 void (*_long_press)(void);
 
+/*
+ * The CPU runs at 240 MHz while a task needs it and at 80 MHz otherwise. Below 80 MHz the APB clock is
+ * lower than 80 MHz: Bluetooth needs it, and the GPS UART is clocked from it and receives without a lock.
+ *
+ * No light sleep: the GPS UART does not receive in it, Bluetooth blocks it without controller modem sleep
+ * (CONFIG_BT_CTRL_MODEM_SLEEP) and all GPIOs are disabled in it (CONFIG_PM_SLP_DISABLE_GPIO), also the
+ * supply pins of display, SD card and GPS.
+ */
 esp_pm_config_t pm_config = {
     .max_freq_mhz = 240,
     .min_freq_mhz = 80,
-    .light_sleep_enable = true,
+    .light_sleep_enable = false,
 };
 
 esp_err_t light_sleep_cb(int64_t sleep_time_us, void* arg)
@@ -407,8 +415,7 @@ void app_main()
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_EDGE);
     gpio_isr_handler_add(BTN, handleButtonPress, NULL);
 
-    // configure PM
-    // ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
+    ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
 
 #ifdef WITH_ACC
     /* Set Accelerator IO to input, with PUI and falling edge IRQ */
