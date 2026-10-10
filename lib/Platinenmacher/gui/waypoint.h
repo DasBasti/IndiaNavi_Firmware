@@ -13,6 +13,8 @@ struct Waypoint {
     float lat;
     float lon;
     float ele;
+    uint32_t world_x;       /// position on the world map, fraction of 2^32, set by map_add_waypoint
+    uint32_t world_y;
     uint32_t tile_x;
     uint32_t tile_y;
     int16_t pos_x;

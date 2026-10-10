@@ -141,6 +141,7 @@ void test_waypoints()
     };
     map->tile_zoom = 16;
     map_update_position(map, &pos);
+    map_add_waypoint(wp);
     TEST_ASSERT_EQUAL(PM_OK, map_calculate_waypoint(map, wp));
     TEST_ASSERT_EQUAL_UINT16(34224, wp->tile_x);
     TEST_ASSERT_EQUAL_UINT16(22367, wp->tile_y);
@@ -148,8 +149,6 @@ void test_waypoints()
     TEST_ASSERT_EQUAL_UINT16(273, wp->pos_y);
     TEST_ASSERT_EQUAL_UINT(1, wp->active);
 
-    map_set_first_waypoint(wp);
-    map_add_waypoint(wp);
     TEST_ASSERT_EQUAL_UINT(0, wp->num);
     waypoint_t* new_wp = RTOS_Malloc(sizeof(waypoint_t));
     map_add_waypoint(new_wp);

@@ -15,14 +15,39 @@ static char* not_loaded_string = "no tile loaded";
 static waypoint_t* waypoints = NULL;
 static waypoint_t* prev_wp = NULL;
 
-static float flon2tile(float lon, uint8_t zoom)
+/* fraction of the world map as fixed point with 32 bits after the point */
+static uint32_t fraction_to_world(float f)
 {
-    return ((lon + 180) / 360) * pow(2, zoom);
+    if (f <= 0.0f)
+        return 0;
+    if (f >= 1.0f)
+        return UINT32_MAX;
+    return (uint32_t)(f * 4294967296.0f);
 }
 
-static float flat2tile(float lat, uint8_t zoom)
+/* x position on the world map (Web Mercator), the same for every zoom level */
+static uint32_t lon2world(float lon)
 {
-    return ((1 - log(tan((lat * M_PI) / 180) + 1 / cos((lat * M_PI) / 180)) / M_PI) / 2) * pow(2, zoom);
+    return fraction_to_world((lon + 180.0f) / 360.0f);
+}
+
+/* y position on the world map (Web Mercator), the same for every zoom level */
+static uint32_t lat2world(float lat)
+{
+    float rad = lat * (float)M_PI / 180.0f;
+    return fraction_to_world((1.0f - logf(tanf(rad) + 1.0f / cosf(rad)) / (float)M_PI) / 2.0f);
+}
+
+/* number of the tile at a zoom level, valid up to zoom level 24 */
+static inline uint32_t world2tile(uint32_t world, uint8_t zoom)
+{
+    return (uint64_t)world >> (32 - zoom);
+}
+
+/* pixel inside a tile of 256 pixels at a zoom level */
+static inline uint16_t world2pixel(uint32_t world, uint8_t zoom)
+{
+    return ((uint64_t)world >> (24 - zoom)) & 0xff;
 }
 
 static map_tile_t* tile_create(int16_t left, int16_t top, uint16_t tile_size)
@@ -146,21 +171,21 @@ static inline void update_map_tile_if_coords_change(map_tile_t* t, uint32_t x, u
 
 error_code_t map_update_position(map_t* map, map_position_t* pos)
 {
-    uint16_t x = 0, y = 0;
-    float xf = 0.0, yf = 0.0;
-    // get tile number of tile with position on it as float and integer
+    uint32_t x = 0, y = 0;
+    // tile with the position on it and the offset to its corner
+    map->pos_x = 0;
+    map->pos_y = 0;
     if (pos->longitude != 0.0) {
-        xf = flon2tile(pos->longitude, map->tile_zoom);
-        x = (uint16_t)floor(xf);
+        uint32_t world_x = lon2world(pos->longitude);
+        x = world2tile(world_x, map->tile_zoom);
+        map->pos_x = world2pixel(world_x, map->tile_zoom);
     }
     // also for y axis
     if (pos->latitude != 0.0) {
-        yf = flat2tile(pos->latitude, map->tile_zoom);
-        y = (uint16_t)floor(yf);
+        uint32_t world_y = lat2world(pos->latitude);
+        y = world2tile(world_y, map->tile_zoom);
+        map->pos_y = world2pixel(world_y, map->tile_zoom);
     }
-    // get offset to tile corner of tile with position
-    map->pos_x = floor((xf - x) * 256); // offset to tile
-    map->pos_y = floor((yf - y) * 256); // offset to tile
 
     for (uint8_t i = 0; i < map->width; i++) {
         for (uint8_t j = 0; j < map->height; j++) {
@@ -230,11 +255,8 @@ error_code_t map_render(const display_t* dsp, void* component)
 
 error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
 {
-    float _xf, _yf;
-    _xf = flon2tile(wp_t->lon, map->tile_zoom);
-    wp_t->tile_x = floor(_xf);
-    _yf = flat2tile(wp_t->lat, map->tile_zoom);
-    wp_t->tile_y = floor(_yf);
+    wp_t->tile_x = world2tile(wp_t->world_x, map->tile_zoom);
+    wp_t->tile_y = world2tile(wp_t->world_y, map->tile_zoom);
 
     // TODO: merge this calculation with the active calculation
     for (uint32_t i = 0; i < map->tile_count; i++) {
@@ -244,8 +266,8 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
             uint16_t ty = i % map->height;
             uint16_t tx = i / map->height;
 
-            wp_t->pos_x = floor((_xf - wp_t->tile_x + tx) * 256) + map->box.left; // offset from tile 0
-            wp_t->pos_y = floor((_yf - wp_t->tile_y + ty) * 256) + map->box.top;  // offset from tile 0
+            wp_t->pos_x = tx * 256 + world2pixel(wp_t->world_x, map->tile_zoom) + map->box.left; // offset from tile 0
+            wp_t->pos_y = ty * 256 + world2pixel(wp_t->world_y, map->tile_zoom) + map->box.top;  // offset from tile 0
             wp_t->active = 1;
         }
     }
@@ -264,12 +286,15 @@ waypoint_t* map_first_waypoint(void)
 }
 
 /**
- * Add a waypoint to the list of waypoints
+ * Add a waypoint to the list of waypoints, its latitude and longitude have to be set
  *
  * return number of waypoints
  */
 uint32_t map_add_waypoint(waypoint_t* wp)
 {
+    // the position on the map does not change, it is calculated once and not on every render
+    wp->world_x = lon2world(wp->lon);
+    wp->world_y = lat2world(wp->lat);
     wp->next = NULL;
     if (prev_wp) {
         wp->num = prev_wp->num + 1;
