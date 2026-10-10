@@ -26,7 +26,9 @@
 #include <freertos/task.h>
 
 #include "ble_internal.h"
-#include "tasks.h"
+#include "navi/fw_update.h"
+#include "navi/power.h"
+#include "navi/upload_server.h"
 
 static const char* TAG = "BLE_OTA";
 
@@ -107,7 +109,7 @@ static void wake_task(void)
 /* Not enough battery for a long update that stresses flash and radio */
 static bool battery_ok(void)
 {
-    return is_charging || current_battery_level >= BLEP_OTA_MIN_BATTERY;
+    return power_is_charging() || power_battery_level() >= BLEP_OTA_MIN_BATTERY;
 }
 
 static void update_task(void* arg)

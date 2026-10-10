@@ -7,7 +7,8 @@
  */
 
 #include "gui/map.h"
-#include "tasks.h"
+#include "gui.h"
+#include "navi/safe_print.h"
 
 #include <fcntl.h>
 #include <stdio.h>

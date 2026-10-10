@@ -28,7 +28,11 @@
 
 #include "gui.h"
 #include "helper.h"
-#include "tasks.h"
+#include "navi/ble.h"
+#include "navi/power.h"
+#include "navi/sd.h"
+#include "navi/upload_server.h"
+#include "navi/wifi.h"
 #include <icons_16.h>
 #include <string.h>
 char wifi_file[32 + 1 + 64];
@@ -79,7 +83,8 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_FAIL_BIT BIT1
 
 wifi_ap_record_t sta_record;
-void StartWiFiTask(void const* argument);
+static TaskHandle_t wifiTask_h;
+static void StartWiFiTask(void* argument);
 
 static void event_handler(void* arg, esp_event_base_t event_base,
     int32_t event_id, void* event_data)
@@ -304,7 +309,7 @@ const uint8_t* wifi_ap_qrcode(void)
  */
 static bool idle_timeout(void)
 {
-    if (is_charging || ap_station_count)
+    if (power_is_charging() || ap_station_count)
         return false;
     if (esp_timer_get_time() - last_activity_us < WIFI_IDLE_TIMEOUT_US)
         return false;
@@ -321,7 +326,7 @@ void wifi_start_task(void)
     if (wifiTask_h)
         return;
     s_stop_requested = false;
-    if (xTaskCreate((TaskFunction_t)&StartWiFiTask, "wifi", WIFI_TASK_STACK_SIZE, NULL, 8, &wifiTask_h) != pdPASS) {
+    if (xTaskCreate(StartWiFiTask, "wifi", WIFI_TASK_STACK_SIZE, NULL, 8, &wifiTask_h) != pdPASS) {
         ESP_LOGE(TAG, "Can not create WiFi task");
         wifiTask_h = NULL;
     }
@@ -383,7 +388,7 @@ static bool load_sta_config(char* ssid, size_t ssid_size, char* password, size_t
     return true;
 }
 
-void StartWiFiTask(void const* argument)
+static void StartWiFiTask(void* argument)
 {
     esp_event_handler_instance_t instance_any_id = NULL;
     esp_event_handler_instance_t instance_got_ip = NULL;

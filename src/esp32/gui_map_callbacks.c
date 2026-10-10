@@ -9,7 +9,7 @@
 #include "esp_log.h"
 #include "gui.h"
 #include "gui/map.h"
-#include "tasks.h"
+#include "navi/sd.h"
 
 static const char* TAG = "GUI_MAP";
 
@@ -36,7 +36,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
     RTOS_Free(img->data);
     img->data = NULL;
 
-    if (!sd_semaphore || !uxSemaphoreGetCount(sd_semaphore)) { // mutex returns 1 if not taken
+    if (!sd_is_free()) {
         return UNAVAILABLE;
     }
 
@@ -54,7 +54,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
     ESP_LOGI(TAG, "Load %s  to %p", fn, imageBuf);
 
     img->loaded = NOT_LOADED;
-    if (waitForSDInit() == PM_OK && xSemaphoreTake(sd_semaphore, SD_MUTEX_TIMEOUT)) {
+    if (sd_lock()) {
         res = f_open(&t_img, fn, FA_READ);
         if (FR_OK == res) {
             res = f_read(&t_img, imageBuf, TILE_DATA_SIZE, &br);
@@ -69,7 +69,7 @@ error_code_t load_map_tile_on_demand(const display_t* dsp, void* image)
             ESP_LOGI(TAG, "Error from SD card: %d", res);
             img->loaded = NOT_FOUND;
         }
-        xSemaphoreGive(sd_semaphore);
+        sd_unlock();
     } else {
         ESP_LOGI(TAG, "load timeout!");
     }
@@ -99,7 +99,7 @@ error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map
 
     map_t* map = (map_t*)_map;
 
-    if (!sd_semaphore || !uxSemaphoreGetCount(sd_semaphore)) { // mutex returns 1 if not taken
+    if (!sd_is_free()) {
         return UNAVAILABLE;
     }
 
@@ -118,7 +118,7 @@ error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map
             tile->x,
             tile->y);
         // TODO: decompress lz4 tiles
-        if (waitForSDInit() != PM_OK || !xSemaphoreTake(sd_semaphore, SD_MUTEX_TIMEOUT)) {
+        if (!sd_lock()) {
             ESP_LOGI(TAG, "load timeout!");
             continue;
         }
@@ -160,7 +160,7 @@ error_code_t load_map_tiles_to_permanent_memory(const display_t* dsp, void* _map
                 tile->image->loaded = NOT_FOUND;
             }
         }
-        xSemaphoreGive(sd_semaphore);
+        sd_unlock();
 
         if (tile->image->loaded != LOADED) {
             // do not render stale data of the previous tile

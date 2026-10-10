@@ -9,7 +9,15 @@
 
 #include "gui.h"
 #include "pins.h"
-#include "tasks.h"
+#include "navi/ble.h"
+#include "navi/display_settings.h"
+#include "navi/fw_update.h"
+#include "navi/gps.h"
+#include "navi/power.h"
+#include "navi/safe_print.h"
+#include "navi/system_events.h"
+#include "navi/upload_server.h"
+#include "navi/wifi.h"
 #include <esp_log.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
@@ -41,6 +49,12 @@ const uint16_t margin_horizontal = 10;
 
 static const char* TAG = "GUI";
 
+#define GUI_TASK_STACK_SIZE (1024 * 10)
+
+static TaskHandle_t gui_task;
+/* held while the screen is drawn and sent to the display */
+static SemaphoreHandle_t gui_semaphore;
+
 static display_t* eink;
 static regulator_t* eink_reg; // supply of the display, switching it resets the controller
 
@@ -53,9 +67,11 @@ static int64_t last_refresh_us; // end of the last refresh of the display
 
 app_mode_t _app_mode = INITIAL_APP_MODE;
 static volatile app_mode_t current_screen = APP_MODE_NONE; // screen that is shown
+// screen that is on the display, a refresh takes about 16 s after the screen was created
+static volatile app_mode_t displayed_screen = APP_MODE_NONE;
 font_t f8x8, f8x16;
 label_t* clock_label;
-battery_indicator_t* battery_indicator;
+static battery_indicator_t* battery_indicator;
 label_t* north_indicator_label;
 label_t* wifi_indicator_label;
 label_t* ble_indicator_label;
@@ -184,6 +200,18 @@ static int sprint_battery_percent(char* buffer, const char* format, ...)
     return 0;
 }
 
+/* show what the power task read last, "...%" until it read the battery */
+static error_code_t battery_indicator_onBeforeRender(const display_t* dsp, void* comp)
+{
+    (void)dsp;
+    (void)comp;
+    if (!battery_indicator || !power_state_known())
+        return PM_OK;
+    battery_indicator->charging = power_is_charging();
+    battery_indicator_set_level(battery_indicator, power_battery_level());
+    return PM_OK;
+}
+
 static label_t* top_bar;
 
 /*
@@ -242,7 +270,7 @@ static error_code_t create_top_bar_components(const display_t* dsp)
     sb->alignVertical = MIDDLE;
     sb->backgroundColor = WHITE;
 
-    battery_indicator_t* bat = create_battery_indicator(sb->box.left + margin_left, margin_top, current_battery_level, is_charging, &f8x8, batlevels, batlevel_images, batlevel_num);
+    battery_indicator_t* bat = create_battery_indicator(sb->box.left + margin_left, margin_top, power_battery_level(), power_is_charging(), &f8x8, batlevels, batlevel_images, batlevel_num);
     if (!bat) {
         RTOS_Free(sb);
         return PM_FAIL;
@@ -250,6 +278,7 @@ static error_code_t create_top_bar_components(const display_t* dsp)
     bat->save_printf = sprint_battery_percent;
     save_sprintf(bat->label_text, "...%%");
     label_shrink_to_text(&bat->label);
+    bat->label.onBeforeRender = battery_indicator_onBeforeRender;
 
     north_indicator_label = create_icon_with_text(dsp, norden,
         bat->label.box.left + bat->label.box.width + margin_horizontal,
@@ -599,8 +628,7 @@ static error_code_t app_render()
  */
 static void request_ble(bool enable)
 {
-    uint32_t event = enable ? TASK_EVENT_ENABLE_BLE : TASK_EVENT_DISABLE_BLE;
-    xQueueSend(eventQueueHandle, &event, 0);
+    system_post_event(enable ? TASK_EVENT_ENABLE_BLE : TASK_EVENT_DISABLE_BLE, 0);
 }
 
 /**
@@ -756,6 +784,11 @@ bool gui_battery_empty_shown(void)
     return current_screen == APP_MODE_BATTERY_EMPTY;
 }
 
+bool gui_screen_displayed(app_mode_t screen)
+{
+    return displayed_screen == screen;
+}
+
 void trigger_rendering()
 {
     render_needed = 1;
@@ -801,12 +834,12 @@ static void recover_display_if_needed(void)
  */
 static void sleep_if_battery_too_low(void)
 {
-    for (uint32_t waited = 0; !power_state_known && waited < POWER_STATE_WAIT_MS; waited += 100)
+    for (uint32_t waited = 0; !power_state_known() && waited < POWER_STATE_WAIT_MS; waited += 100)
         vTaskDelay(pdMS_TO_TICKS(100));
 
-    while (current_battery_level < DISPLAY_MIN_BATTERY_LEVEL && !is_charging) {
+    while (power_battery_level() < DISPLAY_MIN_BATTERY_LEVEL && !power_is_charging()) {
         ESP_LOGW(TAG, "Battery at %ld%% is too low for the display and no charger is connected, sleep",
-            current_battery_level);
+            power_battery_level());
         gps_enter_standby();
         // returns only if a charger was connected in the meantime
         enter_deep_sleep_if_not_charging();
@@ -814,7 +847,7 @@ static void sleep_if_battery_too_low(void)
     }
 }
 
-void StartGuiTask(void const* argument)
+static void gui_task_main(void* argument)
 {
     ESP_LOGI(TAG, "init");
     ESP_LOGI(TAG, "fonts loading");
@@ -875,6 +908,9 @@ void StartGuiTask(void const* argument)
                 ESP_LOGI(TAG, "Refresh.");
                 // vTaskPrioritySet(NULL, 1);
                 display_commit_fb(eink);
+                // a refresh that timed out did not show the screen
+                if (!ACEP_5IN65_NeedsRecovery())
+                    displayed_screen = current_screen;
                 // the transfer result was on the display, do not draw it again.
                 // A refresh that timed out did not show it, it is drawn again after the reset.
                 if (upload_result_drawn != UPLOAD_IDLE && !ACEP_5IN65_NeedsRecovery()) {
@@ -897,5 +933,17 @@ void StartGuiTask(void const* argument)
             }
         }
         vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+void gui_start_task(void)
+{
+    if (gui_task)
+        return;
+    if (!gui_semaphore)
+        gui_semaphore = xSemaphoreCreateMutex();
+    if (xTaskCreate(gui_task_main, "gui", GUI_TASK_STACK_SIZE, NULL, 6, &gui_task) != pdPASS) {
+        ESP_LOGE(TAG, "Can not create GUI task");
+        gui_task = NULL;
     }
 }

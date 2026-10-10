@@ -23,9 +23,15 @@
 
 #include "gui.h"
 #include "helper.h"
+#include "navi/sd.h"
 #include "pins.h"
-#include "tasks.h"
 #include <icons_16.h>
+
+#define SD_TASK_STACK_SIZE (1024 * 8)
+
+static TaskHandle_t sd_task;
+/* held by the SD task while no card is mounted, published once the task owns it */
+static SemaphoreHandle_t sd_semaphore;
 
 uint8_t sd_status = UNAVAILABLE;
 char fn[30];
@@ -96,6 +102,11 @@ static bool takeSD(void)
 static void giveSD(void)
 {
     xSemaphoreGive(sd_semaphore);
+}
+
+bool sd_is_free(void)
+{
+    return sd_semaphore && uxSemaphoreGetCount(sd_semaphore); // a mutex returns 1 if not taken
 }
 
 /*
@@ -425,7 +436,7 @@ void closePhysicalFile(async_file_t* file)
     }
 }
 
-void StartSDTask(void const* argument)
+static void sd_task_main(void* argument)
 {
     SemaphoreHandle_t mutex = xSemaphoreCreateMutex();
     ESP_LOGI(TAG, "init semaphore");
@@ -486,6 +497,21 @@ void StartSDTask(void const* argument)
         if (sd_indicator_label)
             sd_indicator_label->onBeforeRender = statusRender;
 
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+void sd_start_task(void)
+{
+    if (sd_task)
+        return;
+    if (xTaskCreate(sd_task_main, "sd", SD_TASK_STACK_SIZE, NULL, 1, &sd_task) != pdPASS) {
+        ESP_LOGE(TAG, "Can not create SD task");
+        sd_task = NULL;
+        return;
+    }
+    // the other modules use the mutex from the start
+    while (!sd_semaphore) {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

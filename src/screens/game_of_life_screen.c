@@ -9,7 +9,7 @@
 #include "colors.h"
 
 #include "gui.h"
-#include "tasks.h"
+#include "navi/safe_print.h"
 
 #include "esp_log.h"
 #include "esp_random.h"

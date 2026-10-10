@@ -4,7 +4,8 @@
 #include "gui/graph.h"
 #include "gui/label.h"
 #include "pins.h"
-#include "tasks.h"
+#include "navi/safe_print.h"
+#include "navi/sd.h"
 
 #include <esp_adc/adc_oneshot.h>
 #include <esp_log.h>
@@ -175,9 +176,9 @@ error_code_t update_sd_info_label(const display_t* dsp, void* comp)
     gpio_t pwr = {};
     pwr.pin = SD_VCC_nEN;
     if (xSemaphoreTake(print_semaphore, 1000)) {
-        snprintf(sd_info, sizeof(sd_info), "SD Info\n Power: %d\n Semaphore Count: %d",
+        snprintf(sd_info, sizeof(sd_info), "SD Info\n Power: %d\n Free: %d",
             !gpio_read(&pwr),
-            uxSemaphoreGetCount(sd_semaphore));
+            sd_is_free());
 
         xSemaphoreGive(print_semaphore);
     }

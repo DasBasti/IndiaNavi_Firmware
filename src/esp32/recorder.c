@@ -21,7 +21,9 @@
 #include <freertos/FreeRTOS.h>
 #include <nvs.h>
 
-#include "tasks.h"
+#include "navi/ble.h"
+#include "navi/recorder.h"
+#include "navi/sd.h"
 
 #define NVS_NAMESPACE "recorder"
 #define NVS_KEY_ID "id"
