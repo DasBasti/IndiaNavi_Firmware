@@ -39,18 +39,10 @@ extern label_t* wifi_indicator_label;
 extern label_t* gps_indicator_label;
 extern label_t* sd_indicator_label;
 
-extern battery_indicator_t* battery_indicator;
-
 extern uint8_t* wifi_indicator_image_data;
 
 /* the global position object */
 extern map_position_t* map_position;
-
-/* battery level */
-extern int32_t current_battery_level;
-extern int32_t is_charging;
-/* the power task read the battery level and knows if a charger is connected */
-extern volatile bool power_state_known;
 
 typedef struct Render render_t;
 struct Render {
@@ -75,11 +67,16 @@ enum RenderLayer {
     RL_MAX, // <- Number of Layers
 };
 
+/* starts the GUI task if it is not running */
+void gui_start_task(void);
 void trigger_rendering();
+void gui_reload_track(void);
 bool gui_display_ready(void);
 
 /** true while the battery empty screen is shown */
 bool gui_battery_empty_shown(void);
+/** true when the refresh that shows this screen finished */
+bool gui_screen_displayed(app_mode_t screen);
 void free_render_pipeline(enum RenderLayer layer);
 void free_all_render_pipelines();
 void free_screen(void);

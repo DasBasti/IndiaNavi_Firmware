@@ -12,7 +12,8 @@
 #include <esp_log.h>
 #include <nvs.h>
 
-#include "tasks.h"
+#include "gui.h"
+#include "navi/display_settings.h"
 
 #define NVS_NAMESPACE "display"
 #define NVS_KEY_FLAGS "flags"

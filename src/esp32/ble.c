@@ -15,7 +15,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "tasks.h"
+#include "navi/ble.h"
 
 #ifndef ESP_S3
 /*
@@ -50,7 +50,13 @@ void ble_if_recording_changed(void) { }
 #include <services/gatt/ble_svc_gatt.h>
 
 #include "ble_internal.h"
-#include "tasks.h"
+#include "gui.h"
+#include "navi/display_settings.h"
+#include "navi/gps.h"
+#include "navi/power.h"
+#include "navi/recorder.h"
+#include "navi/system_events.h"
+#include "navi/wifi.h"
 
 void ble_store_config_init(void);
 
@@ -277,9 +283,9 @@ void ble_if_notify_ota_status(const uint8_t status[BLEP_OTA_STATUS_SIZE])
 static size_t info_value(uint8_t* out, size_t size)
 {
     uint8_t flags = BLEP_INFO_FLAG_OTA | BLEP_INFO_FLAG_TRACK_COLOR | BLEP_INFO_FLAG_RECORDING;
-    if (is_charging)
+    if (power_is_charging())
         flags |= BLEP_INFO_FLAG_CHARGING;
-    int32_t battery = current_battery_level;
+    int32_t battery = power_battery_level();
     if (battery < 0)
         battery = 0;
     return blep_info_encode(out, size, flags, (uint8_t)(battery > 100 ? 100 : battery), GIT_HASH);
@@ -355,11 +361,10 @@ static int att_error(blep_err_t err)
 
 static void request_wifi(bool on)
 {
-    uint32_t event = on ? TASK_EVENT_ENABLE_WIFI : TASK_EVENT_DISABLE_WIFI;
     if (on == wifi_ap_running())
         return;
     // the main task starts and stops the WiFi task
-    xQueueSend(eventQueueHandle, &event, 0);
+    system_post_event(on ? TASK_EVENT_ENABLE_WIFI : TASK_EVENT_DISABLE_WIFI, 0);
     wifi_notify_activity();
 }
 

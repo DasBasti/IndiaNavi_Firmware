@@ -7,7 +7,7 @@
  */
 
 #include "gui.h"
-#include "tasks.h"
+#include "navi/sd.h"
 
 static const display_t* dsp;
 static const char* fn = "//lost.raw";
@@ -43,8 +43,7 @@ void picture_screen_create(const display_t* display)
     dsp = display;
 
     /* Create splash screen image component from splash.raw on SD card*/
-    waitForSDInit();
-    if (sd_semaphore && xSemaphoreTake(sd_semaphore, SD_MUTEX_TIMEOUT)) {
+    if (sd_lock()) {
         // Check file info
         res = f_stat((const TCHAR*)fn, &t_img_nfo);
         ESP_LOGI(__func__, "Load image %s is: %d", fn, res);
@@ -65,7 +64,7 @@ void picture_screen_create(const display_t* display)
                 }
             }
         }
-        xSemaphoreGive(sd_semaphore);
+        sd_unlock();
     }
 
     splash = image_create(splash_image_data, 0, 0, SPLASH_WIDTH, SPLASH_HEIGHT);

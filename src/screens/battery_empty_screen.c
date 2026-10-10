@@ -10,7 +10,8 @@
  */
 
 #include "gui.h"
-#include "tasks.h"
+#include "navi/button.h"
+#include "navi/power.h"
 
 /* battery symbol in the middle of the screen */
 #define BATTERY_WIDTH 180
@@ -59,14 +60,14 @@ static error_code_t render_battery(const display_t* dsp, void* comp)
 
 static error_code_t hint_onBeforeRender(const display_t* dsp, void* label)
 {
-    ((label_t*)label)->text = hints[is_charging ? 1 : 0];
+    ((label_t*)label)->text = hints[power_is_charging() ? 1 : 0];
     return PM_OK;
 }
 
 /* only with the charger, the battery would be empty again right away */
 static void turn_on_while_charging(void)
 {
-    if (!is_charging)
+    if (!power_is_charging())
         return;
     gui_set_app_mode(APP_MODE_GPS_CREATE);
     trigger_rendering();

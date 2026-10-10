@@ -17,7 +17,10 @@
 
 #include "gui.h"
 #include "helper.h"
-#include "tasks.h"
+#include "navi/map_loader.h"
+#include "navi/safe_print.h"
+#include "navi/sd.h"
+#include "navi/wifi.h"
 
 #define TRACK_FILE_SIZE 32768
 #define WP_LINE_SIZE 256

@@ -32,7 +32,11 @@
 
 #include "gui.h"
 #include "helper.h"
-#include "tasks.h"
+#include "navi/fw_update.h"
+#include "navi/recorder.h"
+#include "navi/sd.h"
+#include "navi/upload_server.h"
+#include "navi/wifi.h"
 
 #define API_VERSION 1
 #define UPLOAD_CHUNK_SIZE 4096

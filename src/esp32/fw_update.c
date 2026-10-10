@@ -16,7 +16,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "tasks.h"
+#include "ble_protocol.h"
+#include "gui.h"
+#include "navi/fw_update.h"
 
 static const char* TAG = "FW";
 

@@ -17,7 +17,10 @@
 
 #include "gps.h"
 #include "gui.h"
-#include "tasks.h"
+#include "navi/button.h"
+#include "navi/display_settings.h"
+#include "navi/safe_print.h"
+#include "navi/sd.h"
 
 #if !defined(TESTING) && !defined(LINUX)
 #include "esp_timer.h"

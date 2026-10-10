@@ -12,7 +12,10 @@
 
 #include "gui.h"
 #include "pins.h"
-#include "tasks.h"
+#include "navi/gps.h"
+#include "navi/recorder.h"
+#include "navi/safe_print.h"
+#include "navi/sd.h"
 #include "time.h"
 #include <esp_log.h>
 #include <sys/time.h>
@@ -39,6 +42,11 @@ char timezone_file[100];
 uint32_t gps_ticks = 0;
 
 /* minimum time between two points in the track log */
+#define GPS_TASK_STACK_SIZE (1024 * 7)
+
+/* the task clears it when it is gone */
+static TaskHandle_t gps_task;
+
 #define TRACK_LOG_INTERVAL_S 5
 /* time between attempts to open the track log if it failed */
 #define TRACK_LOG_RETRY_S 60
@@ -390,7 +398,7 @@ void gps_request_stop(void)
     gps_stop_requested = true;
 }
 
-void StartGpsTask(void const* argument)
+static void gps_task_main(void* argument)
 {
     static regulator_t* reg;
     gps_stop_requested = false;
@@ -540,6 +548,17 @@ void StartGpsTask(void const* argument)
     }
     reg->disable(reg);
     current_position.fix = GPS_FIX_INVALID;
-    gpsTask_h = NULL;
+    gps_task = NULL;
     vTaskDelete(NULL);
+}
+
+void gps_start_task(void)
+{
+    if (gps_task)
+        return;
+    // the handle is set before the task runs, it clears it when it ends
+    if (xTaskCreate(gps_task_main, "gps", GPS_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY, &gps_task) != pdPASS) {
+        ESP_LOGE(TAG, "Can not create GPS task");
+        gps_task = NULL;
+    }
 }

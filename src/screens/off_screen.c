@@ -7,7 +7,11 @@
  */
 
 #include "gui.h"
-#include "tasks.h"
+#include "navi/button.h"
+#include "navi/power.h"
+#include "navi/safe_print.h"
+#include "navi/sd.h"
+#include "navi/wifi.h"
 
 #include <icons_16.h>
 
@@ -170,7 +174,7 @@ static void create_wifi_qr(const display_t* dsp)
 error_code_t push_button_label_onBeforeRender(const display_t* dsp, void* label)
 {
     label_t* l = (label_t*)label;
-    l->text = messages[is_charging ? 1 : 0];
+    l->text = messages[power_is_charging() ? 1 : 0];
     return PM_OK;
 }
 
@@ -183,16 +187,21 @@ error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* ima
     // not joined to a WiFi, but phones can join the access point
     if (i->data == WIFI_0 && wifi_ap_running())
         i->data = WIFI_AP;
-    if (!is_charging)
+    if (!power_is_charging())
         i->data = NULL;
     return PM_OK;
 }
 
 void turn_to_on()
 {
+    // a press while the off screen is still drawn would switch on again before it was seen
+    if (!gui_screen_displayed(APP_MODE_TURN_OFF)) {
+        ESP_LOGI(__func__, "Off screen is not on the display yet, ignore the press");
+        return;
+    }
     gui_set_app_mode(APP_MODE_GPS_CREATE);
     // while charging WiFi keeps running, the map screen shows the AP QR code
-    if (!is_charging)
+    if (!power_is_charging())
         wifi_request_stop();
     trigger_rendering();
 }
@@ -213,8 +222,7 @@ void off_screen_create(const display_t* display)
         save_snprintf(infoText, infoText_len, "%s", GIT_HASH);
 
     /* Create splash screen image component from splash.raw on SD card*/
-    waitForSDInit();
-    if (sd_semaphore && xSemaphoreTake(sd_semaphore, SD_MUTEX_TIMEOUT)) {
+    if (sd_lock()) {
         // Check file info
         res = f_stat((const TCHAR*)fn, &t_img_nfo);
         ESP_LOGI(__func__, "Load image %s is: %d", fn, res);
@@ -235,7 +243,7 @@ void off_screen_create(const display_t* display)
                 }
             }
         }
-        xSemaphoreGive(sd_semaphore);
+        sd_unlock();
     }
 
     splash = image_create(splash_image_data, 0, 0, SPLASH_WIDTH, SPLASH_HEIGHT);
