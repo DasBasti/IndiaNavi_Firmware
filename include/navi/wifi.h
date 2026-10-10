@@ -16,6 +16,8 @@ bool isConnected();
 void wifi_ap_credentials_init(void);
 const char* wifi_ap_ssid(void);
 const char* wifi_ap_password(void);
+/* 0 when not joined to a WiFi, otherwise 1 (weak) to 3 (strong) */
+uint8_t wifi_signal_level(void);
 bool wifi_ap_running(void);
 uint8_t wifi_ap_station_count(void);
 const uint8_t* wifi_ap_qrcode(void);

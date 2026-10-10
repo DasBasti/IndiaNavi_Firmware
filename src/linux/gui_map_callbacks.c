@@ -8,6 +8,7 @@
 
 #include "gui/map.h"
 #include "gui.h"
+#include "navi/gps.h"
 #include "navi/safe_print.h"
 
 #include <fcntl.h>
@@ -119,6 +120,7 @@ error_code_t check_if_map_tile_is_loaded(const display_t* dsp, void* image)
 
 error_code_t map_render_copyright(const display_t* dsp, void* label)
 {
+    const map_position_t* map_position = gps_get_position();
     label_t* l = (label_t*)label;
     if (map_position && map_position->fix) {
         // TODO: get this information from map info on SD card!

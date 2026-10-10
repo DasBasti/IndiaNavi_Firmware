@@ -4,6 +4,7 @@
 #include "gui/graph.h"
 #include "gui/label.h"
 #include "pins.h"
+#include "navi/gps.h"
 #include "navi/safe_print.h"
 #include "navi/sd.h"
 
@@ -75,6 +76,7 @@ error_code_t record_battery_voltage(const display_t* dsp, void* comp)
 
 error_code_t update_gps_info_label(const display_t* dsp, void* comp)
 {
+    const map_position_t* map_position = gps_get_position();
     gpio_t pwr = {};
     pwr.pin = GPS_VCC_nEN;
     if (map_position && xSemaphoreTake(print_semaphore, 1000)) {

@@ -21,6 +21,7 @@ GC gc;
 #include <icons_16.h>
 
 #include "gui.h"
+#include "navi/gps.h"
 
 Colormap colormap;
 XColor color[TRANSPARENT]; // number of colors
@@ -71,8 +72,11 @@ label_t* wifi_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
-/* the global position object */
-map_position_t* map_position;
+/* the position the simulator moves with the arrow keys */
+const map_position_t* gps_get_position(void)
+{
+    return &current_position;
+}
 
 XImage* frame;
 
@@ -418,9 +422,6 @@ int main(int argc, char* argv[])
     font_load_from_array(&f8x8, font8x8, font8x8_name);
     font_load_from_array(&f8x16, font8x16, font8x16_name);
 
-    // map the GPS position
-    map_position = &current_position;
-
     create_top_bar(eink);
     map_screen_create(eink);
 
@@ -453,16 +454,16 @@ int main(int argc, char* argv[])
                 // right - 114
                 switch (evt.xkey.keycode) {
                 case 113:
-                    map_position->longitude -= 0.0002;
+                    current_position.longitude -= 0.0002;
                     break;
                 case 116:
-                    map_position->latitude -= 0.0002;
+                    current_position.latitude -= 0.0002;
                     break;
                 case 111:
-                    map_position->latitude += 0.0002;
+                    current_position.latitude += 0.0002;
                     break;
                 case 114:
-                    map_position->longitude += 0.0002;
+                    current_position.longitude += 0.0002;
                     break;
                 case 65: // spacebar
                     save_ximage_pnm(frame, "frame.pnm", 3);

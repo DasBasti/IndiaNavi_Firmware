@@ -92,6 +92,13 @@ static map_position_t current_position = {
 #endif
 };
 
+static volatile bool position_published;
+
+const map_position_t* gps_get_position(void)
+{
+    return position_published ? &current_position : NULL;
+}
+
 bool gps_is_position_known()
 {
     return current_position.fix != GPS_FIX_INVALID;
@@ -402,8 +409,8 @@ static void gps_task_main(void* argument)
 {
     static regulator_t* reg;
     gps_stop_requested = false;
-    /* make current gps position known globally */
-    map_position = &current_position;
+    /* the position can be used from now on */
+    position_published = true;
 
     if (!reg) {
         ESP_LOGI(TAG, "init gpio %d", GPS_VCC_nEN);

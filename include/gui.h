@@ -33,16 +33,9 @@ typedef enum {
     APP_MODE_RUNNING,
 } app_mode_t;
 
-extern label_t* clock_label;
-extern label_t* north_indicator_label;
-extern label_t* wifi_indicator_label;
+/* the map screen shows the satellites, the simulator the SD card */
 extern label_t* gps_indicator_label;
 extern label_t* sd_indicator_label;
-
-extern uint8_t* wifi_indicator_image_data;
-
-/* the global position object */
-extern map_position_t* map_position;
 
 typedef struct Render render_t;
 struct Render {
