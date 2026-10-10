@@ -58,6 +58,68 @@ void test_display_fill()
     TEST_ASSERT_EACH_EQUAL_UINT8_MESSAGE(WHITE, dsp->fb, dsp->fb_size, "pixels are white");
 }
 
+static uint8_t fill_color;
+static error_code_t fill(const display_t *dsp, uint8_t color)
+{
+    fill_color = color;
+    return PM_OK;
+}
+
+void test_display_fill_uses_driver_fill()
+{
+    dsp->fill = fill;
+    fill_color = 0xff;
+    dsp->fb[0] = 0;
+    TEST_ASSERT_EQUAL(PM_OK, display_fill(dsp, WHITE));
+    TEST_ASSERT_EQUAL_UINT8(WHITE, fill_color);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0, dsp->fb[0], "pixels are not drawn one by one");
+}
+
+void test_display_draw_image_is_clipped()
+{
+    uint8_t image[16];
+    memset(image, WHITE, sizeof(image));
+    memset(dsp->fb, 0, dsp->fb_size);
+    // only the bottom right quarter is on the display
+    TEST_ASSERT_EQUAL(OUT_OF_BOUNDS, display_draw_image(dsp, image, -2, -2, 4, 4));
+    TEST_ASSERT_EQUAL_UINT8(WHITE, dsp->fb[0]);
+    TEST_ASSERT_EQUAL_UINT8(WHITE, dsp->fb[DISPLAY_WIDTH + 1]);
+    TEST_ASSERT_EQUAL_UINT8(0, dsp->fb[2]);
+    TEST_ASSERT_EQUAL_UINT8(0, dsp->fb[2 * DISPLAY_WIDTH]);
+    // the top left quarter at the bottom right corner
+    TEST_ASSERT_EQUAL(PM_OK, display_draw_image(dsp, image, DISPLAY_WIDTH - 2, DISPLAY_HEIGHT - 2, 4, 4));
+    TEST_ASSERT_EQUAL_UINT8(WHITE, dsp->fb[dsp->fb_size - 1]);
+    TEST_ASSERT_EQUAL_UINT8(0, dsp->fb[dsp->fb_size - 3]);
+}
+
+static rect_t drawn_image, drawn_visible;
+static error_code_t draw_image(const display_t *dsp, const uint8_t *data, const rect_t *image, const rect_t *visible)
+{
+    drawn_image = *image;
+    drawn_visible = *visible;
+    return PM_OK;
+}
+
+void test_display_draw_image_uses_driver_with_visible_part()
+{
+    uint8_t image[16] = { 0 };
+    dsp->draw_image = draw_image;
+    memset(dsp->fb, 0, dsp->fb_size);
+    display_draw_image(dsp, image, -1, DISPLAY_HEIGHT - 3, 4, 4);
+    TEST_ASSERT_EQUAL_INT16(-1, drawn_image.left);
+    TEST_ASSERT_EQUAL_INT16(DISPLAY_HEIGHT - 3, drawn_image.top);
+    TEST_ASSERT_EQUAL_UINT16(4, drawn_image.width);
+    TEST_ASSERT_EQUAL_INT16(1, drawn_visible.left);
+    TEST_ASSERT_EQUAL_INT16(0, drawn_visible.top);
+    TEST_ASSERT_EQUAL_UINT16(3, drawn_visible.width);
+    TEST_ASSERT_EQUAL_UINT16(3, drawn_visible.height);
+
+    // completely outside, nothing to draw
+    drawn_visible.width = 0;
+    display_draw_image(dsp, image, DISPLAY_WIDTH, 0, 4, 4);
+    TEST_ASSERT_EQUAL_UINT16(0, drawn_visible.width);
+}
+
 void test_display_draw_out_of_bound()
 {
     TEST_ASSERT_TRUE_MESSAGE(PM_OK == display_pixel_draw(dsp, DISPLAY_HEIGHT-1,DISPLAY_WIDTH-1, WHITE), "pixel draw in bounds");
@@ -305,6 +367,9 @@ int main(int argc, char **argv)
     RUN_TEST(test_display_draw_pixel);
     RUN_TEST(test_display_draw_out_of_bound);
     RUN_TEST(test_display_fill);
+    RUN_TEST(test_display_fill_uses_driver_fill);
+    RUN_TEST(test_display_draw_image_is_clipped);
+    RUN_TEST(test_display_draw_image_uses_driver_with_visible_part);
     RUN_TEST(test_display_draw_colors);
     RUN_TEST(test_display_rect_draw);
     RUN_TEST(test_display_line_draw);

@@ -35,6 +35,11 @@ struct display
 	error_code_t (*write_pixel)(const display_t *dsp, int16_t x, int16_t y,
 								uint8_t color);
 	uint8_t (*decompress)(rect_t *size, int16_t x, int16_t y, const uint8_t *data);
+	// optional, fills the whole framebuffer faster than drawing every pixel
+	error_code_t (*fill)(const display_t *dsp, uint8_t color);
+	// optional, draws the part visible of an image (in pixels of the image) faster than pixel by pixel.
+	// Returns PM_OK if it was drawn.
+	error_code_t (*draw_image)(const display_t *dsp, const uint8_t *data, const rect_t *image, const rect_t *visible);
 
 	void (*update)(const display_t *dsp);
 };

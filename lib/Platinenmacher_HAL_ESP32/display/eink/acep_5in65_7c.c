@@ -61,6 +61,69 @@ error_code_t ACEP_5IN65_Write(const display_t *dsp, int16_t x, int16_t y,
 }
 
 /*
+ * fill the framebuffer with one color, two pixels are in one byte
+ */
+static error_code_t ACEP_5IN65_Fill(const display_t *dsp, uint8_t color)
+{
+	memset(fb, ((color & 0x0f) << 4) | (color & 0x0f), FB_SIZE);
+	return PM_OK;
+}
+
+/* color of a pixel in an image with 4 bit per pixel, the format of the framebuffer */
+static inline uint8_t image_pixel(const uint8_t *data, uint16_t width, int32_t x, int32_t y)
+{
+	uint32_t pos = (y * width) + x;
+	if (pos & 0x1)
+		return data[pos >> 1] & 0x7;
+	return (data[pos >> 1] >> 4) & 0x7;
+}
+
+/*
+ * Copy the visible part of an image into the framebuffer.
+ *
+ * Rotated by 90 degrees a column of the image is a row of the framebuffer. It is written along
+ * the row, two pixels in one byte. Pixel by pixel every write would be in another cache line
+ * of the PSRAM. Transparent pixels keep the framebuffer as it is.
+ */
+static error_code_t ACEP_5IN65_Draw_Image(const display_t *dsp, const uint8_t *data, const rect_t *image,
+										  const rect_t *visible)
+{
+	if (dsp->rotation != DISPLAY_ROTATE_90)
+		return NOT_NEEDED;
+
+	for (int32_t x = visible->left; x < visible->left + visible->width; x++)
+	{
+		uint8_t *row = &fb[(image->left + x) * (ACEP_5IN65_WIDTH / 2)];
+		// the bottom of the image is the start of the row
+		int32_t y = visible->top + visible->height - 1;
+		while (y >= visible->top)
+		{
+			uint32_t column = ACEP_5IN65_WIDTH - 1 - (image->top + y);
+			uint8_t color = image_pixel(data, image->width, x, y);
+			if (!(column & 0x1) && y > visible->top)
+			{
+				uint8_t next = image_pixel(data, image->width, x, y - 1);
+				if (color != TRANSPARENT && next != TRANSPARENT)
+				{
+					row[column >> 1] = (color << 4) | next;
+					y -= 2;
+					continue;
+				}
+			}
+			if (color != TRANSPARENT)
+			{
+				if (column & 0x1)
+					row[column >> 1] = (row[column >> 1] & 0xf0) | color;
+				else
+					row[column >> 1] = (row[column >> 1] & 0x0f) | (color << 4);
+			}
+			y--;
+		}
+	}
+	return PM_OK;
+}
+
+/*
  * Send framebuffer to display
  */
 static void ACEP_5IN65_Commit_Fb(const display_t *dsp)
@@ -275,6 +338,8 @@ display_t *ACEP_5IN65_Init(acep_5in65_dev_t* eink_dev, display_rotation_t rotati
 	disp->update = ACEP_5IN65_Commit_Fb;
 	disp->write_pixel = ACEP_5IN65_Write;
 	disp->decompress = ACEP_5IN65_Decompress_Pixel;
+	disp->fill = ACEP_5IN65_Fill;
+	disp->draw_image = ACEP_5IN65_Draw_Image;
 
 	gpio_set_direction(dev->dc, GPIO_MODE_OUTPUT);
 	gpio_set_pull_mode(dev->dc, GPIO_PULLUP_ENABLE);

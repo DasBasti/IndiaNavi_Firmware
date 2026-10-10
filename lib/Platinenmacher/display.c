@@ -24,6 +24,8 @@ display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
     disp->size.height = height;
     disp->bpp = bpp;
     disp->rotation = rotation;
+    disp->fill = NULL;
+    disp->draw_image = NULL;
 
     return disp;
 }
@@ -45,6 +47,10 @@ error_code_t display_commit_fb(const display_t* dsp)
  */
 error_code_t display_fill(const display_t* dsp, color_t color)
 {
+    if (color == TRANSPARENT)
+        return PM_OK;
+    if (dsp->fill)
+        return dsp->fill(dsp, color);
     for (int x = 0; x < dsp->size.width; x++)
         for (int y = 0; y < dsp->size.height; y++) {
             display_pixel_draw(dsp, x, y, color);
@@ -384,8 +390,24 @@ error_code_t display_draw_image(const display_t* dsp, const uint8_t* data, int16
 
     rect_t box = { x, y, w, h };
 
-    for (int16_t y0 = 0; y0 < h; y0++)
-        for (int16_t x0 = 0; x0 < w; x0++) {
+    // only the part of the image on the display is drawn, a map is larger than the display
+    int32_t x_start = x < 0 ? -x : 0;
+    int32_t y_start = y < 0 ? -y : 0;
+    int32_t x_end = w;
+    int32_t y_end = h;
+    if (x + x_end > dsp->size.width)
+        x_end = dsp->size.width - x;
+    if (y + y_end > dsp->size.height)
+        y_end = dsp->size.height - y;
+    if (x_start >= x_end || y_start >= y_end)
+        return ret;
+
+    rect_t visible = { x_start, y_start, x_end - x_start, y_end - y_start };
+    if (dsp->draw_image && dsp->draw_image(dsp, data, &box, &visible) == PM_OK)
+        return ret;
+
+    for (int32_t y0 = y_start; y0 < y_end; y0++)
+        for (int32_t x0 = x_start; x0 < x_end; x0++) {
             display_pixel_draw(dsp, x0 + x, y0 + y,
                 dsp->decompress(&box, x0, y0, data));
         }
