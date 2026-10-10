@@ -69,6 +69,45 @@ static error_code_t ACEP_5IN65_Fill(const display_t *dsp, uint8_t color)
 	return PM_OK;
 }
 
+/*
+ * Fill a rectangle that lies on the display.
+ *
+ * Rotated by 90 degrees a column of the rectangle is a part of a row of the framebuffer,
+ * the whole bytes of it are set at once.
+ */
+static error_code_t ACEP_5IN65_Fill_Rect(const display_t *dsp, const rect_t *rect, uint8_t color)
+{
+	if (dsp->rotation != DISPLAY_ROTATE_90)
+		return NOT_NEEDED;
+
+	color &= 0x0f;
+	uint8_t both = (color << 4) | color;
+	// the bottom of the rectangle is the start of the row
+	uint32_t first = ACEP_5IN65_WIDTH - (rect->top + rect->height);
+	uint32_t last = ACEP_5IN65_WIDTH - 1 - rect->top;
+	for (int32_t x = rect->left; x < rect->left + rect->width; x++)
+	{
+		uint8_t *row = &fb[x * (ACEP_5IN65_WIDTH / 2)];
+		uint32_t start = first;
+		uint32_t end = last;
+		if (start & 0x1) // the first pixel is the low half of a byte
+		{
+			row[start >> 1] = (row[start >> 1] & 0xf0) | color;
+			start++;
+		}
+		if (start <= end && !(end & 0x1)) // the last pixel is the high half of a byte
+		{
+			row[end >> 1] = (row[end >> 1] & 0x0f) | (color << 4);
+			if (end == 0)
+				continue;
+			end--;
+		}
+		if (start < end)
+			memset(&row[start >> 1], both, (end - start + 1) >> 1);
+	}
+	return PM_OK;
+}
+
 /* color of a pixel in an image with 4 bit per pixel, the format of the framebuffer */
 static inline uint8_t image_pixel(const uint8_t *data, uint16_t width, int32_t x, int32_t y)
 {
@@ -340,6 +379,7 @@ display_t *ACEP_5IN65_Init(acep_5in65_dev_t* eink_dev, display_rotation_t rotati
 	disp->decompress = ACEP_5IN65_Decompress_Pixel;
 	disp->fill = ACEP_5IN65_Fill;
 	disp->draw_image = ACEP_5IN65_Draw_Image;
+	disp->fill_rect = ACEP_5IN65_Fill_Rect;
 
 	gpio_set_direction(dev->dc, GPIO_MODE_OUTPUT);
 	gpio_set_pull_mode(dev->dc, GPIO_PULLUP_ENABLE);

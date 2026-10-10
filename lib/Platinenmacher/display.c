@@ -26,6 +26,7 @@ display_t* display_init(uint16_t width, uint16_t height, uint8_t bpp,
     disp->rotation = rotation;
     disp->fill = NULL;
     disp->draw_image = NULL;
+    disp->fill_rect = NULL;
 
     return disp;
 }
@@ -297,6 +298,22 @@ error_code_t display_circle_draw_segment(const display_t* dsp, int16_t x0,
 error_code_t display_rect_fill(const display_t* dsp, int16_t x0, int16_t y0,
     uint16_t width, uint16_t height, uint8_t color)
 {
+    if (color == TRANSPARENT)
+        return PM_OK;
+
+    if (dsp->fill_rect) {
+        // the driver gets only the part on the display
+        int32_t left = x0 < 0 ? 0 : x0;
+        int32_t top = y0 < 0 ? 0 : y0;
+        int32_t right = x0 + width > dsp->size.width ? dsp->size.width : x0 + width;
+        int32_t bottom = y0 + height > dsp->size.height ? dsp->size.height : y0 + height;
+        if (left >= right || top >= bottom)
+            return PM_OK;
+        rect_t rect = { left, top, right - left, bottom - top };
+        if (dsp->fill_rect(dsp, &rect, color) == PM_OK)
+            return PM_OK;
+    }
+
     for (uint16_t x = 0; x < width; x++)
         for (uint16_t y = 0; y < height; y++) {
             display_pixel_draw(dsp, x0 + x, y0 + y, color);
@@ -413,4 +430,55 @@ error_code_t display_draw_image(const display_t* dsp, const uint8_t* data, int16
         }
 
     return ret;
+}
+
+static error_code_t canvas_write_pixel(const display_t* dsp, int16_t x, int16_t y, uint8_t color)
+{
+    uint32_t pos = (y * dsp->size.width) + x;
+    if (pos & 0x1)
+        dsp->fb[pos >> 1] = (dsp->fb[pos >> 1] & 0xf0) | (color & 0x0f);
+    else
+        dsp->fb[pos >> 1] = (dsp->fb[pos >> 1] & 0x0f) | ((color & 0x0f) << 4);
+    return PM_OK;
+}
+
+static uint8_t canvas_decompress(rect_t* size, int16_t x, int16_t y, const uint8_t* data)
+{
+    uint32_t pos = (y * size->width) + x;
+    if (pos & 0x1)
+        return data[pos >> 1] & 0x7;
+    return (data[pos >> 1] >> 4) & 0x7;
+}
+
+static error_code_t canvas_fill(const display_t* dsp, uint8_t color)
+{
+    memset(dsp->fb, ((color & 0x0f) << 4) | (color & 0x0f), dsp->fb_size);
+    return PM_OK;
+}
+
+display_t* display_canvas_create(uint16_t width, uint16_t height)
+{
+    display_t* canvas = display_init(width, height, 4, DISPLAY_ROTATE_0);
+    if (!canvas)
+        return NULL;
+    canvas->fb_size = ((uint32_t)width * height + 1) / 2;
+    canvas->fb = RTOS_Malloc_Large(canvas->fb_size);
+    if (!canvas->fb) {
+        RTOS_Free(canvas);
+        return NULL;
+    }
+    canvas->write_pixel = canvas_write_pixel;
+    canvas->decompress = canvas_decompress;
+    canvas->update = NULL;
+    canvas_fill(canvas, TRANSPARENT);
+    canvas->fill = canvas_fill;
+    return canvas;
+}
+
+void display_canvas_free(display_t* canvas)
+{
+    if (!canvas)
+        return;
+    RTOS_Free(canvas->fb);
+    RTOS_Free(canvas);
 }

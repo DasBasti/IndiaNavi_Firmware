@@ -2,6 +2,8 @@
 #include "display.h"
 #include "gui/label.h"
 #include "gui/image.h"
+#include "gui/graph.h"
+#include <string.h>
 
 #define DISPLAY_WIDTH 20
 #define DISPLAY_HEIGHT 20
@@ -118,6 +120,82 @@ void test_display_draw_image_uses_driver_with_visible_part()
     drawn_visible.width = 0;
     display_draw_image(dsp, image, DISPLAY_WIDTH, 0, 4, 4);
     TEST_ASSERT_EQUAL_UINT16(0, drawn_visible.width);
+}
+
+static rect_t filled_rect;
+static int fill_rect_calls;
+static error_code_t fill_rect(const display_t *dsp, const rect_t *rect, uint8_t color)
+{
+    filled_rect = *rect;
+    fill_rect_calls++;
+    return PM_OK;
+}
+
+void test_display_rect_fill_uses_driver_with_part_on_display()
+{
+    dsp->fill_rect = fill_rect;
+    fill_rect_calls = 0;
+    display_rect_fill(dsp, -3, 15, 10, 10, WHITE);
+    TEST_ASSERT_EQUAL_INT(1, fill_rect_calls);
+    TEST_ASSERT_EQUAL_INT16(0, filled_rect.left);
+    TEST_ASSERT_EQUAL_INT16(15, filled_rect.top);
+    TEST_ASSERT_EQUAL_UINT16(7, filled_rect.width);
+    TEST_ASSERT_EQUAL_UINT16(5, filled_rect.height);
+
+    // outside of the display or transparent, nothing to fill
+    display_rect_fill(dsp, DISPLAY_WIDTH, 0, 4, 4, WHITE);
+    display_rect_fill(dsp, 0, 0, 4, 4, TRANSPARENT);
+    TEST_ASSERT_EQUAL_INT(1, fill_rect_calls);
+}
+
+/* the graph drawn into a canvas of the size of the display */
+static display_t *render_graph(graph_t *graph)
+{
+    display_t *canvas = display_canvas_create(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    TEST_ASSERT_NOT_NULL(canvas);
+    display_fill(canvas, WHITE);
+    graph_renderer(canvas, graph);
+    return canvas;
+}
+
+void test_graph_with_static_data_looks_the_same()
+{
+    graph_point_t data[8], other[8];
+    for (int i = 0; i < 8; i++) {
+        data[i].value = i * 3;
+        data[i].color = BLACK;
+        other[i].value = 21 - i * 3;
+        other[i].color = BLACK;
+    }
+    graph_t *graph = graph_create(1, 2, 18, 16, data, 8, &f8x8);
+    graph_set_range(graph, 0, 21);
+    graph->background_color = TRANSPARENT; // the canvas has to keep what is below
+    graph->current_position = 3;
+    graph->current_position_color = BLACK;
+
+    display_t *drawn = render_graph(graph);
+    graph->static_data = true;
+    display_t *cached = render_graph(graph);
+    TEST_ASSERT_NOT_NULL(graph->cache);
+    display_t *copied = render_graph(graph); // from the cache
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(drawn->fb, cached->fb, drawn->fb_size);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(drawn->fb, copied->fb, drawn->fb_size);
+
+    // new data is drawn again
+    graph_update_data(graph, other, 8);
+    TEST_ASSERT_NULL(graph->cache);
+    display_t *updated = render_graph(graph);
+    graph->static_data = false;
+    display_t *updated_drawn = render_graph(graph);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(updated_drawn->fb, updated->fb, drawn->fb_size);
+    TEST_ASSERT_FALSE(memcmp(drawn->fb, updated->fb, drawn->fb_size) == 0);
+
+    display_canvas_free(drawn);
+    display_canvas_free(cached);
+    display_canvas_free(copied);
+    display_canvas_free(updated);
+    display_canvas_free(updated_drawn);
+    graph_free(graph);
 }
 
 void test_display_draw_out_of_bound()
@@ -369,6 +447,8 @@ int main(int argc, char **argv)
     RUN_TEST(test_display_fill);
     RUN_TEST(test_display_fill_uses_driver_fill);
     RUN_TEST(test_display_draw_image_is_clipped);
+    RUN_TEST(test_graph_with_static_data_looks_the_same);
+    RUN_TEST(test_display_rect_fill_uses_driver_with_part_on_display);
     RUN_TEST(test_display_draw_image_uses_driver_with_visible_part);
     RUN_TEST(test_display_draw_colors);
     RUN_TEST(test_display_rect_draw);

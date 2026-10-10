@@ -171,6 +171,36 @@ void test_waypoints()
     map_free_waypoints();
 }
 
+void test_waypoints_in_other_tiles()
+{
+    map_position_t pos = { .latitude = 49.5, .longitude = 8.0 };
+    map->tile_zoom = 16;
+    map_update_position(map, &pos);
+
+    // one tile to the right and one down is still on the map
+    waypoint_t* wp = RTOS_Malloc(sizeof(waypoint_t));
+    wp->lat = 49.5 - 360.0 / 65536 * 0.65; // a tile is shorter in latitude
+    wp->lon = 8.0 + 360.0 / 65536;
+    wp->active = 0;
+    map_add_waypoint(wp);
+    map_calculate_waypoint(map, wp);
+    TEST_ASSERT_EQUAL_UINT32(34225, wp->tile_x);
+    TEST_ASSERT_EQUAL_UINT32(22368, wp->tile_y);
+    TEST_ASSERT_EQUAL_UINT(1, wp->active);
+    TEST_ASSERT_INT_WITHIN(1, 347 + 256, wp->pos_x);
+    TEST_ASSERT_TRUE(wp->pos_y >= 256 + map->box.top + 256 && wp->pos_y < 256 * 2 + map->box.top + 256);
+
+    // two tiles to the left is not
+    waypoint_t* far = RTOS_Malloc(sizeof(waypoint_t));
+    far->lat = 49.5;
+    far->lon = 8.0 - 2 * 360.0 / 65536;
+    far->active = 0;
+    map_add_waypoint(far);
+    map_calculate_waypoint(map, far);
+    TEST_ASSERT_EQUAL_UINT(0, far->active);
+    map_free_waypoints();
+}
+
 /* a straight track along x, one waypoint every step pixels */
 #define LINE_POINTS 30
 static waypoint_t line[LINE_POINTS];
@@ -186,10 +216,21 @@ static void make_line(int16_t step)
     }
 }
 
+/* the active waypoints of the line, as the map screen collects them */
+static void place_arrows_on_active(void)
+{
+    waypoint_t* visible[LINE_POINTS];
+    uint32_t count = 0;
+    for (int i = 0; i < LINE_POINTS; i++)
+        if (line[i].active)
+            visible[count++] = &line[i];
+    waypoint_place_arrows(visible, count, 80, 12);
+}
+
 void test_arrows_are_placed_along_the_track()
 {
     make_line(5);
-    waypoint_place_arrows(line, 80, 12);
+    place_arrows_on_active();
     for (int i = 0; i < LINE_POINTS; i++) {
         if (i == 7) {
             // half the spacing after the start, the direction is taken over 12 pixels (3 segments)
@@ -206,16 +247,16 @@ void test_arrows_are_placed_along_the_track()
 void test_arrows_only_on_the_screen()
 {
     make_line(5);
-    line[3].arrow_to = &line[4]; // from an earlier placement
+    line[23].arrow_to = &line[4]; // from an earlier placement
     for (int i = 0; i < LINE_POINTS; i++)
         line[i].active = i >= 20; // the start of the track is off the screen
-    waypoint_place_arrows(line, 80, 12);
-    TEST_ASSERT_NULL(line[3].arrow_to);
+    place_arrows_on_active();
+    TEST_ASSERT_NULL(line[23].arrow_to);
     for (int i = 0; i < LINE_POINTS; i++)
         TEST_ASSERT_TRUE(line[i].arrow_to == NULL || i >= 20);
     // half the spacing after the first visible point, the look-ahead stops at the end of the track
     TEST_ASSERT_EQUAL_PTR(&line[29], line[27].arrow_to);
-    waypoint_place_arrows(NULL, 80, 12); // an empty track
+    waypoint_place_arrows(NULL, 0, 80, 12); // an empty track
 }
 
 void test_arrow_is_drawn_in_the_direction_of_the_track()
@@ -275,6 +316,7 @@ int main(int argc, char** argv)
     RUN_TEST(test_position_update);
     RUN_TEST(test_map_render_callbacks);
     RUN_TEST(test_waypoints);
+    RUN_TEST(test_waypoints_in_other_tiles);
     RUN_TEST(test_map_free);
     RUN_TEST(test_waypoints_restart_after_free);
     RUN_TEST(test_arrows_are_placed_along_the_track);

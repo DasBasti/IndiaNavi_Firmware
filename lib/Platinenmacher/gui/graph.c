@@ -28,6 +28,9 @@ graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height
     graph->data_len = data_len;
     graph->font = font;
     graph->background_color = WHITE;
+    graph->current_position = 0;
+    graph->static_data = false;
+    graph->cache = NULL;
 
     graph->max_label = label_create(max_str, graph->font, left + 2, top + 2, 0, 8);
     graph->min_label = label_create(min_str, graph->font, left + 2, top + height - 2 - 8, 0, 8);
@@ -35,22 +38,23 @@ graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height
     return graph;
 }
 
-error_code_t graph_renderer(const display_t* dsp, void* component)
+static bool graph_has_line(const graph_t* graph)
 {
-    if (!component)
-        return PM_FAIL;
+    return graph->data && graph->data_len >= 2 && graph->max > graph->min;
+}
 
-    graph_t* graph = (graph_t*)component;
-
+/* background, frame and line with the top left corner at left/top */
+static void graph_draw(const display_t* dsp, const graph_t* graph, int16_t left, int16_t top)
+{
     if (graph->background_color != TRANSPARENT)
-        display_rect_fill(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, graph->background_color);
-    display_rect_draw(dsp, graph->box.left, graph->box.top, graph->box.width, graph->box.height, BLACK);
+        display_rect_fill(dsp, left, top, graph->box.width, graph->box.height, graph->background_color);
+    display_rect_draw(dsp, left, top, graph->box.width, graph->box.height, BLACK);
 
-    if (!graph->data || graph->data_len < 2 || graph->max <= graph->min)
-        return OUT_OF_BOUNDS;
+    if (!graph_has_line(graph))
+        return;
 
-    uint16_t inner_box_top = graph->box.top + 1;
-    uint16_t inner_box_left = graph->box.left + 1;
+    uint16_t inner_box_top = top + 1;
+    uint16_t inner_box_left = left + 1;
     uint16_t inner_box_width = graph->box.width - 2;
     uint16_t inner_box_height = graph->box.height - 2;
 
@@ -71,6 +75,32 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
         last_x = new_x;
         last_y = new_y;
     }
+}
+
+error_code_t graph_renderer(const display_t* dsp, void* component)
+{
+    if (!component)
+        return PM_FAIL;
+
+    graph_t* graph = (graph_t*)component;
+
+    // a track has thousands of points, its line is drawn once and copied on every render
+    if (graph->static_data && !graph->cache && (graph->cache = display_canvas_create(graph->box.width, graph->box.height)))
+        graph_draw(graph->cache, graph, 0, 0);
+    if (graph->cache)
+        display_draw_image(dsp, graph->cache->fb, graph->box.left, graph->box.top, graph->box.width, graph->box.height);
+    else
+        graph_draw(dsp, graph, graph->box.left, graph->box.top);
+
+    if (!graph_has_line(graph))
+        return OUT_OF_BOUNDS;
+
+    uint16_t inner_box_top = graph->box.top + 1;
+    uint16_t inner_box_left = graph->box.left + 1;
+    uint16_t inner_box_width = graph->box.width - 2;
+    uint16_t inner_box_height = graph->box.height - 2;
+    float x_step = inner_box_width / (float)(graph->data_len - 1);
+    float y_step = inner_box_height / (float)(graph->max - graph->min);
 
     if (graph->current_position && graph->current_position < graph->data_len) {
         float val = graph->data[graph->current_position].value - graph->min;
@@ -88,6 +118,13 @@ error_code_t graph_renderer(const display_t* dsp, void* component)
     return PM_OK;
 }
 
+/* the line has to be drawn again */
+static void graph_drop_cache(graph_t* graph)
+{
+    display_canvas_free(graph->cache);
+    graph->cache = NULL;
+}
+
 error_code_t graph_set_range(graph_t* graph, float min, float max)
 {
     if (min < INT16_MIN)
@@ -103,6 +140,7 @@ error_code_t graph_set_range(graph_t* graph, float min, float max)
         else
             graph->min = graph->max - 1;
     }
+    graph_drop_cache(graph);
     // TODO: deuglify this!!!!
     snprintf(min_str, sizeof(min_str), "%dm", graph->min);
     snprintf(max_str, sizeof(max_str), "%dm", graph->max);
@@ -120,6 +158,17 @@ error_code_t graph_update_data(graph_t* graph, graph_point_t* data, uint16_t len
 
     graph->data = data;
     graph->data_len = len;
+    graph_drop_cache(graph);
 
     return PM_OK;
+}
+
+void graph_free(graph_t* graph)
+{
+    if (!graph)
+        return;
+    graph_drop_cache(graph);
+    RTOS_Free(graph->min_label);
+    RTOS_Free(graph->max_label);
+    RTOS_Free(graph);
 }

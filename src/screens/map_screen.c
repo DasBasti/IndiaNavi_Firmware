@@ -39,6 +39,9 @@ static label_t* infoBox;
 static graph_t* graph;
 static gpx_t* gpx_data;
 static waypoint_t* closest_wp;
+static waypoint_t** visible_waypoints; // the waypoints on the map in the order of the track
+static uint32_t visible_waypoints_size;
+static uint32_t visible_waypoints_count;
 static float closest_wp_distance;
 static float longitude_scale; // cos(latitude), a degree of longitude is shorter than one of latitude
 
@@ -149,20 +152,50 @@ void find_closest_waypoint(waypoint_t* wp)
     }
 }
 
-void add_waypoints_to_renderer(waypoint_t* wp)
+/*
+ * The whole track is one item of the render pipeline, its visible waypoints are found before rendering
+ */
+static error_code_t track_render(const display_t* dsp, void* component)
 {
-    if (wp->active) {
-        // the color can be changed in the app
-        wp->color = display_settings_track_color();
-        add_to_render_pipeline(waypoint_render_marker, wp, RL_PATH);
+    // the track can be hidden in the app, the position marker stays
+    if (!display_settings_show_track())
+        return NOT_NEEDED;
+
+    // the color can be changed in the app
+    color_t color = display_settings_track_color();
+    for (uint32_t i = 0; i < visible_waypoints_count; i++) {
+        visible_waypoints[i]->color = color;
+        waypoint_render_marker(dsp, visible_waypoints[i]);
     }
+    // the arrows are drawn after the whole track, so its line does not cover them
+    for (uint32_t i = 0; i < visible_waypoints_count; i++)
+        if (visible_waypoints[i]->arrow_to)
+            waypoint_render_arrow(dsp, visible_waypoints[i]);
+    return PM_OK;
 }
 
-/* the arrows are drawn after the whole track, so its line does not cover them */
-static void add_arrows_to_renderer(waypoint_t* wp)
+/*
+ * Position on the screen of every waypoint, the visible ones and the one closest to the position.
+ *
+ * The track can have thousands of waypoints in PSRAM, it is gone through once. Every pass costs
+ * a few milliseconds even if it does nothing.
+ */
+static void update_track(void)
 {
-    if (wp->active && wp->arrow_to)
-        add_to_render_pipeline(waypoint_render_arrow, wp, RL_PATH);
+    closest_wp_distance = __FLT_MAX__;
+    longitude_scale = cosf(map_position->latitude * (float)M_PI / 180.0f);
+    closest_wp = NULL;
+    visible_waypoints_count = 0;
+    for (waypoint_t* wp = map_first_waypoint(); wp; wp = wp->next) {
+        wp->active = 0;
+        wp->arrow_to = NULL;
+        map_calculate_waypoint(map, wp);
+        if (wp->active && visible_waypoints_count < visible_waypoints_size)
+            visible_waypoints[visible_waypoints_count++] = wp;
+        find_closest_waypoint(wp);
+    }
+    // arrows show in which direction the track goes
+    waypoint_place_arrows(visible_waypoints, visible_waypoints_count, WAYPOINT_ARROW_SPACING, WAYPOINT_ARROW_LOOKAHEAD);
 }
 
 static void apply_zoom_toggle(void)
@@ -219,21 +252,7 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
         gps_indicator_label->onBeforeRender = updateSatsInView;
     }
     map_update_position(map, map_position);
-    map_update_waypoint_path(map);
-
-    free_render_pipeline(RL_PATH);
-    // the track can be hidden in the app, the position marker stays
-    if (display_settings_show_track()) {
-        map_run_on_waypoints(add_waypoints_to_renderer);
-        // arrows show in which direction the track goes
-        waypoint_place_arrows(map_first_waypoint(), WAYPOINT_ARROW_SPACING, WAYPOINT_ARROW_LOOKAHEAD);
-        map_run_on_waypoints(add_arrows_to_renderer);
-    }
-
-    closest_wp_distance = __FLT_MAX__;
-    longitude_scale = cosf(map_position->latitude * (float)M_PI / 180.0f);
-    closest_wp = NULL;
-    map_run_on_waypoints(find_closest_waypoint);
+    update_track();
 
     if (closest_wp && graph && closest_wp->num < graph->data_len)
         graph->current_position = closest_wp->num;
@@ -289,6 +308,11 @@ void load_waypoint_file(char* filename)
         // populate height data
         height_min = __FLT_MAX__;
         height_max = -__FLT_MAX__;
+        RTOS_Free(visible_waypoints);
+        visible_waypoints_count = 0;
+        visible_waypoints_size = 0;
+        if (gpx_data->waypoints_num && (visible_waypoints = RTOS_Malloc_Large(sizeof(waypoint_t*) * gpx_data->waypoints_num)))
+            visible_waypoints_size = gpx_data->waypoints_num;
         if (gpx_data->waypoints_num) {
             height_graph_data = RTOS_Malloc_Large(sizeof(graph_point_t) * gpx_data->waypoints_num);
             if (height_graph_data)
@@ -335,16 +359,16 @@ static void map_screen_free(void)
         RTOS_Free(infoBox);
         infoBox = NULL;
     }
-    if (graph) {
-        RTOS_Free(graph->min_label);
-        RTOS_Free(graph->max_label);
-        RTOS_Free(graph);
-        graph = NULL;
-    }
+    graph_free(graph);
+    graph = NULL;
     RTOS_Free(height_graph_data);
     height_graph_data = NULL;
     height_graph_data_len = 0;
     closest_wp = NULL;
+    RTOS_Free(visible_waypoints);
+    visible_waypoints = NULL;
+    visible_waypoints_size = 0;
+    visible_waypoints_count = 0;
     map_free_waypoints();
     gpx_free(gpx_data);
     gpx_data = NULL;
@@ -366,6 +390,7 @@ void map_screen_create(const display_t* display)
     }
     set_screen_free_function(map_screen_free);
     add_to_render_pipeline(map_render, map, RL_MAP);
+    add_to_render_pipeline(track_render, NULL, RL_PATH);
 
     /* position marker */
     positon_marker = label_create("", &f8x16, 0, 0, 24, 24);
@@ -411,6 +436,7 @@ void map_screen_create(const display_t* display)
         graph->current_position_color = BLUE;
         graph->line_color = BLACK;
         graph->background_color = WHITE;
+        graph->static_data = true; // the track does not change while it is shown
 
         add_to_render_pipeline(height_graph_render, graph, RL_GUI_ELEMENTS);
     }

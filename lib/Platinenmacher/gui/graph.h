@@ -15,6 +15,8 @@
 #include "label.h"
 #include "font.h"
 
+#include <stdbool.h>
+
 typedef struct {
     float value;
     color_t color;
@@ -33,12 +35,15 @@ typedef struct {
     color_t line_color;
     color_t background_color;
     color_t current_position_color;
+    bool static_data;   /// data only changes with graph_set_range or graph_update_data, the graph is drawn once
+    display_t *cache;   /// background, frame and line of a graph with static data
 } graph_t;
 
 graph_t* graph_create(int16_t left, int16_t top, uint16_t width, uint16_t height, graph_point_t* data, uint16_t data_len, font_t*font);
 error_code_t graph_renderer(const display_t *dsp, void *component);
 error_code_t graph_set_range(graph_t* graph, float min, float max);
 error_code_t graph_update_data(graph_t* graph, graph_point_t* data, uint16_t len);
+void graph_free(graph_t* graph);
 
 
 #endif //PLATINENMACHER_GUI_GRAPH_H

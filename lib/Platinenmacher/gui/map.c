@@ -18,7 +18,7 @@ static waypoint_t* prev_wp = NULL;
 /* fraction of the world map as fixed point with 32 bits after the point */
 static uint32_t fraction_to_world(float f)
 {
-    if (f <= 0.0f)
+    if (!(f > 0.0f)) // also NaN
         return 0;
     if (f >= 1.0f)
         return UINT32_MAX;
@@ -258,18 +258,13 @@ error_code_t map_calculate_waypoint(map_t* map, waypoint_t* wp_t)
     wp_t->tile_x = world2tile(wp_t->world_x, map->tile_zoom);
     wp_t->tile_y = world2tile(wp_t->world_y, map->tile_zoom);
 
-    // TODO: merge this calculation with the active calculation
-    for (uint32_t i = 0; i < map->tile_count; i++) {
-        if (map->tiles[i]->x == wp_t->tile_x && map->tiles[i]->y == wp_t->tile_y) {
-
-            // tiles are stored column wise: idx = x * height + y
-            uint16_t ty = i % map->height;
-            uint16_t tx = i / map->height;
-
-            wp_t->pos_x = tx * 256 + world2pixel(wp_t->world_x, map->tile_zoom) + map->box.left; // offset from tile 0
-            wp_t->pos_y = ty * 256 + world2pixel(wp_t->world_y, map->tile_zoom) + map->box.top;  // offset from tile 0
-            wp_t->active = 1;
-        }
+    // the tiles are a grid, tiles[0] is the top left one (idx = x * height + y)
+    uint32_t tx = wp_t->tile_x - map->tiles[0]->x;
+    uint32_t ty = wp_t->tile_y - map->tiles[0]->y;
+    if (tx < map->width && ty < map->height) {
+        wp_t->pos_x = tx * 256 + world2pixel(wp_t->world_x, map->tile_zoom) + map->box.left; // offset from tile 0
+        wp_t->pos_y = ty * 256 + world2pixel(wp_t->world_y, map->tile_zoom) + map->box.top;  // offset from tile 0
+        wp_t->active = 1;
     }
 
     return PM_OK;

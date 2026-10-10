@@ -42,13 +42,14 @@ static float distance(const waypoint_t* a, const waypoint_t* b)
     return hypotf((float)(b->pos_x - a->pos_x), (float)(b->pos_y - a->pos_y));
 }
 
-void waypoint_place_arrows(waypoint_t* first, uint16_t spacing, uint16_t lookahead)
+void waypoint_place_arrows(waypoint_t* const* visible, uint32_t count, uint16_t spacing, uint16_t lookahead)
 {
     // the first arrow comes after half the spacing, so it is not hidden under the start
     float travelled = spacing / 2.0f;
-    for (waypoint_t* wp = first; wp; wp = wp->next) {
+    for (uint32_t i = 0; i < count; i++) {
+        waypoint_t* wp = visible[i];
         wp->arrow_to = NULL;
-        if (!wp->active || !wp->next || !wp->next->active)
+        if (!wp->next || !wp->next->active)
             continue;
 
         travelled += distance(wp, wp->next);

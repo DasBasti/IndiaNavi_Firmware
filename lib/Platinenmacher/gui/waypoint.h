@@ -36,8 +36,9 @@ error_code_t waypoint_render_arrow(const display_t* dsp, void* comp);
 
 /**
  * Choose the waypoints that get an arrow in the direction of the track.
- * The positions on the screen (pos_x, pos_y, active) have to be up to date.
+ * visible are the active waypoints in the order of the track, their positions on the screen
+ * (pos_x, pos_y, active) have to be up to date. The arrows of the other waypoints are not changed.
  */
-void waypoint_place_arrows(waypoint_t* first, uint16_t spacing, uint16_t lookahead);
+void waypoint_place_arrows(waypoint_t* const* visible, uint32_t count, uint16_t spacing, uint16_t lookahead);
 
 #endif

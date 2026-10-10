@@ -37,6 +37,8 @@ struct display
 	uint8_t (*decompress)(rect_t *size, int16_t x, int16_t y, const uint8_t *data);
 	// optional, fills the whole framebuffer faster than drawing every pixel
 	error_code_t (*fill)(const display_t *dsp, uint8_t color);
+	// optional, fills a rectangle that lies on the display faster than pixel by pixel
+	error_code_t (*fill_rect)(const display_t *dsp, const rect_t *rect, uint8_t color);
 	// optional, draws the part visible of an image (in pixels of the image) faster than pixel by pixel.
 	// Returns PM_OK if it was drawn.
 	error_code_t (*draw_image)(const display_t *dsp, const uint8_t *data, const rect_t *image, const rect_t *visible);
@@ -73,4 +75,11 @@ error_code_t display_text_draw_len(const display_t *dsp, font_t *font, int16_t x
 								   int16_t y0, uint8_t *text, uint32_t len);
 error_code_t display_draw_image(const display_t *dsp, const uint8_t *data, int16_t x, int16_t y, uint16_t w, uint16_t h);
 error_code_t display_commit_fb(const display_t *dsp);
+
+/*
+ * A display in memory. Its framebuffer is an image with 4 bits per pixel, the first pixel in the
+ * high half of a byte, as display_draw_image draws it. It starts transparent.
+ */
+display_t *display_canvas_create(uint16_t width, uint16_t height);
+void display_canvas_free(display_t *canvas);
 #endif /* __DISPLAY_H_ */
