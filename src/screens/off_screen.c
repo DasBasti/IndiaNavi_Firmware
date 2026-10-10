@@ -183,9 +183,11 @@ error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* ima
 {
     image_t* i = (image_t*)image;
 
-    i->data = wifi_indicator_image_data;
+    static uint8_t* const signal_icons[] = { WIFI_0, WIFI_1, WIFI_2, WIFI_3 };
+    uint8_t level = wifi_signal_level();
+    i->data = signal_icons[level < 4 ? level : 3];
     // not joined to a WiFi, but phones can join the access point
-    if (i->data == WIFI_0 && wifi_ap_running())
+    if (level == 0 && wifi_ap_running())
         i->data = WIFI_AP;
     if (!power_is_charging())
         i->data = NULL;

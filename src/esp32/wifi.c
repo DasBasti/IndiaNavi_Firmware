@@ -72,7 +72,7 @@ static volatile bool s_stop_requested = false;
 
 #define WIFI_TASK_STACK_SIZE (1024 * 8)
 
-uint8_t* wifi_indicator_image_data = WIFI_0;
+static volatile uint8_t signal_level; // 0: not joined to a WiFi, 1 to 3: signal strength
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
@@ -259,6 +259,11 @@ const char* wifi_ap_ssid(void)
 const char* wifi_ap_password(void)
 {
     return ap_password;
+}
+
+uint8_t wifi_signal_level(void)
+{
+    return signal_level;
 }
 
 bool wifi_ap_running(void)
@@ -507,15 +512,15 @@ static void StartWiFiTask(void* argument)
             static uint8_t last_rssi_state = 0;
             ESP_LOGI(TAG, "ssid is: %d", sta_record.rssi);
             if (sta_record.rssi >= -70 && last_rssi_state != 3) {
-                wifi_indicator_image_data = WIFI_3;
+                signal_level = 3;
                 trigger_rendering();
                 last_rssi_state = 3;
             } else if (sta_record.rssi < -70 && sta_record.rssi >= -80 && last_rssi_state != 2) {
-                wifi_indicator_image_data = WIFI_2;
+                signal_level = 2;
                 trigger_rendering();
                 last_rssi_state = 2;
             } else if (sta_record.rssi < -80 && last_rssi_state != 1) {
-                wifi_indicator_image_data = WIFI_1;
+                signal_level = 1;
                 trigger_rendering();
                 last_rssi_state = 1;
             }
@@ -545,7 +550,7 @@ exit:
         vEventGroupDelete(s_wifi_event_group);
         s_wifi_event_group = NULL;
     }
-    wifi_indicator_image_data = WIFI_0;
+    signal_level = 0;
     s_retry_num = 0;
     sta_enabled = false;
     wifiTask_h = NULL;

@@ -169,7 +169,7 @@ static inline void update_map_tile_if_coords_change(map_tile_t* t, uint32_t x, u
     }
 }
 
-error_code_t map_update_position(map_t* map, map_position_t* pos)
+error_code_t map_update_position(map_t* map, const map_position_t* pos)
 {
     uint32_t x = 0, y = 0;
     // tile with the position on it and the offset to its corner

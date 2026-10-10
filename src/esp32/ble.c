@@ -295,7 +295,7 @@ static size_t position_value(uint8_t* out)
 {
     blep_position_out_t position;
     memset(&position, 0, sizeof(position));
-    const map_position_t* current = map_position;
+    const map_position_t* current = gps_get_position();
     if (current && current->fix != BLEP_FIX_INVALID) {
         float hdop = current->hdop * 10.0f;
         position.latitude_e7 = blep_degrees_to_e7(current->latitude);

@@ -54,6 +54,7 @@ void sd_start_task(void);
  */
 bool sd_lock(void);
 void sd_unlock(void);
+bool sd_is_mounted(void);
 /* true if a card is mounted and nobody uses it, does not wait */
 bool sd_is_free(void);
 error_code_t sd_get_info(uint64_t* total, uint64_t* free);

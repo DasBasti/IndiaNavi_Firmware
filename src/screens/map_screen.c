@@ -17,6 +17,7 @@
 
 #include "gps.h"
 #include "gui.h"
+#include "navi/gps.h"
 #include "navi/button.h"
 #include "navi/display_settings.h"
 #include "navi/safe_print.h"
@@ -72,6 +73,7 @@ static const char* TAG = "map_screen";
  */
 static error_code_t updateInfoText(const display_t* dsp, void* comp)
 {
+    const map_position_t* map_position = gps_get_position();
     if (!map_position || !infoBox->text)
         return UNAVAILABLE;
 
@@ -102,6 +104,7 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
 
 error_code_t render_position_marker(const display_t* dsp, void* comp)
 {
+    const map_position_t* map_position = gps_get_position();
     if (!map_position)
         return UNAVAILABLE;
 
@@ -126,6 +129,7 @@ error_code_t render_position_marker(const display_t* dsp, void* comp)
 
 error_code_t updateSatsInView(const display_t* dsp, void* comp)
 {
+    const map_position_t* map_position = gps_get_position();
     if (!map_position)
         return UNAVAILABLE;
     if (gps_indicator_label) {
@@ -142,6 +146,7 @@ error_code_t updateSatsInView(const display_t* dsp, void* comp)
 
 void find_closest_waypoint(waypoint_t* wp)
 {
+    const map_position_t* map_position = gps_get_position();
     // ignore inactive waypoints
     if (wp->active) {
         // equirectangular approximation, squared distance in degrees of latitude
@@ -185,6 +190,7 @@ static error_code_t track_render(const display_t* dsp, void* component)
  */
 static void update_track(void)
 {
+    const map_position_t* map_position = gps_get_position();
     closest_wp_distance = __FLT_MAX__;
     longitude_scale = cosf(map_position->latitude * (float)M_PI / 180.0f);
     closest_wp = NULL;
@@ -238,6 +244,7 @@ static error_code_t height_graph_render(const display_t* dsp, void* component)
 
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
 {
+    const map_position_t* map_position = gps_get_position();
     update_height_graph_layout();
 
     // zoom is changed from the button task, apply it in the render task

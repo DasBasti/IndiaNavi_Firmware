@@ -18,6 +18,9 @@
 /* map_position_t.fix of a position that comes from the phone, not from the GPS module */
 #define GPS_FIX_PHONE BLEP_FIX_PHONE
 
+/* position of the GPS module or the phone, NULL before the GPS task started */
+const map_position_t* gps_get_position(void);
+
 /* starts the GPS task if it is not running */
 void gps_start_task(void);
 /* ask the GPS task to switch the module off and delete itself */

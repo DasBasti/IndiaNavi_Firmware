@@ -15,6 +15,7 @@
 #include "navi/gps.h"
 #include "navi/power.h"
 #include "navi/safe_print.h"
+#include "navi/sd.h"
 #include "navi/system_events.h"
 #include "navi/upload_server.h"
 #include "navi/wifi.h"
@@ -52,8 +53,6 @@ static const char* TAG = "GUI";
 #define GUI_TASK_STACK_SIZE (1024 * 10)
 
 static TaskHandle_t gui_task;
-/* held while the screen is drawn and sent to the display */
-static SemaphoreHandle_t gui_semaphore;
 
 static display_t* eink;
 static regulator_t* eink_reg; // supply of the display, switching it resets the controller
@@ -70,11 +69,11 @@ static volatile app_mode_t current_screen = APP_MODE_NONE; // screen that is sho
 // screen that is on the display, a refresh takes about 16 s after the screen was created
 static volatile app_mode_t displayed_screen = APP_MODE_NONE;
 font_t f8x8, f8x16;
-label_t* clock_label;
+static label_t* clock_label;
 static battery_indicator_t* battery_indicator;
-label_t* north_indicator_label;
-label_t* wifi_indicator_label;
-label_t* ble_indicator_label;
+static label_t* north_indicator_label;
+static label_t* wifi_indicator_label;
+static label_t* ble_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
@@ -82,8 +81,6 @@ error_code_t (*_post_render_hook)(size_t arg);
 size_t _post_rener_hook_arg;
 
 void (*free_screen_func)(void);
-
-map_position_t* map_position;
 
 acep_5in65_dev_t eink_dev = {
     .clk = EINK_SPI_CLK,
@@ -223,6 +220,13 @@ static error_code_t wifi_ap_icon_onBeforeRender(const display_t* dsp, void* imag
     return PM_OK;
 }
 
+static error_code_t sd_icon_onBeforeRender(const display_t* dsp, void* label)
+{
+    image_t* icon = ((label_t*)label)->child;
+    icon->data = sd_is_mounted() ? SD : noSD;
+    return PM_OK;
+}
+
 /*
  * Show the Bluetooth icon while the device advertises, with dots while a phone is connected
  */
@@ -306,6 +310,8 @@ static error_code_t create_top_bar_components(const display_t* dsp)
         sd_indicator_label = create_icon_with_text(dsp, noSD,
             gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
             &f8x8);
+    if (sd_indicator_label)
+        sd_indicator_label->onBeforeRender = sd_icon_onBeforeRender;
 
 #ifdef CLOCK
     /* global clock label. */
@@ -897,40 +903,35 @@ static void gui_task_main(void* argument)
         if (!render_needed && esp_timer_get_time() - last_refresh_us >= (int64_t)display_settings_update_interval() * 1000000LL)
             trigger_rendering();
         if (render_needed) {
-            if (xSemaphoreTake(gui_semaphore, 0) == pdTRUE) {
-                while (render_needed) {
-                    // reset render count. if a renderer triggers a rerender we will directly rerender
-                    render_needed = 0;
-                    app_screen(eink);
-                    if (DEFERRED == app_render())
-                        ESP_LOGI(TAG, "rendering got restarted");
-                }
-                ESP_LOGI(TAG, "Refresh.");
-                // vTaskPrioritySet(NULL, 1);
-                display_commit_fb(eink);
-                // a refresh that timed out did not show the screen
-                if (!ACEP_5IN65_NeedsRecovery())
-                    displayed_screen = current_screen;
-                // the transfer result was on the display, do not draw it again.
-                // A refresh that timed out did not show it, it is drawn again after the reset.
-                if (upload_result_drawn != UPLOAD_IDLE && !ACEP_5IN65_NeedsRecovery()) {
-                    upload_progress_result_shown(upload_result_drawn);
-                    upload_result_drawn = UPLOAD_IDLE;
-                }
-                // same for the failure of a firmware update
-                if (fw_result_drawn != FW_IDLE && !ACEP_5IN65_NeedsRecovery()) {
-                    fw_update_result_shown();
-                    fw_result_drawn = FW_IDLE;
-                }
-                last_refresh_us = esp_timer_get_time();
-                recover_display_if_needed();
-                // vTaskPrioritySet(NULL, 5);
-                ESP_LOGI(TAG, "Refresh finished.");
-                run_post_render_hook();
-                xSemaphoreGive(gui_semaphore);
-            } else {
-                ESP_LOGI(TAG, "Render Mutex locked.");
+            while (render_needed) {
+                // reset render count. if a renderer triggers a rerender we will directly rerender
+                render_needed = 0;
+                app_screen(eink);
+                if (DEFERRED == app_render())
+                    ESP_LOGI(TAG, "rendering got restarted");
             }
+            ESP_LOGI(TAG, "Refresh.");
+            // vTaskPrioritySet(NULL, 1);
+            display_commit_fb(eink);
+            // a refresh that timed out did not show the screen
+            if (!ACEP_5IN65_NeedsRecovery())
+                displayed_screen = current_screen;
+            // the transfer result was on the display, do not draw it again.
+            // A refresh that timed out did not show it, it is drawn again after the reset.
+            if (upload_result_drawn != UPLOAD_IDLE && !ACEP_5IN65_NeedsRecovery()) {
+                upload_progress_result_shown(upload_result_drawn);
+                upload_result_drawn = UPLOAD_IDLE;
+            }
+            // same for the failure of a firmware update
+            if (fw_result_drawn != FW_IDLE && !ACEP_5IN65_NeedsRecovery()) {
+                fw_update_result_shown();
+                fw_result_drawn = FW_IDLE;
+            }
+            last_refresh_us = esp_timer_get_time();
+            recover_display_if_needed();
+            // vTaskPrioritySet(NULL, 5);
+            ESP_LOGI(TAG, "Refresh finished.");
+            run_post_render_hook();
         }
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
@@ -940,8 +941,6 @@ void gui_start_task(void)
 {
     if (gui_task)
         return;
-    if (!gui_semaphore)
-        gui_semaphore = xSemaphoreCreateMutex();
     if (xTaskCreate(gui_task_main, "gui", GUI_TASK_STACK_SIZE, NULL, 6, &gui_task) != pdPASS) {
         ESP_LOGE(TAG, "Can not create GUI task");
         gui_task = NULL;

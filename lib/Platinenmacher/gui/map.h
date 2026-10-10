@@ -57,7 +57,7 @@ void map_free(map_t* map);
 error_code_t map_update_zoom_level(map_t* map, uint8_t level);
 uint8_t map_get_zoom_level(map_t* map);
 map_tile_t* map_get_tile(map_t* map, uint8_t x, uint8_t y);
-error_code_t map_update_position(map_t* map, map_position_t* pos);
+error_code_t map_update_position(map_t* map, const map_position_t* pos);
 error_code_t map_update_tiles(map_t* map);
 error_code_t map_calculate_waypoint(map_t *map, waypoint_t* wp_t);
 uint32_t map_add_waypoint(waypoint_t* wp);

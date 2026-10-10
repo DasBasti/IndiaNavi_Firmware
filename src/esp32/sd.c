@@ -33,7 +33,7 @@ static TaskHandle_t sd_task;
 /* held by the SD task while no card is mounted, published once the task owns it */
 static SemaphoreHandle_t sd_semaphore;
 
-uint8_t sd_status = UNAVAILABLE;
+static volatile uint8_t sd_status = UNAVAILABLE;
 char fn[30];
 sdmmc_card_t* card;
 
@@ -67,15 +67,9 @@ static const esp_vfs_fat_sdmmc_mount_config_t mount_config = {
     .allocation_unit_size = 0
 };
 
-error_code_t statusRender(const display_t* dsp, void* comp)
+bool sd_is_mounted(void)
 {
-    image_t* icon = sd_indicator_label->child;
-    if (sd_status == PM_OK)
-        icon->data = SD;   // show SD card symbol
-    else
-        icon->data = noSD; // show SD card symbol
-
-    return PM_OK;
+    return sd_status == PM_OK;
 }
 
 /*
@@ -493,9 +487,6 @@ static void sd_task_main(void* argument)
                 sd_status = UNAVAILABLE;
             }
         }
-
-        if (sd_indicator_label)
-            sd_indicator_label->onBeforeRender = statusRender;
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }
