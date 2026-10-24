@@ -28,3 +28,7 @@ CONFIG_MBEDTLS_THREADING_C=n
 CONFIG_PM_ENABLE=y
 CONFIG_PM_LIGHT_SLEEP_CALLBACKS=y
 CONFIG_VFS_SUPPORT_TERMIOS=y
+
+# the vector map is a file of several GB that is read with many seeks, a cluster link map
+# makes them fast (otherwise every seek walks the cluster chain)
+CONFIG_FATFS_USE_FASTSEEK=y
