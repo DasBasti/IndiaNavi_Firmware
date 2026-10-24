@@ -15,6 +15,7 @@
 void ble_if_recording_changed(void);
 void ble_if_start(void);
 void ble_if_stop(void);
+void ble_if_display_update(void);
 bool ble_if_is_running(void);
 bool ble_if_is_connected(void);
 int32_t ble_if_passkey(void);

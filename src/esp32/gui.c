@@ -911,6 +911,7 @@ static void gui_task_main(void* argument)
                     ESP_LOGI(TAG, "rendering got restarted");
             }
             ESP_LOGI(TAG, "Refresh.");
+            ble_if_display_update(); // a phone that was disconnected for being idle can reconnect now
             // vTaskPrioritySet(NULL, 1);
             display_commit_fb(eink);
             // a refresh that timed out did not show the screen
