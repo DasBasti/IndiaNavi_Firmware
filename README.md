@@ -139,6 +139,7 @@ The image is written to the inactive OTA partition and checked before it is sele
 Format the card with FAT32 or exFAT. Only 8.3 file names are supported.
 
     ├── MAPS/
+    │   ├── map.map          optional: vector map (Mapsforge), drawn instead of the tiles
     │   ├── 14/{x}/{y}.raw   map tiles for zoom 14
     │   └── 16/{x}/{y}.raw   map tiles for zoom 16
     ├── art1.raw … art14.raw  images for the off screen, one is picked at random
@@ -154,6 +155,15 @@ full-screen images are 448×600 pixels in the same format. Use
 [IndiaNavi Converter](https://github.com/DasBasti/IndiaNavi_Converter) to create the tiles, or upload them with
 the app.
 
+### Vector map
+
+If `MAPS/map.map` exists the map screen draws it directly as polygons, lines and points instead of loading
+tile images, at the same two zoom levels. The renderer is the Rust library
+[mapsforge-rs](https://github.com/DasBasti/mapsforge-rs), expected in `../IndiaNavi_Firmware.rs/mapsforge-rs`
+(or `MAPSFORGE_RS_DIR`) and built by `tools/mapsforge_rs.py` with the Xtensa Rust toolchain
+(`cargo install espup && espup install`). Without the checkout the firmware builds without it and uses tiles.
+The glue is `src/esp32/vector_map.c`, the colors and drawing rules are in the library (`style.rs`).
+
 ## Source layout
 
 | Path | Content |
@@ -166,6 +176,7 @@ the app.
 | `lib/nmea_parser/` | NMEA parser with PMTK/PQ extensions for the L96 |
 | `lib/ble_protocol/` | encoding of the Bluetooth values (tested on the host) |
 | `lib/battery_state/`, `lib/helper/`, `lib/icons_16/` | battery logic, string helpers, icons (made with `tools/generate_icons.py`) |
+| `components/mapsforge/`, `tools/mapsforge_rs.py` | build of the vector map library (mapsforge-rs) |
 | `lib/sxml/` (submodule), `lib/qrcodegen/`, `components/mdns/` | third-party code |
 
 Clone with `git clone --recursive`, or run `git submodule update --init` afterwards.
