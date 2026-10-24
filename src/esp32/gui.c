@@ -304,7 +304,7 @@ static error_code_t create_top_bar_components(const display_t* dsp)
 
     char* GPSView = RTOS_Malloc(GPS_VIEW_STRLEN);
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
-        dsp->size.width - ICON_SIZE - (2 * margin_right) - 16, margin_top, GPSView, &f8x8);
+        dsp->size.width - UI_TOP_BAR_HINT_RESERVED - ICON_SIZE - (2 * margin_right), margin_top, GPSView, &f8x8);
 
     if (gps_indicator_label)
         sd_indicator_label = create_icon_with_text(dsp, noSD,
@@ -828,8 +828,6 @@ static void recover_display_if_needed(void)
     }
 }
 
-/* battery level in percent needed to start the display without a charger */
-#define DISPLAY_MIN_BATTERY_LEVEL 65
 /* time the power task gets to read the battery and the charger */
 #define POWER_STATE_WAIT_MS 10000
 

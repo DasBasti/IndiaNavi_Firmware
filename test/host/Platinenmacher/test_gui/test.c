@@ -1,10 +1,13 @@
 #include <unity.h>
+#include <stdlib.h>
+#include <string.h>
 #include "../mock/mock_display.h"
 #include "../mock/mock_renderhooks.h"
 
 #include "display.h"
 #include "gui/label.h"
 #include "gui/image.h"
+#include "gui/ui.h"
 
 #define printfb (printf_fb(dsp->fb, DISPLAY_HEIGHT,DISPLAY_WIDTH))
 
@@ -169,6 +172,72 @@ void test_image_render_at_negative_position()
     TEST_ASSERT_EQUAL_INT16(-10, img->box.left);
 }
 
+void test_ui_segments_filled()
+{
+    TEST_ASSERT_EQUAL_UINT8(0, ui_segments_filled(0));
+    TEST_ASSERT_EQUAL_UINT8(0, ui_segments_filled(9));
+    TEST_ASSERT_EQUAL_UINT8(1, ui_segments_filled(10));
+    TEST_ASSERT_EQUAL_UINT8(5, ui_segments_filled(59));
+    TEST_ASSERT_EQUAL_UINT8(10, ui_segments_filled(100));
+    TEST_ASSERT_EQUAL_UINT8(10, ui_segments_filled(200));
+}
+
+void test_ui_button_hint_width_and_height()
+{
+    // border, padding, text, padding, arrow, padding
+    TEST_ASSERT_EQUAL_INT16(UI_BORDER + UI_PAD + 32 + UI_PAD + UI_ARROW_SIZE + UI_PAD,
+        ui_button_hint_width(&f8x16, "Test", NULL, NULL));
+    // the wider of text and sub text decides
+    TEST_ASSERT_EQUAL_INT16(UI_BORDER + UI_PAD + 64 + UI_PAD + UI_ARROW_SIZE + UI_PAD,
+        ui_button_hint_width(&f8x16, "Test", &f8x8, "12345678"));
+    TEST_ASSERT_EQUAL_INT16(UI_BORDER + UI_PAD + 16 + UI_PAD + UI_BORDER,
+        ui_button_hint_height(&f8x16, NULL, NULL));
+    TEST_ASSERT_EQUAL_INT16(UI_BORDER + UI_PAD + 16 + UI_PAD + UI_BORDER + 8 + 2,
+        ui_button_hint_height(&f8x16, &f8x8, "x"));
+}
+
+void test_ui_button_hint_touches_the_right_edge()
+{
+    display_t* big = display_init(120, 60, 8, DISPLAY_ROTATE_0);
+    big->fb_size = 120 * 60;
+    big->fb = calloc(big->fb_size, 1);
+    big->write_pixel = write_pixel;
+    memset(big->fb, WHITE, big->fb_size);
+
+    TEST_ASSERT_EQUAL(PM_OK, ui_button_hint(big, 2, &f8x16, "HOLD", NULL, NULL));
+    int16_t width = ui_button_hint_width(&f8x16, "HOLD", NULL, NULL);
+    // the outline is black, at the right edge and at the left edge of the box
+    TEST_ASSERT_EQUAL_UINT8(BLACK, big->fb[(2 + 8) * 120 + 119]);
+    TEST_ASSERT_EQUAL_UINT8(BLACK, big->fb[(2 + 8) * 120 + (120 - width)]);
+    // left of the box nothing is drawn
+    TEST_ASSERT_EQUAL_UINT8(WHITE, big->fb[(2 + 8) * 120 + (120 - width - 1)]);
+    // the arrow is red
+    int reds = 0;
+    for (int i = 0; i < 120 * 60; i++)
+        if (big->fb[i] == RED)
+            reds++;
+    TEST_ASSERT_GREATER_THAN(10, reds);
+    free(big->fb);
+    free(big);
+}
+
+void test_ui_segment_bar_fills_segments()
+{
+    display_t* big = display_init(120, 20, 8, DISPLAY_ROTATE_0);
+    big->fb_size = 120 * 20;
+    big->fb = calloc(big->fb_size, 1);
+    big->write_pixel = write_pixel;
+    memset(big->fb, WHITE, big->fb_size);
+
+    ui_segment_bar(big, 0, 0, 119, 10, 30, GREEN);
+    int16_t segment_width = (119 - (UI_SEGMENTS - 1) * UI_SEGMENT_GAP) / UI_SEGMENTS;
+    int16_t middle = 5;
+    // inside the third segment green, inside the fourth white
+    TEST_ASSERT_EQUAL_UINT8(GREEN, big->fb[middle * 120 + 2 * (segment_width + UI_SEGMENT_GAP) + segment_width / 2]);
+    TEST_ASSERT_EQUAL_UINT8(WHITE, big->fb[middle * 120 + 3 * (segment_width + UI_SEGMENT_GAP) + segment_width / 2]);
+    free(big->fb);
+    free(big);
+}
 
 int main(int argc, char **argv)
 {
@@ -184,6 +253,10 @@ int main(int argc, char **argv)
     RUN_TEST(test_label_textalign);
     RUN_TEST(test_image_render);
     RUN_TEST(test_image_render_at_negative_position);
+    RUN_TEST(test_ui_segments_filled);
+    RUN_TEST(test_ui_button_hint_width_and_height);
+    RUN_TEST(test_ui_button_hint_touches_the_right_edge);
+    RUN_TEST(test_ui_segment_bar_fills_segments);
 
     UNITY_END();
 }

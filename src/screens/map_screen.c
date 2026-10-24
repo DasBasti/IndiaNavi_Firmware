@@ -339,6 +339,17 @@ void load_waypoint_file(char* filename)
 #endif
 }
 
+/*
+ * The button hint in the top bar names the zoom level a press switches away from, so the
+ * screen always says what the button does.
+ */
+static error_code_t render_zoom_hint(const display_t* dsp, void* comp)
+{
+    char text[16];
+    snprintf(text, sizeof(text), "Z%u %s", zoom_level[zoom_level_selected], zoom_level_scaleBox_text[zoom_level_selected]);
+    return ui_button_hint(dsp, 3, &f8x8, text, NULL, NULL);
+}
+
 /**
  * Called from the button handler task. The map is only modified in the render task.
  */
@@ -401,6 +412,7 @@ void map_screen_create(const display_t* display)
     set_screen_free_function(map_screen_free);
     add_to_render_pipeline(map_render, map, RL_MAP);
     add_to_render_pipeline(track_render, NULL, RL_PATH);
+    add_to_render_pipeline(render_zoom_hint, NULL, RL_GUI_ELEMENTS);
 
     /* position marker */
     positon_marker = label_create("", &f8x16, 0, 0, 24, 24);

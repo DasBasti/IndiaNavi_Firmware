@@ -20,22 +20,13 @@
 #define BATTERY_TIP_WIDTH 14
 #define BATTERY_TIP_HEIGHT 36
 #define BATTERY_REST_WIDTH 12 // the little charge that is left
+#define HINT_TOP 8
+#define LINE_GAP 8
+#define MARGIN 24
 
-static label_t* title;
-static label_t* hint;
-
-static char* hints[] = {
-    "Connect the charger",
-    "Charging - push the button to start",
-};
-
-void battery_empty_screen_free(void)
+static void battery_empty_screen_free(void)
 {
     free_all_render_pipelines();
-    RTOS_Free(title);
-    title = NULL;
-    RTOS_Free(hint);
-    hint = NULL;
 }
 
 static error_code_t render_background(const display_t* dsp, void* comp)
@@ -46,7 +37,7 @@ static error_code_t render_background(const display_t* dsp, void* comp)
 static error_code_t render_battery(const display_t* dsp, void* comp)
 {
     int16_t left = (dsp->size.width - BATTERY_WIDTH - BATTERY_TIP_WIDTH) / 2;
-    int16_t top = (dsp->size.height - BATTERY_HEIGHT) / 2 - 40;
+    int16_t top = (dsp->size.height - BATTERY_HEIGHT) / 2 - 80;
 
     display_rect_fill(dsp, left, top, BATTERY_WIDTH, BATTERY_HEIGHT, BLACK);
     display_rect_fill(dsp, left + BATTERY_BORDER, top + BATTERY_BORDER,
@@ -58,9 +49,37 @@ static error_code_t render_battery(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
-static error_code_t hint_onBeforeRender(const display_t* dsp, void* label)
+static void draw_centered(const display_t* dsp, font_t* font, int16_t top, const char* text, color_t color)
 {
-    ((label_t*)label)->text = hints[power_is_charging() ? 1 : 0];
+    int16_t width = font_text_pixel_width(font, text);
+    display_text_draw(dsp, font, (dsp->size.width - width) / 2, top, text, color);
+}
+
+/*
+ * Title in red, what to do in plain words, below it how far the charge is. With the charger
+ * the battery level shows in segments, a tenth each, up to the level where the display starts.
+ */
+static error_code_t render_text(const display_t* dsp, void* comp)
+{
+    int16_t y = (dsp->size.height - BATTERY_HEIGHT) / 2 - 80 + BATTERY_HEIGHT + 56;
+    bool charging = power_is_charging();
+    char line[48];
+
+    draw_centered(dsp, &f8x16, y, "BATTERY EMPTY", RED);
+    y += f8x16.height + 2 * LINE_GAP;
+    draw_centered(dsp, &f8x16, y, charging ? "Charging" : "Connect a charger.", BLACK);
+    y += f8x16.height + LINE_GAP;
+    snprintf(line, sizeof(line), "The device starts at %d%%.", DISPLAY_MIN_BATTERY_LEVEL);
+    draw_centered(dsp, &f8x8, y, line, BLACK);
+    y += f8x8.height + 2 * LINE_GAP;
+
+    int32_t level = power_state_known() ? power_battery_level() : 0;
+    ui_segment_bar(dsp, MARGIN, y, dsp->size.width - 2 * MARGIN, 16,
+        charging && level > 0 ? (uint8_t)(level > 100 ? 100 : level) : 0, GREEN);
+
+    // without the charger a press does nothing, so there is no hint
+    if (charging)
+        ui_button_hint(dsp, HINT_TOP, &f8x16, "PRESS", &f8x8, "to start");
     return PM_OK;
 }
 
@@ -77,24 +96,7 @@ void battery_empty_screen_create(const display_t* dsp)
 {
     add_to_render_pipeline(render_background, NULL, RL_BACKGROUND);
     add_to_render_pipeline(render_battery, NULL, RL_GUI_ELEMENTS);
-
-    int16_t text_top = dsp->size.height / 2 + 30;
-    title = label_create("Battery empty", &f8x16, 0, text_top, dsp->size.width, 24);
-    if (title) {
-        title->alignHorizontal = CENTER;
-        title->alignVertical = MIDDLE;
-        title->backgroundColor = WHITE;
-        add_to_render_pipeline(label_render, title, RL_GUI_ELEMENTS);
-    }
-
-    hint = label_create(hints[0], &f8x8, 0, text_top + 30, dsp->size.width, 16);
-    if (hint) {
-        hint->alignHorizontal = CENTER;
-        hint->alignVertical = MIDDLE;
-        hint->backgroundColor = WHITE;
-        hint->onBeforeRender = hint_onBeforeRender;
-        add_to_render_pipeline(label_render, hint, RL_GUI_ELEMENTS);
-    }
+    add_to_render_pipeline(render_text, NULL, RL_GUI_ELEMENTS);
 
     set_screen_free_function(battery_empty_screen_free);
     set_short_press_event(turn_on_while_charging);

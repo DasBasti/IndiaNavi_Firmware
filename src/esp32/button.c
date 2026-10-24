@@ -22,7 +22,7 @@ static const char* TAG = "BUTTON";
 
 /* the contacts bounce, the button is read when they settled */
 #define BUTTON_DEBOUNCE_MS 30
-#define LONG_PRESS_US (3 * 1000 * 1000)
+#define LONG_PRESS_US (BUTTON_HOLD_MS * 1000ULL)
 
 static esp_timer_handle_t button_timer;
 // one button event in the queue at a time, a bouncing button would fill it and push out other events

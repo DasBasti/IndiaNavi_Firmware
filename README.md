@@ -81,8 +81,12 @@ board environments, runs the host tests, cppcheck and CodeQL (see `.github/workf
 |---|---|
 | Off (deep sleep) | hold for 2 s to switch on |
 | Map screen | short press: switch the zoom level |
-| Any screen | hold for 3 s: switch off |
+| Any screen | hold for 2 s: switch off |
 | Off screen while charging | short press: switch on |
+
+The button is at the top of the right edge. Every screen keeps that corner free for a box with a red arrow
+that names what the button does (`HOLD 2s to start`, `PRESS to start`, the zoom level on the map screen).
+Switching on and off take the same time, `BUTTON_HOLD_MS` in `include/navi/button.h`.
 
 - When a charger is connected the WiFi access point starts and the screen shows a QR code to join it.
   Without a charger WiFi switches off after 10 minutes without use.
