@@ -25,6 +25,8 @@
  */
 void ble_if_start(void) { }
 void ble_if_display_update(void) { }
+void ble_if_sleep(void) { }
+void ble_if_wake(void) { }
 void ble_if_stop(void) { }
 bool ble_if_is_running(void) { return false; }
 bool ble_if_is_connected(void) { return false; }
@@ -90,7 +92,7 @@ static volatile uint16_t conn_handle = NO_CONNECTION;
 static volatile int32_t passkey = -1;            /// shown on the display while a phone pairs
 static volatile int64_t pairing_until_us;        /// a new phone can pair until then
 static volatile int64_t passkey_until_us;        /// the passkey stays on the display until then
-static volatile bool radio_idle;                 /// the idle phone was disconnected, the device advertises in windows only
+static volatile bool radio_idle;                 /// the idle phone was disconnected, Bluetooth only runs in windows
 static volatile int64_t window_until_us;         /// the advertising window ends then
 static volatile int64_t last_activity_us;        /// the phone connected, read, wrote or subscribed at this time
 static char device_name[24];
@@ -624,8 +626,10 @@ static int gap_event(struct ble_gap_event* event, void* arg)
         conn_handle = NO_CONNECTION;
         clear_subscriptions();
         ble_ota_disconnected();
-        if (!radio_idle)
-            advertise(); // else the next window of ble_if_display_update() does
+        if (radio_idle)
+            system_post_event(TASK_EVENT_BLE_SLEEP, 0); // the main task stops Bluetooth until the next window
+        else
+            advertise();
         trigger_rendering(); // the icon shows the connection
         break;
 
@@ -733,11 +737,8 @@ static void worker(void* arg)
         if (passkey >= 0 && conn_handle == NO_CONNECTION && now > passkey_until_us)
             clear_passkey(); // nobody tried again
 
-        if (radio_idle && advertising && now > window_until_us) {
-            ble_gap_adv_stop();
-            set_advertising(false);
-            ESP_LOGI(TAG, "advertising window closed");
-        }
+        if (radio_idle && conn_handle == NO_CONNECTION && now > window_until_us)
+            system_post_event(TASK_EVENT_BLE_SLEEP, 0); // the window is over
 
         if (conn_handle != NO_CONNECTION && now - last_activity_us > IDLE_TIMEOUT_US) {
             ESP_LOGI(TAG, "phone is idle, disconnecting");
@@ -792,20 +793,17 @@ static void host_task(void* param)
  */
 bool ble_if_is_running(void)
 {
-    return running && (advertising || radio_idle || conn_handle != NO_CONNECTION);
+    return radio_idle || (running && (advertising || conn_handle != NO_CONNECTION));
 }
 
 /**
  * The display updates: after the idle disconnect the device can be found for a few seconds now.
- * Called from the GUI task.
+ * Called from the GUI task, the main task starts Bluetooth.
  */
 void ble_if_display_update(void)
 {
-    if (!running || !radio_idle || advertising || conn_handle != NO_CONNECTION)
-        return;
-    window_until_us = esp_timer_get_time() + ADV_WINDOW_US;
-    advertise();
-    ESP_LOGI(TAG, "advertising window opened");
+    if (radio_idle && !running)
+        system_post_event(TASK_EVENT_BLE_WAKE, 0);
 }
 
 bool ble_if_is_connected(void)
@@ -813,10 +811,7 @@ bool ble_if_is_connected(void)
     return running && conn_handle != NO_CONNECTION;
 }
 
-/**
- * Start Bluetooth, does nothing if it runs. Called from the main task.
- */
-void ble_if_start(void)
+static void start_stack(void)
 {
     if (running)
         return;
@@ -857,10 +852,8 @@ void ble_if_start(void)
 
     conn_handle = NO_CONNECTION;
     advertising = false;
-    radio_idle = false;
     clear_subscriptions();
     passkey = -1;
-    open_pairing_window();
     worker_stop = false;
     wifi_status_dirty = false;
     recording_dirty = false;
@@ -878,9 +871,31 @@ void ble_if_start(void)
 }
 
 /**
- * Stop Bluetooth, a running firmware update is aborted. Called from the main task.
+ * Start Bluetooth, does nothing if it runs. Called from the main task.
  */
-void ble_if_stop(void)
+void ble_if_start(void)
+{
+    if (running)
+        return;
+    radio_idle = false;
+    open_pairing_window();
+    start_stack();
+}
+
+/**
+ * A window for a phone that was disconnected for being idle: start Bluetooth for a few seconds and
+ * advertise fast. Called from the main task.
+ */
+void ble_if_wake(void)
+{
+    if (running || !radio_idle)
+        return;
+    window_until_us = esp_timer_get_time() + ADV_WINDOW_US;
+    start_stack();
+    ESP_LOGI(TAG, "window opened");
+}
+
+static void stop_stack(void)
 {
     if (!running)
         return;
@@ -912,6 +927,26 @@ void ble_if_stop(void)
     clear_subscriptions();
     clear_passkey();
     ESP_LOGI(TAG, "stopped");
+}
+
+/**
+ * Stop Bluetooth, a running firmware update is aborted. Called from the main task.
+ */
+void ble_if_stop(void)
+{
+    radio_idle = false;
+    stop_stack();
+}
+
+/**
+ * The idle phone is gone or the window is over: stop Bluetooth until the display updates again.
+ * Called from the main task.
+ */
+void ble_if_sleep(void)
+{
+    if (!radio_idle || conn_handle != NO_CONNECTION)
+        return;
+    stop_stack();
 }
 
 #endif /* ESP_S3 */

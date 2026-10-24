@@ -30,6 +30,8 @@ typedef enum {
     TASK_EVENT_STOP_CHARGING,
     TASK_EVENT_ENABLE_BLE,
     TASK_EVENT_DISABLE_BLE,
+    TASK_EVENT_BLE_SLEEP, /// the idle phone is gone or the advertising window is over: stop Bluetooth
+    TASK_EVENT_BLE_WAKE,  /// the display updates: Bluetooth runs for an advertising window
     TASK_EVENT_ACCELEROMETER, /// interrupt of the accelerometer
 } task_events_e;
 
