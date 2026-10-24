@@ -48,6 +48,8 @@ if os.path.exists(os.path.join(checkout, "Cargo.toml")):
             LIBPATH=[os.path.join(target_dir, triple, "release")],
             LIBS=["mapsforge_rs"],
         )
+        # relink when cargo rebuilt the library, SCons does not look into the libraries by itself
+        env.Depends("$PROG_PATH", os.path.join(target_dir, triple, "release", "libmapsforge_rs.a"))  # noqa: F821
     elif not board:
         print("Building mapsforge-rs for the PC")
         subprocess.check_call(
@@ -72,3 +74,5 @@ if os.path.exists(os.path.join(checkout, "Cargo.toml")):
             # the static Rust library needs the C libraries of std, the rasterizer comes first
             LIBS=["mfr_raster", "mapsforge_rs", "pthread", "dl", "m"],
         )
+        # relink when the libraries were rebuilt, SCons does not look into the libraries by itself
+        env.Depends("$PROG_PATH", [raster_lib, os.path.join(target_dir, "release", "libmapsforge_rs.a")])  # noqa: F821
