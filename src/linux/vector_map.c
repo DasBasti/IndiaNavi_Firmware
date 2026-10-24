@@ -74,7 +74,7 @@ error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uin
     int err = MFR_OK;
     mfr_map_t* map = mfr_open(&io, &err);
     if (map) {
-        mfr_raster_t raster = { .ctx = (void*)dsp, .span = span, .width = dsp->size.width, .height = dsp->size.height };
+        mfr_raster_t raster = { .ctx = (void*)dsp, .span = span, .width = dsp->size.width, .height = dsp->size.height, .white = WHITE };
         mfr_draw_t draw = {
             .ctx = &raster,
             .fill_polygon = draw_fill_polygon,

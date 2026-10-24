@@ -196,7 +196,7 @@ error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uin
         mfr_bounds(map, bounds);
         ESP_LOGI(TAG, "Map %lu bytes, bounds %.4f,%.4f - %.4f,%.4f; view %.5f,%.5f zoom %u", (unsigned long)f_size(&map_io->file),
             bounds[0], bounds[1], bounds[2], bounds[3], lat, lon, zoom);
-        mfr_raster_t raster = { .ctx = (void*)dsp, .span = span, .width = dsp->size.width, .height = dsp->size.height };
+        mfr_raster_t raster = { .ctx = (void*)dsp, .span = span, .width = dsp->size.width, .height = dsp->size.height, .white = WHITE };
         mfr_draw_t draw = {
             .ctx = &raster,
             .fill_polygon = draw_fill_polygon,
