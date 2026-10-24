@@ -164,6 +164,14 @@ tile images, at the same two zoom levels. The renderer is the Rust library
 (`cargo install espup && espup install`). Without the checkout the firmware builds without it and uses tiles.
 The glue is `src/esp32/vector_map.c`, the colors and drawing rules are in the library (`style.rs`).
 
+The simulator draws it too, which is much faster to iterate on than flashing:
+
+```sh
+pio run -e linux_native
+.pio/build/linux_native/program --map ~/maps/germany.map --zoom 14 47.7376 12.6659
+tools/sim_screenshot.sh ~/maps/germany.map 49.6464 8.5735 16 shot.png   # headless-ish: build + PNG
+```
+
 ## Source layout
 
 | Path | Content |

@@ -344,6 +344,14 @@ close_file:
     return ret;
 }
 
+/*
+ * usage: program [--screenshot file.pnm] [--map file.map] [--zoom 14|16] [lat lon [tile directory]]
+ *
+ * With --map (or INDIANAVI_MAP) the map is drawn from the Mapsforge file instead of tiles.
+ * Arrow keys move the position, enter toggles the zoom level, space saves frame.pnm.
+ */
+static const char* screenshot_file;
+
 int main(int argc, char* argv[])
 {
     XEvent evt;
@@ -422,19 +430,31 @@ int main(int argc, char* argv[])
     font_load_from_array(&f8x8, font8x8, font8x8_name);
     font_load_from_array(&f8x16, font8x16, font8x16_name);
 
+    int positional = 0;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
+            screenshot_file = argv[++i];
+        } else if (strcmp(argv[i], "--map") == 0 && i + 1 < argc) {
+            setenv("INDIANAVI_MAP", argv[++i], 1);
+        } else if (strcmp(argv[i], "--zoom") == 0 && i + 1 < argc) {
+            if (atoi(argv[++i]) == 14)
+                toggleZoom(); // the screen starts at zoom level 16
+        } else if (positional == 0) {
+            current_position.latitude = atof(argv[i]);
+            positional++;
+        } else if (positional == 1) {
+            current_position.longitude = atof(argv[i]);
+            positional++;
+        } else if (positional == 2) {
+            set_path_prefix(argv[i]);
+            positional++;
+        }
+    }
+
     create_top_bar(eink);
     map_screen_create(eink);
 
     sd_indicator_label->onBeforeRender = statusRender;
-
-    if (argc > 3) {
-        current_position.latitude = atof(argv[1]);
-        current_position.longitude = atof(argv[2]);
-    }
-
-    if(argc == 4) {
-        set_path_prefix(argv[3]);
-    }
 
     while (1) {
         XNextEvent(dsp, &evt);
@@ -442,8 +462,8 @@ int main(int argc, char* argv[])
             if (evt.type == Expose) {
                 render();
                 XPutImage(dsp, win, gc, frame, 0, 0, 0, 0, ACEP_5IN65_HEIGHT*2, ACEP_5IN65_WIDTH*2);
-                if (argc > 1 && strcmp(argv[1], "--screenshot") == 0) {
-                    save_ximage_pnm(frame, "frame.pnm", 3);
+                if (screenshot_file) {
+                    save_ximage_pnm(frame, screenshot_file, 3);
                     exit(0);
                 }
             }
