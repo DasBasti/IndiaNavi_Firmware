@@ -47,4 +47,13 @@ error_code_t ui_segment_bar(const display_t* dsp, int16_t left, int16_t top, uin
 /** Number of filled segments for a percentage, 0 to UI_SEGMENTS */
 uint8_t ui_segments_filled(uint8_t percent);
 
+#define UI_PROGRESS_HEIGHT 44
+
+/**
+ * Box with a centered text and a progress bar below it, for transfers and firmware updates.
+ * The bar is filled by done / total in the given color.
+ */
+error_code_t ui_progress_box(const display_t* dsp, int16_t left, int16_t top, uint16_t width, const char* text,
+    uint64_t done, uint64_t total, color_t bar_color);
+
 #endif /* PLATINENMACHER_DISPLAY_GUI_UI_H_ */

@@ -60,7 +60,7 @@ pio device monitor -e indianavi_s3_n16r8_release
 | `esp32dev_debug` / `_release` | ESP32 dev board. The debug build uses a fixed position (`NO_GPS`) |
 | `esp32dev_jtag` | debugging with an ESP-Prog |
 | `native` | host unit tests |
-| `linux_native` | renders the map screen in an X11 window on the PC, with the same top bar as the device. Keys simulate the state: `b` battery level, `c` charger, `w` access point, `t` Bluetooth (off, advertising, connected), `s` SD card, `g` GNSS fix, arrows move the position, Enter switches the zoom |
+| `linux_native` | renders the map screen in an X11 window on the PC, with the same top bar as the device. Keys simulate the state: `b` battery level, `c` charger, `w` access point, `t` Bluetooth (off, advertising, connected), `s` SD card, `g` GNSS fix, `u` file transfer progress, `f` firmware update progress, arrows move the position, Enter switches the zoom |
 
 Release builds take the version from git (`.github/git_version.py`). It is shown on the off screen and reported
 by the APIs. The ESP-IDF options are in the `sdkconfig.defaults*` files.

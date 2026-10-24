@@ -356,7 +356,6 @@ static void create_top_bar(const display_t* dsp)
 }
 
 #define PROGRESS_BOX_TOP (ICON_SIZE + margin_vertical + 10) // below the top bar
-#define PROGRESS_BOX_HEIGHT 44
 #define PROGRESS_TEXT_LEN 48
 
 /* result of the transfer drawn in the refresh that is committed next */
@@ -380,26 +379,8 @@ static bool upload_progress_visible(const upload_progress_t* p)
  */
 static void draw_progress_box(const display_t* dsp, const char* text, uint64_t done, uint64_t total, color_t bar_color)
 {
-    int16_t left = margin_left;
-    int16_t width = dsp->size.width - margin_horizontal;
-    int16_t top = PROGRESS_BOX_TOP;
-    display_rect_fill(dsp, left, top, width, PROGRESS_BOX_HEIGHT, WHITE);
-    display_rect_draw(dsp, left, top, width, PROGRESS_BOX_HEIGHT, BLACK);
-
-    int16_t text_width = font_text_pixel_width(&f8x16, text);
-    display_text_draw(dsp, &f8x16, left + (width - text_width) / 2, top + 4, text, BLACK);
-
-    // progress bar below the text
-    int16_t bar_left = left + margin_left;
-    int16_t bar_top = top + 26;
-    int16_t bar_width = width - margin_horizontal;
-    int16_t bar_height = 12;
-    if (done > total)
-        done = total;
-    display_rect_draw(dsp, bar_left, bar_top, bar_width, bar_height, BLACK);
-    if (total)
-        display_rect_fill(dsp, bar_left + 1, bar_top + 1,
-            (uint32_t)((uint64_t)(bar_width - 2) * done / total), bar_height - 2, bar_color);
+    ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, done, total,
+        bar_color);
 }
 
 /**

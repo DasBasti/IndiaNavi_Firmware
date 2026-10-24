@@ -193,6 +193,40 @@ static const uint8_t sim_battery_levels[] = { 100, 80, 50, 30, 10, 3 };
 
 static battery_indicator_t* battery_indicator;
 
+/* progress boxes of transfers and firmware updates, as gui.c draws them below the top bar */
+#define PROGRESS_BOX_TOP (ICON_SIZE + margin_vertical + 10)
+#define SIM_FILES 12
+static uint8_t sim_upload;   // 0 idle, 1-4 active, 5 complete, 6 stopped
+static uint8_t sim_firmware; // 0 idle, 1-5 active (0 to 100%), 6 failed
+
+static void render_progress_boxes(const display_t* dsp)
+{
+    char text[48];
+    uint32_t done = (sim_upload - 1) * 4;
+    switch (sim_upload) {
+    case 0:
+        break;
+    case 5:
+        snprintf(text, sizeof(text), "Upload complete: %u files", SIM_FILES);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, SIM_FILES, SIM_FILES, GREEN);
+        break;
+    case 6:
+        snprintf(text, sizeof(text), "Upload stopped: %u / %u files", 8, SIM_FILES);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, 8, SIM_FILES, RED);
+        break;
+    default:
+        snprintf(text, sizeof(text), "Upload %u / %u files", done, SIM_FILES);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, done, SIM_FILES, GREEN);
+    }
+    if (sim_firmware == 6) {
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, "Firmware update failed", 0, 100, RED);
+    } else if (sim_firmware) {
+        uint32_t percent = (sim_firmware - 1) * 25;
+        snprintf(text, sizeof(text), "Firmware update %u%%", percent);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, percent, 100, GREEN);
+    }
+}
+
 static int sprint_battery_percent(char* buffer, const char* format, ...)
 {
     va_list args;
@@ -375,6 +409,7 @@ void render()
             rd = rd->next;
         }
     }
+    render_progress_boxes(eink);
 }
 
 void trigger_rendering()
@@ -560,6 +595,12 @@ int main(int argc, char* argv[])
                         break;
                     case XK_s: // SD card
                         sd_status = (sd_status == PM_OK) ? PM_FAIL : PM_OK;
+                        break;
+                    case XK_u: // file transfer: idle, running in steps, complete, stopped
+                        sim_upload = (sim_upload + 1) % 7;
+                        break;
+                    case XK_f: // firmware update: idle, running in steps, failed
+                        sim_firmware = (sim_firmware + 1) % 7;
                         break;
                     case XK_g: // GNSS fix
                         current_position.fix = current_position.fix == GPS_FIX_INVALID ? GPS_FIX_GPS : GPS_FIX_INVALID;

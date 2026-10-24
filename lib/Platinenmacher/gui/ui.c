@@ -8,6 +8,8 @@
 
 #include "ui.h"
 
+extern font_t f8x16;
+
 static int16_t max16(int16_t a, int16_t b)
 {
     return a > b ? a : b;
@@ -84,5 +86,28 @@ error_code_t ui_segment_bar(const display_t* dsp, int16_t left, int16_t top, uin
         for (int16_t b = 0; b < UI_BORDER; b++)
             display_rect_draw(dsp, x + b, top + b, segment_width - 2 * b, height - 2 * b, BLACK);
     }
+    return PM_OK;
+}
+
+error_code_t ui_progress_box(const display_t* dsp, int16_t left, int16_t top, uint16_t width, const char* text,
+    uint64_t done, uint64_t total, color_t bar_color)
+{
+    display_rect_fill(dsp, left, top, width, UI_PROGRESS_HEIGHT, WHITE);
+    display_rect_draw(dsp, left, top, width, UI_PROGRESS_HEIGHT, BLACK);
+
+    int16_t text_width = font_text_pixel_width(&f8x16, text);
+    display_text_draw(dsp, &f8x16, left + (width - text_width) / 2, top + 4, text, BLACK);
+
+    // progress bar below the text
+    int16_t bar_left = left + 5;
+    int16_t bar_top = top + 26;
+    int16_t bar_width = width - 10;
+    int16_t bar_height = 12;
+    if (done > total)
+        done = total;
+    display_rect_draw(dsp, bar_left, bar_top, bar_width, bar_height, BLACK);
+    if (total)
+        display_rect_fill(dsp, bar_left + 1, bar_top + 1,
+            (uint32_t)((uint64_t)(bar_width - 2) * done / total), bar_height - 2, bar_color);
     return PM_OK;
 }
