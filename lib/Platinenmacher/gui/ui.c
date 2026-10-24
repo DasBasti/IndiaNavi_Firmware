@@ -10,6 +10,13 @@
 
 extern font_t f8x16;
 
+/* the host tests are built for a black and white display */
+#ifdef EINK_7COLOR
+#define UI_ARROW_COLOR RED
+#else
+#define UI_ARROW_COLOR BLACK
+#endif
+
 static int16_t max16(int16_t a, int16_t b)
 {
     return a > b ? a : b;
@@ -44,10 +51,10 @@ error_code_t ui_box(const display_t* dsp, int16_t left, int16_t top, uint16_t wi
 static void draw_arrow(const display_t* dsp, int16_t left, int16_t top)
 {
     const int16_t s = UI_ARROW_SIZE;
-    display_rect_fill(dsp, left + 3, top, s - 3, 3, RED);         // head, top edge
-    display_rect_fill(dsp, left + s - 3, top, 3, s - 3, RED);     // head, right edge
+    display_rect_fill(dsp, left + 3, top, s - 3, 3, UI_ARROW_COLOR);         // head, top edge
+    display_rect_fill(dsp, left + s - 3, top, 3, s - 3, UI_ARROW_COLOR);     // head, right edge
     for (int16_t i = 0; i < 3; i++)                               // shaft
-        display_line_draw(dsp, left + i, top + s - 1, left + s - 3 + i, top + 2, RED);
+        display_line_draw(dsp, left + i, top + s - 1, left + s - 3 + i, top + 2, UI_ARROW_COLOR);
 }
 
 error_code_t ui_button_hint(const display_t* dsp, int16_t top, font_t* font, const char* text,

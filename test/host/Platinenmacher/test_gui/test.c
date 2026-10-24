@@ -172,6 +172,15 @@ void test_image_render_at_negative_position()
     TEST_ASSERT_EQUAL_INT16(-10, img->box.left);
 }
 
+/* the host tests also run on a black and white display */
+#ifdef EINK_7COLOR
+#define TEST_ARROW_COLOR RED
+#define TEST_FILL_COLOR GREEN
+#else
+#define TEST_ARROW_COLOR BLACK
+#define TEST_FILL_COLOR BLACK
+#endif
+
 void test_ui_segments_filled()
 {
     TEST_ASSERT_EQUAL_UINT8(0, ui_segments_filled(0));
@@ -214,7 +223,7 @@ void test_ui_button_hint_touches_the_right_edge()
     // the arrow is red
     int reds = 0;
     for (int i = 0; i < 120 * 60; i++)
-        if (big->fb[i] == RED)
+        if (big->fb[i] == TEST_ARROW_COLOR)
             reds++;
     TEST_ASSERT_GREATER_THAN(10, reds);
     free(big->fb);
@@ -229,11 +238,11 @@ void test_ui_segment_bar_fills_segments()
     big->write_pixel = write_pixel;
     memset(big->fb, WHITE, big->fb_size);
 
-    ui_segment_bar(big, 0, 0, 119, 10, 30, GREEN);
+    ui_segment_bar(big, 0, 0, 119, 10, 30, TEST_FILL_COLOR);
     int16_t segment_width = (119 - (UI_SEGMENTS - 1) * UI_SEGMENT_GAP) / UI_SEGMENTS;
     int16_t middle = 5;
     // inside the third segment green, inside the fourth white
-    TEST_ASSERT_EQUAL_UINT8(GREEN, big->fb[middle * 120 + 2 * (segment_width + UI_SEGMENT_GAP) + segment_width / 2]);
+    TEST_ASSERT_EQUAL_UINT8(TEST_FILL_COLOR, big->fb[middle * 120 + 2 * (segment_width + UI_SEGMENT_GAP) + segment_width / 2]);
     TEST_ASSERT_EQUAL_UINT8(WHITE, big->fb[middle * 120 + 3 * (segment_width + UI_SEGMENT_GAP) + segment_width / 2]);
     free(big->fb);
     free(big);
