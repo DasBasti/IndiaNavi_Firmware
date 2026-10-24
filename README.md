@@ -85,7 +85,7 @@ board environments, runs the host tests, cppcheck and CodeQL (see `.github/workf
 | Off screen while charging | short press: switch on |
 
 The button is at the top of the right edge. Every screen keeps that corner free for a box with a red arrow
-that names what the button does (`HOLD 2s to start`, `PRESS to start`, the zoom level on the map screen).
+that names what the button does (`HOLD 2s to start`, `PRESS to start`).
 Switching on and off take the same time, `BUTTON_HOLD_MS` in `include/navi/button.h`.
 
 - When a charger is connected the WiFi access point starts and the screen shows a QR code to join it.

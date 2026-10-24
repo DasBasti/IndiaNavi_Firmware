@@ -19,8 +19,6 @@
 #define UI_ARROW_SIZE 12
 #define UI_SEGMENTS 10 // a segment bar is a tenth per segment
 #define UI_SEGMENT_GAP 3
-/* the right end of the top bar belongs to the button hint, the icons stop before it */
-#define UI_TOP_BAR_HINT_RESERVED 100
 
 /** Width of the button hint with this text (and sub text, may be NULL) */
 int16_t ui_button_hint_width(font_t* font, const char* text, font_t* sub_font, const char* sub);
