@@ -63,6 +63,7 @@ graph_point_t* height_graph_data;
 static uint16_t height_graph_data_len;
 float height_min = __FLT_MAX__, height_max = -__FLT_MAX__;
 
+#define INFO_STRIP_HEIGHT 16
 #define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
 static const uint8_t offset_x = 159;
 static const uint8_t offset_y = 85;
@@ -80,11 +81,11 @@ static error_code_t updateInfoText(const display_t* dsp, void* comp)
     // a hidden track hides its name, the line shows the position as without a track
     if (gpx_data && gpx_data->track_name && display_settings_show_track()) {
         save_snprintf(infoBox->text, INFOBOX_STRLEN, "%s", gpx_data->track_name);
-        infoBox->backgroundColor = TRANSPARENT;
+        infoBox->backgroundColor = BLACK;
         return PM_OK;
     }
 
-    infoBox->backgroundColor = WHITE;
+    infoBox->backgroundColor = BLACK;
     if (map_position->fix != GPS_FIX_INVALID) {
         char lat = 'N';
         if (map_position->latitude < 0)
@@ -467,11 +468,13 @@ void map_screen_create(const display_t* display)
     map_copyright_top_with_graph = map_copyright->box.top;
     update_height_graph_layout();
 
-    infoBox = label_create("", &f8x8, 0, dsp->size.height - 14,
-        dsp->size.width - 1, 13);
+    /* black strip at the bottom edge with the track name or the position, white text */
+    infoBox = label_create("", &f8x8, 0, dsp->size.height - INFO_STRIP_HEIGHT,
+        dsp->size.width, INFO_STRIP_HEIGHT);
     infoBox->alignVertical = MIDDLE;
-    infoBox->alignHorizontal = RIGHT;
-    infoBox->backgroundColor = WHITE;
+    infoBox->alignHorizontal = CENTER;
+    infoBox->textColor = WHITE;
+    infoBox->backgroundColor = BLACK;
     infoBox->onBeforeRender = updateInfoText;
     infoBox->text = RTOS_Malloc(INFOBOX_STRLEN);
     add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
