@@ -456,6 +456,13 @@ int main(int argc, char* argv[])
 
     sd_indicator_label->onBeforeRender = statusRender;
 
+    if (screenshot_file) {
+        // no need to wait for the window to be shown, the frame is rendered into memory
+        render();
+        save_ximage_pnm(frame, screenshot_file, 3);
+        return 0;
+    }
+
     while (1) {
         XNextEvent(dsp, &evt);
         if (evt.xany.window == win) {
