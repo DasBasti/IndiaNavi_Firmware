@@ -7,7 +7,8 @@
  * IndiaNavi_App/docs/ble_api.md, their encoding is in lib/ble_protocol.
  *
  * Only one phone can be paired. It has to enter the passkey that is shown on
- * the display. As long as it is connected nobody else can connect.
+ * the display. As long as it is connected nobody else can connect, a phone that
+ * does not use the connection for 5 minutes is disconnected.
  * The WiFi password is never sent, the phone reads it from the QR code.
  *
  * Copyright (c) 2026, Bastian Neumann <info@platinenmacher.tech>
@@ -23,6 +24,7 @@
  * without it, the functions do nothing.
  */
 void ble_if_start(void) { }
+void ble_if_display_update(void) { }
 void ble_if_stop(void) { }
 bool ble_if_is_running(void) { return false; }
 bool ble_if_is_connected(void) { return false; }
@@ -66,6 +68,8 @@ static const char* TAG = "BLE";
 /* a phone that is not paired yet can pair for this long after Bluetooth started */
 #define PAIRING_WINDOW_US (120LL * 1000 * 1000)
 #define PASSKEY_SHOWN_US (120LL * 1000 * 1000)
+/* a phone that does not read, write or subscribe for this long is disconnected, the radio can sleep again */
+#define IDLE_TIMEOUT_US (5LL * 60 * 1000 * 1000)
 #define PREFERRED_MTU 247
 #define POSITION_INTERVAL_US (5LL * 1000 * 1000)
 #define WORKER_STACK_SIZE 3072
@@ -74,6 +78,10 @@ static const char* TAG = "BLE";
 #define MAX_VALUE_SIZE (BLEP_RECORDINGS_HEADER_SIZE + BLEP_RECORDINGS_MAX_ENTRIES * BLEP_RECORDINGS_ENTRY_SIZE)
 #define ADV_INTERVAL_MIN_MS 500
 #define ADV_INTERVAL_MAX_MS 600
+/* after the idle disconnect the radio is off, it advertises for this long while the display updates */
+#define ADV_WINDOW_US (5LL * 1000 * 1000)
+#define ADV_WINDOW_INTERVAL_MIN_MS 100
+#define ADV_WINDOW_INTERVAL_MAX_MS 120
 
 static volatile bool running;
 static volatile bool advertising;                /// the stack advertises, a phone can find the device
@@ -82,6 +90,9 @@ static volatile uint16_t conn_handle = NO_CONNECTION;
 static volatile int32_t passkey = -1;            /// shown on the display while a phone pairs
 static volatile int64_t pairing_until_us;        /// a new phone can pair until then
 static volatile int64_t passkey_until_us;        /// the passkey stays on the display until then
+static volatile bool radio_idle;                 /// the idle phone was disconnected, the device advertises in windows only
+static volatile int64_t window_until_us;         /// the advertising window ends then
+static volatile int64_t last_activity_us;        /// the phone connected, read, wrote or subscribed at this time
 static char device_name[24];
 
 /* the phone subscribed to the notifications of these characteristics */
@@ -177,7 +188,9 @@ static void set_advertising(bool on)
 {
     if (advertising != on) {
         advertising = on;
-        trigger_rendering();
+        // the windows would update the display again and open the next window
+        if (!radio_idle)
+            trigger_rendering();
     }
 }
 
@@ -215,8 +228,8 @@ static void advertise(void)
     memset(&params, 0, sizeof(params));
     params.conn_mode = BLE_GAP_CONN_MODE_UND;
     params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    params.itvl_min = BLE_GAP_ADV_ITVL_MS(ADV_INTERVAL_MIN_MS);
-    params.itvl_max = BLE_GAP_ADV_ITVL_MS(ADV_INTERVAL_MAX_MS);
+    params.itvl_min = BLE_GAP_ADV_ITVL_MS(radio_idle ? ADV_WINDOW_INTERVAL_MIN_MS : ADV_INTERVAL_MIN_MS);
+    params.itvl_max = BLE_GAP_ADV_ITVL_MS(radio_idle ? ADV_WINDOW_INTERVAL_MAX_MS : ADV_INTERVAL_MAX_MS);
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &params, gap_event, NULL);
     if (rc != 0 && rc != BLE_HS_EALREADY) {
         ESP_LOGE(TAG, "advertising failed: %d", rc);
@@ -490,6 +503,7 @@ static int access_cb(uint16_t conn, uint16_t attr_handle, struct ble_gatt_access
     static uint8_t value[MAX_VALUE_SIZE];
     (void)conn;
     (void)attr_handle;
+    last_activity_us = esp_timer_get_time();
     uint8_t id = (uint8_t)(uintptr_t)arg;
 
     if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
@@ -594,9 +608,11 @@ static int gap_event(struct ble_gap_event* event, void* arg)
             break;
         }
         conn_handle = event->connect.conn_handle;
+        radio_idle = false; // advertises normally again if this phone is idle too
         advertising = false; // the stack stops advertising for the connection
         clear_subscriptions();
         recordings_first = 0;
+        last_activity_us = esp_timer_get_time();
         ESP_LOGI(TAG, "phone connected");
         if (pairing_allowed())
             show_passkey(); // it might want to pair
@@ -608,7 +624,8 @@ static int gap_event(struct ble_gap_event* event, void* arg)
         conn_handle = NO_CONNECTION;
         clear_subscriptions();
         ble_ota_disconnected();
-        advertise();
+        if (!radio_idle)
+            advertise(); // else the next window of ble_if_display_update() does
         trigger_rendering(); // the icon shows the connection
         break;
 
@@ -617,6 +634,7 @@ static int gap_event(struct ble_gap_event* event, void* arg)
         break;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
+        last_activity_us = esp_timer_get_time();
         if (event->subscribe.attr_handle == position_out_handle)
             subscribed_position = event->subscribe.cur_notify;
         else if (event->subscribe.attr_handle == wifi_status_handle)
@@ -715,6 +733,19 @@ static void worker(void* arg)
         if (passkey >= 0 && conn_handle == NO_CONNECTION && now > passkey_until_us)
             clear_passkey(); // nobody tried again
 
+        if (radio_idle && advertising && now > window_until_us) {
+            ble_gap_adv_stop();
+            set_advertising(false);
+            ESP_LOGI(TAG, "advertising window closed");
+        }
+
+        if (conn_handle != NO_CONNECTION && now - last_activity_us > IDLE_TIMEOUT_US) {
+            ESP_LOGI(TAG, "phone is idle, disconnecting");
+            radio_idle = true;
+            last_activity_us = now; // the disconnect event takes a moment
+            ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        }
+
         if (subscribed_position && now - last_position_us >= POSITION_INTERVAL_US) {
             last_position_us = now;
             if (gps_is_position_known()) {
@@ -761,7 +792,20 @@ static void host_task(void* param)
  */
 bool ble_if_is_running(void)
 {
-    return running && (advertising || conn_handle != NO_CONNECTION);
+    return running && (advertising || radio_idle || conn_handle != NO_CONNECTION);
+}
+
+/**
+ * The display updates: after the idle disconnect the device can be found for a few seconds now.
+ * Called from the GUI task.
+ */
+void ble_if_display_update(void)
+{
+    if (!running || !radio_idle || advertising || conn_handle != NO_CONNECTION)
+        return;
+    window_until_us = esp_timer_get_time() + ADV_WINDOW_US;
+    advertise();
+    ESP_LOGI(TAG, "advertising window opened");
 }
 
 bool ble_if_is_connected(void)
@@ -813,6 +857,7 @@ void ble_if_start(void)
 
     conn_handle = NO_CONNECTION;
     advertising = false;
+    radio_idle = false;
     clear_subscriptions();
     passkey = -1;
     open_pairing_window();
