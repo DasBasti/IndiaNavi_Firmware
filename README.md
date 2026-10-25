@@ -159,8 +159,8 @@ the app.
 
 If `MAPS/map.map` exists the map screen draws it directly as polygons, lines and points instead of loading
 tile images, at the same two zoom levels. The renderer is the Rust library
-[mapsforge-rs](https://github.com/DasBasti/mapsforge-rs), expected in `../IndiaNavi_Firmware.rs/mapsforge-rs`
-(or `MAPSFORGE_RS_DIR`) and built by `tools/mapsforge_rs.py` with the Xtensa Rust toolchain
+[mapsforge-rs](https://github.com/DasBasti/mapsforge-rs), the submodule `lib/mapsforge-rs`
+(`git submodule update --init`, or another checkout in `MAPSFORGE_RS_DIR`) and built by `tools/mapsforge_rs.py` with the Xtensa Rust toolchain
 (`cargo install espup && espup install`). Without the checkout the firmware builds without it and uses tiles.
 The glue is `src/esp32/vector_map.c`, the colors and drawing rules are in the library (`style.rs`).
 
@@ -190,6 +190,7 @@ simulator `--no-fix` starts without a fix and the key `f` toggles it.
 | `lib/ble_protocol/` | encoding of the Bluetooth values (tested on the host) |
 | `lib/battery_state/`, `lib/helper/`, `lib/icons_16/` | battery logic, string helpers, icons (made with `tools/generate_icons.py`) |
 | `components/mapsforge/`, `tools/mapsforge_rs.py` | build of the vector map library (mapsforge-rs) |
+| `lib/mapsforge-rs/` (submodule) | vector map renderer (Rust + C rasterizer), built by `tools/mapsforge_rs.py`, `components/mapsforge/` links it |
 | `lib/sxml/` (submodule), `lib/qrcodegen/`, `components/mdns/` | third-party code |
 
 Clone with `git clone --recursive`, or run `git submodule update --init` afterwards.

@@ -8,7 +8,7 @@
 #   VECTOR_MAP, the simulator then draws MAPS/map.map of its SD card directory.
 #
 # Without a mapsforge-rs checkout nothing is linked and the firmware uses tile images only. The
-# checkout is MAPSFORGE_RS_DIR from the environment or ../IndiaNavi_Firmware.rs/mapsforge-rs.
+# checkout is MAPSFORGE_RS_DIR from the environment or the submodule lib/mapsforge-rs.
 import os
 import subprocess
 
@@ -24,7 +24,7 @@ build_dir = env.subst("$BUILD_DIR")  # noqa: F821
 checkout = os.path.abspath(
     os.environ.get(
         "MAPSFORGE_RS_DIR",
-        os.path.join(project_dir, "..", "IndiaNavi_Firmware.rs", "mapsforge-rs"),
+        os.path.join(project_dir, "lib", "mapsforge-rs"),
     )
 )
 board = env.get("BOARD")  # noqa: F821, the native platform has none

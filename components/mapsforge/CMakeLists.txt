@@ -1,13 +1,13 @@
 # Vector map renderer (Mapsforge .map files), a Rust static library from the mapsforge-rs
 # repository plus a small C rasterizer. It is built with cargo and the Xtensa Rust toolchain
 # (`espup install`, toolchain "esp"). Without that checkout the firmware still builds and keeps
-# using the pre-rendered tiles: set MAPSFORGE_RS_DIR in the environment to the checkout, or
-# put it next to this repository as IndiaNavi_Firmware.rs/mapsforge-rs.
+# using the pre-rendered tiles. The checkout is the submodule lib/mapsforge-rs
+# (`git submodule update --init`), MAPSFORGE_RS_DIR in the environment points to another one.
 
 set(mapsforge_dir "$ENV{MAPSFORGE_RS_DIR}")
 if("${mapsforge_dir}" STREQUAL "")
     get_filename_component(mapsforge_dir
-        "${CMAKE_CURRENT_LIST_DIR}/../../../IndiaNavi_Firmware.rs/mapsforge-rs" ABSOLUTE)
+        "${CMAKE_CURRENT_LIST_DIR}/../../lib/mapsforge-rs" ABSOLUTE)
 endif()
 
 if(IDF_TARGET STREQUAL "esp32s3")
