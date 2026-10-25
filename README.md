@@ -36,8 +36,25 @@ The pins are in [`include/pins.h`](include/pins.h). Datasheets of the GNSS modul
 
 ## Building
 
-Install [PlatformIO](https://platformio.org/) (`pip install platformio`). The build script picks the right
-environment:
+Needed:
+
+- [PlatformIO](https://platformio.org/): `pip install platformio`
+- The sources including the submodules: `git clone --recursive`, or `git submodule update --init --recursive`
+- **Rust with the Xtensa toolchain** for the vector map library ([mapsforge-rs](lib/mapsforge-rs), built
+  automatically by `tools/mapsforge_rs.py`). Install [rustup](https://rustup.rs), then:
+
+  ```sh
+  cargo install espup
+  espup install --targets esp32s3     # esp32 for the older board; creates the toolchain "esp"
+  ```
+
+  Check with `rustup toolchain list` that `esp` is there. `espup` prints an `export-esp.sh`, which the build
+  does not need, because it calls `rustup run esp cargo`. The first build downloads and compiles `core` and
+  `alloc` for the Xtensa target (`-Zbuild-std`), later ones only rebuild what changed. The `linux_native`
+  environment only needs the normal `cargo` and `gcc`. Without the submodule the firmware builds without the
+  vector map and shows tiles only.
+
+The build script picks the right environment:
 
 ```sh
 ./build.sh                      # debug build for the ESP32-S3 board
@@ -161,7 +178,7 @@ If `MAPS/map.map` exists the map screen draws it directly as polygons, lines and
 tile images, at the same two zoom levels. The renderer is the Rust library
 [mapsforge-rs](https://github.com/DasBasti/mapsforge-rs), the submodule `lib/mapsforge-rs`
 (`git submodule update --init`, or another checkout in `MAPSFORGE_RS_DIR`) and built by `tools/mapsforge_rs.py` with the Xtensa Rust toolchain
-(`cargo install espup && espup install`). Without the checkout the firmware builds without it and uses tiles.
+(see [Building](#building)). Without the checkout the firmware builds without it and uses tiles.
 The glue is `src/esp32/vector_map.c`, the colors and drawing rules are in the library (`style.rs`).
 
 The simulator draws it too, which is much faster to iterate on than flashing:
