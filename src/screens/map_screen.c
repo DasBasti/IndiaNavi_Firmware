@@ -28,6 +28,7 @@
 #include "esp_timer.h"
 #endif
 
+#include <artwork.h>
 #include <icons_16.h>
 
 #if !defined(TESTING) && !defined(LINUX)
@@ -65,10 +66,20 @@ graph_point_t* height_graph_data;
 static uint16_t height_graph_data_len;
 float height_min = __FLT_MAX__, height_max = -__FLT_MAX__;
 
+/* the searching picture below the top bar, it ends above the scale and the height graph */
+#define SEARCHING_POSITION_TOP 36
+
 #define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
 static const uint8_t offset_x = 159;
 static const uint8_t offset_y = 85;
 static const char* TAG = "map_screen";
+
+/* the map can only be drawn with a position */
+static bool position_known(void)
+{
+    const map_position_t* map_position = gps_get_position();
+    return map_position && map_position->fix != GPS_FIX_INVALID;
+}
 
 /**
  * render cb for InfoText label
@@ -167,8 +178,9 @@ void find_closest_waypoint(waypoint_t* wp)
  */
 static error_code_t track_render(const display_t* dsp, void* component)
 {
-    // the track can be hidden in the app, the position marker stays
-    if (!display_settings_show_track())
+    // the track can be hidden in the app, the position marker stays.
+    // Without a position the waypoints would be drawn where the map was last.
+    if (!display_settings_show_track() || !position_known())
         return NOT_NEEDED;
 
     // the color can be changed in the app
@@ -258,6 +270,24 @@ static error_code_t vector_map_render_cb(const display_t* dsp, void* component)
     int16_t anchor_x = m->box.left + 256 + m->pos_x;
     int16_t anchor_y = m->box.top + 256 + m->pos_y;
     return vector_map_render(dsp, map_position->latitude, map_position->longitude, m->tile_zoom, anchor_x, anchor_y);
+}
+
+/*
+ * Until the position is known there is no map, a picture says that the position is searched.
+ * The GPS task triggers a refresh when the first fix arrives, then the map replaces it.
+ */
+static error_code_t searching_position_render(const display_t* dsp, void* component)
+{
+    if (position_known())
+        return NOT_NEEDED;
+    const artwork_t* art = &searching_position_artwork;
+    return artwork_draw(dsp, art, (dsp->size.width - art->width) / 2, SEARCHING_POSITION_TOP);
+}
+
+/* the scale is meaningless without a map */
+static error_code_t scale_box_render_cb(const display_t* dsp, void* component)
+{
+    return position_known() ? PM_OK : ABORT;
 }
 
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
@@ -420,6 +450,7 @@ void map_screen_create(const display_t* display)
     vector_mode = vector_map_available();
     ESP_LOGI(TAG, "Map from %s", vector_mode ? "vector map file" : "tile images");
     add_to_render_pipeline(vector_mode ? vector_map_render_cb : map_render, map, RL_MAP);
+    add_to_render_pipeline(searching_position_render, NULL, RL_MAP);
     add_to_render_pipeline(track_render, NULL, RL_PATH);
 
     /* position marker */
@@ -439,6 +470,7 @@ void map_screen_create(const display_t* display)
     scaleBox->textColor = BLACK;
     scaleBox->alignVertical = BOTTOM;
     scaleBox->alignHorizontal = CENTER;
+    scaleBox->onBeforeRender = scale_box_render_cb;
     add_to_render_pipeline(label_render, scaleBox, RL_TOP);
 
     map_copyright = label_create("By theBrutzler & Platinenmacher 2023", &f8x8, 0, dsp->size.height - 10 - 45, 0, 0);

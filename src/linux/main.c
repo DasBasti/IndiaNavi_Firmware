@@ -345,10 +345,11 @@ close_file:
 }
 
 /*
- * usage: program [--screenshot file.pnm] [--map file.map] [--zoom 14|16] [lat lon [tile directory]]
+ * usage: program [--screenshot file.pnm] [--map file.map] [--zoom 14|16] [--no-fix] [lat lon [tile directory]]
  *
  * With --map (or INDIANAVI_MAP) the map is drawn from the Mapsforge file instead of tiles.
- * Arrow keys move the position, enter toggles the zoom level, space saves frame.pnm.
+ * --no-fix starts without a GPS fix, the map screen shows that the position is searched.
+ * Arrow keys move the position, enter toggles the zoom level, f toggles the fix, space saves frame.pnm.
  */
 static const char* screenshot_file;
 
@@ -436,6 +437,8 @@ int main(int argc, char* argv[])
             screenshot_file = argv[++i];
         } else if (strcmp(argv[i], "--map") == 0 && i + 1 < argc) {
             setenv("INDIANAVI_MAP", argv[++i], 1);
+        } else if (strcmp(argv[i], "--no-fix") == 0) {
+            current_position.fix = GPS_FIX_INVALID;
         } else if (strcmp(argv[i], "--zoom") == 0 && i + 1 < argc) {
             if (atoi(argv[++i]) == 14)
                 toggleZoom(); // the screen starts at zoom level 16
@@ -491,6 +494,10 @@ int main(int argc, char* argv[])
                     break;
                 case 114:
                     current_position.longitude += 0.0002;
+                    break;
+                case 41: // f
+                    current_position.fix = current_position.fix == GPS_FIX_INVALID ? GPS_FIX_GPS : GPS_FIX_INVALID;
+                    printf("GPS fix %s\n", current_position.fix == GPS_FIX_INVALID ? "lost" : "found");
                     break;
                 case 65: // spacebar
                     save_ximage_pnm(frame, "frame.pnm", 3);

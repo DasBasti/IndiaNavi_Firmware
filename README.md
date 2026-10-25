@@ -170,7 +170,12 @@ The simulator draws it too, which is much faster to iterate on than flashing:
 pio run -e linux_native
 .pio/build/linux_native/program --map ~/maps/germany.map --zoom 14 47.7376 12.6659
 tools/sim_screenshot.sh ~/maps/germany.map 49.6464 8.5735 16 shot.png   # headless-ish: build + PNG
+tools/sim_screenshot.sh ~/maps/germany.map 49.6464 8.5735 16 search.png --no-fix   # no GPS fix yet
 ```
+
+Until the position is known the map screen shows a picture that the position is searched
+(`lib/artwork`, generated from `tools/art/splash.png` by `tools/generate_searching_image.py`). In the
+simulator `--no-fix` starts without a fix and the key `f` toggles it.
 
 ## Source layout
 
