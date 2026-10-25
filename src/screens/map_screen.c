@@ -473,7 +473,7 @@ void map_screen_create(const display_t* display)
     scaleBox->onBeforeRender = scale_box_render_cb;
     add_to_render_pipeline(label_render, scaleBox, RL_TOP);
 
-    map_copyright = label_create("By theBrutzler & Platinenmacher 2023", &f8x8, 0, dsp->size.height - 10 - 45, 0, 0);
+    map_copyright = label_create("", &f8x8, 0, dsp->size.height - 10 - 45, 0, 0);
     label_shrink_to_text(map_copyright);
     map_copyright->box.left = dsp->size.width - map_copyright->box.width;
     map_copyright->onBeforeRender = map_render_copyright;
