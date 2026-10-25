@@ -1,3 +1,6 @@
 [submodule "lib/sxml"]
 	path = lib/sxml
 	url = https://github.com/capmar/sxml
+[submodule "lib/mapsforge-rs"]
+	path = lib/mapsforge-rs
+	url = https://github.com/DasBasti/mapsforge-rs.git

@@ -29,6 +29,14 @@ jobs:
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio
 
+    # mapsforge-rs (vector map) is Rust and needs the Xtensa toolchain, which rustup does not have
+    - name: Install the Rust toolchain for Xtensa
+      uses: esp-rs/xtensa-toolchain@v1.5
+      with:
+        default: false
+        buildtargets: esp32s3
+        ldproxy: false
+
     - name: Install pio and its dependencies
       run: |
         python -m pip install --upgrade pip

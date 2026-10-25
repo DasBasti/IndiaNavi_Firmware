@@ -36,8 +36,25 @@ The pins are in [`include/pins.h`](include/pins.h). Datasheets of the GNSS modul
 
 ## Building
 
-Install [PlatformIO](https://platformio.org/) (`pip install platformio`). The build script picks the right
-environment:
+Needed:
+
+- [PlatformIO](https://platformio.org/): `pip install platformio`
+- The sources including the submodules: `git clone --recursive`, or `git submodule update --init --recursive`
+- **Rust with the Xtensa toolchain** for the vector map library ([mapsforge-rs](lib/mapsforge-rs), built
+  automatically by `tools/mapsforge_rs.py`). Install [rustup](https://rustup.rs), then:
+
+  ```sh
+  cargo install espup
+  espup install --targets esp32s3     # esp32 for the older board; creates the toolchain "esp"
+  ```
+
+  Check with `rustup toolchain list` that `esp` is there. `espup` prints an `export-esp.sh`, which the build
+  does not need, because it calls `rustup run esp cargo`. The first build downloads and compiles `core` and
+  `alloc` for the Xtensa target (`-Zbuild-std`), later ones only rebuild what changed. The `linux_native`
+  environment only needs the normal `cargo` and `gcc`. Without the submodule the firmware builds without the
+  vector map and shows tiles only.
+
+The build script picks the right environment:
 
 ```sh
 ./build.sh                      # debug build for the ESP32-S3 board
@@ -139,6 +156,7 @@ The image is written to the inactive OTA partition and checked before it is sele
 Format the card with FAT32 or exFAT. Only 8.3 file names are supported.
 
     ├── MAPS/
+    │   ├── map.map          optional: vector map (Mapsforge), drawn instead of the tiles
     │   ├── 14/{x}/{y}.raw   map tiles for zoom 14
     │   └── 16/{x}/{y}.raw   map tiles for zoom 16
     ├── art1.raw … art14.raw  images for the off screen, one is picked at random
@@ -154,6 +172,28 @@ full-screen images are 448×600 pixels in the same format. Use
 [IndiaNavi Converter](https://github.com/DasBasti/IndiaNavi_Converter) to create the tiles, or upload them with
 the app.
 
+### Vector map
+
+If `MAPS/map.map` exists the map screen draws it directly as polygons, lines and points instead of loading
+tile images, at the same two zoom levels. The renderer is the Rust library
+[mapsforge-rs](https://github.com/DasBasti/mapsforge-rs), the submodule `lib/mapsforge-rs`
+(`git submodule update --init`, or another checkout in `MAPSFORGE_RS_DIR`) and built by `tools/mapsforge_rs.py` with the Xtensa Rust toolchain
+(see [Building](#building)). Without the checkout the firmware builds without it and uses tiles.
+The glue is `src/esp32/vector_map.c`, the colors and drawing rules are in the library (`style.rs`).
+
+The simulator draws it too, which is much faster to iterate on than flashing:
+
+```sh
+pio run -e linux_native
+.pio/build/linux_native/program --map ~/maps/germany.map --zoom 14 47.7376 12.6659
+tools/sim_screenshot.sh ~/maps/germany.map 49.6464 8.5735 16 shot.png   # headless-ish: build + PNG
+tools/sim_screenshot.sh ~/maps/germany.map 49.6464 8.5735 16 search.png --no-fix   # no GPS fix yet
+```
+
+Until the position is known the map screen shows a picture that the position is searched
+(`lib/artwork`, generated from `tools/art/splash.png` by `tools/generate_searching_image.py`). In the
+simulator `--no-fix` starts without a fix and the key `f` toggles it.
+
 ## Source layout
 
 | Path | Content |
@@ -166,6 +206,8 @@ the app.
 | `lib/nmea_parser/` | NMEA parser with PMTK/PQ extensions for the L96 |
 | `lib/ble_protocol/` | encoding of the Bluetooth values (tested on the host) |
 | `lib/battery_state/`, `lib/helper/`, `lib/icons_16/` | battery logic, string helpers, icons (made with `tools/generate_icons.py`) |
+| `components/mapsforge/`, `tools/mapsforge_rs.py` | build of the vector map library (mapsforge-rs) |
+| `lib/mapsforge-rs/` (submodule) | vector map renderer (Rust + C rasterizer), built by `tools/mapsforge_rs.py`, `components/mapsforge/` links it |
 | `lib/sxml/` (submodule), `lib/qrcodegen/`, `components/mdns/` | third-party code |
 
 Clone with `git clone --recursive`, or run `git submodule update --init` afterwards.
