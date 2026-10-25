@@ -164,6 +164,7 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
     switch (event_id) {
     case GPS_UPDATE:
         _gps = (gps_t*)event_data;
+        bool position_was_known = current_position.fix != GPS_FIX_INVALID;
         // the module reports an empty position until it has a fix, that must
         // not replace the position the phone sent
         if (_gps->fix != GPS_FIX_INVALID || current_position.fix != GPS_FIX_PHONE) {
@@ -173,6 +174,9 @@ gps_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t 
             current_position.hdop = _gps->dop_h;
             current_position.fix = _gps->fix;
         }
+        // the map screen shows a searching picture until then, the map replaces it now
+        if (!position_was_known && current_position.fix != GPS_FIX_INVALID)
+            trigger_rendering();
         current_position.satellites_in_use = _gps->sats_in_use;
         current_position.satellites_in_view = _gps->sats_in_view;
 

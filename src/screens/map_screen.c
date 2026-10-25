@@ -22,11 +22,13 @@
 #include "navi/display_settings.h"
 #include "navi/safe_print.h"
 #include "navi/sd.h"
+#include "navi/vector_map.h"
 
 #if !defined(TESTING) && !defined(LINUX)
 #include "esp_timer.h"
 #endif
 
+#include <artwork.h>
 #include <icons_16.h>
 
 #if !defined(TESTING) && !defined(LINUX)
@@ -48,6 +50,7 @@ static uint32_t visible_waypoints_size;
 static uint32_t visible_waypoints_count;
 static float closest_wp_distance;
 static float longitude_scale; // cos(latitude), a degree of longitude is shorter than one of latitude
+static bool vector_mode;       // the map is drawn from a Mapsforge file instead of loading tile images
 
 /* scale box and copyright notice sit above the height graph, and lower without it */
 #define HEIGHT_GRAPH_SHIFT 29
@@ -64,10 +67,21 @@ static uint16_t height_graph_data_len;
 float height_min = __FLT_MAX__, height_max = -__FLT_MAX__;
 
 #define INFO_STRIP_HEIGHT 16
+
+/* the searching picture below the top bar, it ends above the scale and the height graph */
+#define SEARCHING_POSITION_TOP 36
+
 #define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
 static const uint8_t offset_x = 159;
 static const uint8_t offset_y = 85;
 static const char* TAG = "map_screen";
+
+/* the map can only be drawn with a position */
+static bool position_known(void)
+{
+    const map_position_t* map_position = gps_get_position();
+    return map_position && map_position->fix != GPS_FIX_INVALID;
+}
 
 /**
  * render cb for InfoText label
@@ -166,8 +180,9 @@ void find_closest_waypoint(waypoint_t* wp)
  */
 static error_code_t track_render(const display_t* dsp, void* component)
 {
-    // the track can be hidden in the app, the position marker stays
-    if (!display_settings_show_track())
+    // the track can be hidden in the app, the position marker stays.
+    // Without a position the waypoints would be drawn where the map was last.
+    if (!display_settings_show_track() || !position_known())
         return NOT_NEEDED;
 
     // the color can be changed in the app
@@ -241,6 +256,40 @@ static error_code_t height_graph_render(const display_t* dsp, void* component)
     if (!height_graph_visible())
         return NOT_NEEDED;
     return graph_renderer(dsp, component);
+}
+
+/*
+ * Draws the map from the vector map file. The position is at the same pixel as on the tiles, so
+ * the marker, the track and the waypoints, which are placed on the tile grid, fit.
+ */
+static error_code_t vector_map_render_cb(const display_t* dsp, void* component)
+{
+    const map_position_t* map_position = gps_get_position();
+    if (!map_position || map_position->fix == GPS_FIX_INVALID)
+        return NOT_NEEDED;
+
+    const map_t* m = (const map_t*)component;
+    int16_t anchor_x = m->box.left + 256 + m->pos_x;
+    int16_t anchor_y = m->box.top + 256 + m->pos_y;
+    return vector_map_render(dsp, map_position->latitude, map_position->longitude, m->tile_zoom, anchor_x, anchor_y);
+}
+
+/*
+ * Until the position is known there is no map, a picture says that the position is searched.
+ * The GPS task triggers a refresh when the first fix arrives, then the map replaces it.
+ */
+static error_code_t searching_position_render(const display_t* dsp, void* component)
+{
+    if (position_known())
+        return NOT_NEEDED;
+    const artwork_t* art = &searching_position_artwork;
+    return artwork_draw(dsp, art, (dsp->size.width - art->width) / 2, SEARCHING_POSITION_TOP);
+}
+
+/* the scale is meaningless without a map */
+static error_code_t scale_box_render_cb(const display_t* dsp, void* component)
+{
+    return position_known() ? PM_OK : ABORT;
 }
 
 static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
@@ -400,7 +449,10 @@ void map_screen_create(const display_t* display)
         return;
     }
     set_screen_free_function(map_screen_free);
-    add_to_render_pipeline(map_render, map, RL_MAP);
+    vector_mode = vector_map_available();
+    ESP_LOGI(TAG, "Map from %s", vector_mode ? "vector map file" : "tile images");
+    add_to_render_pipeline(vector_mode ? vector_map_render_cb : map_render, map, RL_MAP);
+    add_to_render_pipeline(searching_position_render, NULL, RL_MAP);
     add_to_render_pipeline(track_render, NULL, RL_PATH);
 
     /* position marker */
@@ -420,9 +472,10 @@ void map_screen_create(const display_t* display)
     scaleBox->textColor = BLACK;
     scaleBox->alignVertical = BOTTOM;
     scaleBox->alignHorizontal = CENTER;
+    scaleBox->onBeforeRender = scale_box_render_cb;
     add_to_render_pipeline(label_render, scaleBox, RL_TOP);
 
-    map_copyright = label_create("By theBrutzler & Platinenmacher 2023", &f8x8, 0, dsp->size.height - 10 - 45, 0, 0);
+    map_copyright = label_create("", &f8x8, 0, dsp->size.height - 10 - 45, 0, 0);
     label_shrink_to_text(map_copyright);
     map_copyright->box.left = dsp->size.width - map_copyright->box.width;
     map_copyright->onBeforeRender = map_render_copyright;
@@ -432,12 +485,15 @@ void map_screen_create(const display_t* display)
     // attach zoom_level event to short click
     set_short_press_event(toggleZoom);
 
+    // the tile images are not needed to draw a vector map
+    if (!vector_mode) {
 #ifdef ESP_S3
-    map_attach_onBeforeRender_callback(map, load_map_tiles_to_permanent_memory);
+        map_attach_onBeforeRender_callback(map, load_map_tiles_to_permanent_memory);
 #else
-    map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
-    map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
+        map_tile_attach_onBeforeRender_callback(map, load_map_tile_on_demand);
+        map_tile_attach_onAfterRender_callback(map, check_if_map_tile_is_loaded);
 #endif // ESP_S3
+    }
 
     load_waypoint_file("//track.gpx");
 

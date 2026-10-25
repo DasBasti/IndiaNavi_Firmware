@@ -185,6 +185,12 @@ static void handle_event(task_events_e event)
     case TASK_EVENT_DISABLE_BLE:
         ble_if_stop();
         break;
+    case TASK_EVENT_BLE_SLEEP:
+        ble_if_sleep();
+        break;
+    case TASK_EVENT_BLE_WAKE:
+        ble_if_wake();
+        break;
     default:
         break;
     }

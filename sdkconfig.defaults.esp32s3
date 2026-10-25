@@ -14,7 +14,8 @@ CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=247
 CONFIG_BT_NIMBLE_ENABLED=y
 # the host task reads the list of recordings from the SD card
 CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=6144
-CONFIG_BT_NIMBLE_MAX_BONDS=1
+# one slot more than phones: the keys of a new phone need room until forget_other_phones() removed the old one
+CONFIG_BT_NIMBLE_MAX_BONDS=2
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
 CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT=24
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
