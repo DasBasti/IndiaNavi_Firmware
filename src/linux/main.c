@@ -1,7 +1,9 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
@@ -18,6 +20,7 @@ GC gc;
 #include "fonts/font8x8.h"
 #include "gui/image.h"
 #include "gui/label.h"
+#include "gui/battery_indicator.h"
 #include <icons_16.h>
 
 #include "gui.h"
@@ -40,6 +43,7 @@ uint8_t zoom = 0;
 
 extern error_code_t statusRender(const display_t* dsp, void* comp);
 extern void toggleZoom();
+extern uint8_t sd_status;
 extern void set_path_prefix(char *prefix);
 
 
@@ -66,9 +70,9 @@ static map_position_t current_position = {
 };
 
 label_t* clock_label;
-label_t* battery_label;
 label_t* north_indicator_label;
 label_t* wifi_indicator_label;
+label_t* ble_indicator_label;
 label_t* gps_indicator_label;
 label_t* sd_indicator_label;
 
@@ -175,10 +179,90 @@ error_code_t updateTimeText(const display_t* dsp, void* comp)
     return PM_OK;
 }
 
+/*
+ * The state of the device, changed with the keys. It is what the power, wifi, ble and sd modules
+ * tell the top bar on the device.
+ */
+static struct {
+    uint8_t battery_index;
+    bool charging;
+    bool wifi_ap;
+    uint8_t ble; // 0 off, 1 advertising, 2 connected
+} sim = { 0, false, true, 1 };
+static const uint8_t sim_battery_levels[] = { 100, 80, 50, 30, 10, 3 };
+
+static battery_indicator_t* battery_indicator;
+
+/* progress boxes of transfers and firmware updates, as gui.c draws them below the top bar */
+#define PROGRESS_BOX_TOP (ICON_SIZE + margin_vertical + 10)
+#define SIM_FILES 12
+static uint8_t sim_upload;   // 0 idle, 1-4 active, 5 complete, 6 stopped
+static uint8_t sim_firmware; // 0 idle, 1-5 active (0 to 100%), 6 failed
+
+static void render_progress_boxes(const display_t* dsp)
+{
+    char text[48];
+    uint32_t done = (sim_upload - 1) * 4;
+    switch (sim_upload) {
+    case 0:
+        break;
+    case 5:
+        snprintf(text, sizeof(text), "Upload complete: %u files", SIM_FILES);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, SIM_FILES, SIM_FILES, GREEN);
+        break;
+    case 6:
+        snprintf(text, sizeof(text), "Upload stopped: %u / %u files", 8, SIM_FILES);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, 8, SIM_FILES, RED);
+        break;
+    default:
+        snprintf(text, sizeof(text), "Upload %u / %u files", done, SIM_FILES);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, done, SIM_FILES, GREEN);
+    }
+    if (sim_firmware == 6) {
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, "Firmware update failed", 0, 100, RED);
+    } else if (sim_firmware) {
+        uint32_t percent = (sim_firmware - 1) * 25;
+        snprintf(text, sizeof(text), "Firmware update %u%%", percent);
+        ui_progress_box(dsp, margin_left, PROGRESS_BOX_TOP, dsp->size.width - margin_horizontal, text, percent, 100, GREEN);
+    }
+}
+
+static int sprint_battery_percent(char* buffer, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, BATTERY_CHARGE_STRBUF, format, args);
+    va_end(args);
+    return 0;
+}
+
+static error_code_t battery_indicator_onBeforeRender(const display_t* dsp, void* comp)
+{
+    battery_indicator->charging = sim.charging;
+    battery_indicator_set_level(battery_indicator, sim_battery_levels[sim.battery_index]);
+    return PM_OK;
+}
+
+static error_code_t wifi_ap_icon_onBeforeRender(const display_t* dsp, void* image)
+{
+    ((image_t*)image)->data = sim.wifi_ap ? WIFI_AP : NULL;
+    return PM_OK;
+}
+
+static error_code_t ble_icon_onBeforeRender(const display_t* dsp, void* image)
+{
+    uint8_t* data = NULL;
+    if (sim.ble == 2)
+        data = BLE_conn;
+    else if (sim.ble == 1)
+        data = BLE;
+    ((image_t*)image)->data = data;
+    return PM_OK;
+}
+
 static label_t* create_icon_with_text(const display_t* dsp, uint8_t* icon_data,
     uint16_t left, uint16_t top, char* text, font_t* font)
 {
-
     image_t* img = image_create(icon_data, left, top, ICON_SIZE,
         ICON_SIZE);
 
@@ -187,15 +271,20 @@ static label_t* create_icon_with_text(const display_t* dsp, uint8_t* icon_data,
     il->child = img;
     label_shrink_to_text(il);
     il->alignVertical = MIDDLE;
-    add_to_render_pipeline(label_render, il, RL_GUI_ELEMENTS);
-    // render image after Label is rendered
-    add_to_render_pipeline(image_render, img, RL_GUI_ELEMENTS);
     return il;
 }
 
+static void add_icon_with_text_to_pipeline(label_t* il)
+{
+    add_to_render_pipeline(label_render, il, RL_GUI_ELEMENTS);
+    // render image after Label is rendered
+    add_to_render_pipeline(image_render, il->child, RL_GUI_ELEMENTS);
+}
+
+/* the same components, in the same places and order as the top bar of the device (gui.c) */
 static void create_top_bar(const display_t* dsp)
 {
-    label_t* sb = label_create("", &f8x8, 0, 0, (dsp->size.width - 1),
+    label_t* sb = label_create("", &f8x8, 0, 0, dsp->size.width,
         ICON_SIZE + margin_vertical);
 
     sb->borderColor = BLACK;
@@ -204,30 +293,46 @@ static void create_top_bar(const display_t* dsp)
     sb->alignHorizontal = CENTER;
     sb->alignVertical = MIDDLE;
     sb->backgroundColor = WHITE;
-    add_to_render_pipeline(label_render, sb, RL_GUI_BACKGROUND);
 
-    /* TODO: export battery component */
-
-    battery_label = create_icon_with_text(dsp, bat_100,
-        sb->box.left + margin_left, margin_top, RTOS_Malloc(4), &f8x8);
-    sprintf(battery_label->text, "...%%");
-    label_shrink_to_text(battery_label);
+    battery_indicator = create_battery_indicator(sb->box.left + margin_left, margin_top,
+        sim_battery_levels[sim.battery_index], sim.charging, &f8x8, batlevels, batlevel_images, batlevel_num);
+    battery_indicator->save_printf = sprint_battery_percent;
+    // the device shows "...%" until the power task read the battery, the other icons are placed behind it
+    sprintf(battery_indicator->label_text, "...%%");
+    label_shrink_to_text(&battery_indicator->label);
+    battery_indicator->label.onBeforeRender = battery_indicator_onBeforeRender;
 
     north_indicator_label = create_icon_with_text(dsp, norden,
-        battery_label->box.left + battery_label->box.width + margin_horizontal,
+        battery_indicator->label.box.left + battery_indicator->label.box.width + margin_horizontal,
         margin_top, "", &f8x8);
 
-    wifi_indicator_label = create_icon_with_text(dsp, WIFI_0,
+    wifi_indicator_label = create_icon_with_text(dsp, WIFI_AP,
         north_indicator_label->box.left + north_indicator_label->box.width + margin_horizontal,
         margin_top, "", &f8x8);
+    ((image_t*)wifi_indicator_label->child)->onBeforeRender = wifi_ap_icon_onBeforeRender;
+
+    ble_indicator_label = create_icon_with_text(dsp, BLE,
+        wifi_indicator_label->box.left + wifi_indicator_label->box.width + margin_horizontal,
+        margin_top, "", &f8x8);
+    ((image_t*)ble_indicator_label->child)->onBeforeRender = ble_icon_onBeforeRender;
 
     char* GPSView = RTOS_Malloc(sizeof(char) * 5);
+    GPSView[0] = 0;
     gps_indicator_label = create_icon_with_text(dsp, noGPS,
         dsp->size.width - ICON_SIZE - (2 * margin_right) - 16, margin_top, GPSView, &f8x8);
 
     sd_indicator_label = create_icon_with_text(dsp, noSD,
         gps_indicator_label->box.left - 2 * ICON_SIZE - margin_right, margin_top, "",
         &f8x8);
+
+    add_to_render_pipeline(label_render, sb, RL_GUI_BACKGROUND);
+    add_to_render_pipeline(label_render, &battery_indicator->label, RL_GUI_ELEMENTS);
+    add_to_render_pipeline(image_render, &battery_indicator->image, RL_GUI_ELEMENTS);
+    add_icon_with_text_to_pipeline(north_indicator_label);
+    add_icon_with_text_to_pipeline(wifi_indicator_label);
+    add_icon_with_text_to_pipeline(ble_indicator_label);
+    add_icon_with_text_to_pipeline(gps_indicator_label);
+    add_icon_with_text_to_pipeline(sd_indicator_label);
 
 #ifdef CLOCK
     /* global clock label. */
@@ -304,6 +409,7 @@ void render()
             rd = rd->next;
         }
     }
+    render_progress_boxes(eink);
 }
 
 void trigger_rendering()
@@ -506,8 +612,37 @@ int main(int argc, char* argv[])
                     toggleZoom();
                     printf("Zoom toggled\n");
                     break;
-                default:
-                    printf("Unknown button: %d\n", evt.xkey.keycode);
+                default: {
+                    // simulated state of the device
+                    switch (XLookupKeysym(&evt.xkey, 0)) {
+                    case XK_b: // battery level
+                        sim.battery_index = (sim.battery_index + 1) % (sizeof(sim_battery_levels));
+                        break;
+                    case XK_c: // charger
+                        sim.charging = !sim.charging;
+                        break;
+                    case XK_w: // access point
+                        sim.wifi_ap = !sim.wifi_ap;
+                        break;
+                    case XK_t: // bluetooth: off, advertising, connected
+                        sim.ble = (sim.ble + 1) % 3;
+                        break;
+                    case XK_s: // SD card
+                        sd_status = (sd_status == PM_OK) ? PM_FAIL : PM_OK;
+                        break;
+                    case XK_u: // file transfer: idle, running in steps, complete, stopped
+                        sim_upload = (sim_upload + 1) % 7;
+                        break;
+                    case XK_f: // firmware update: idle, running in steps, failed
+                        sim_firmware = (sim_firmware + 1) % 7;
+                        break;
+                    case XK_g: // GNSS fix
+                        current_position.fix = current_position.fix == GPS_FIX_INVALID ? GPS_FIX_GPS : GPS_FIX_INVALID;
+                        break;
+                    default:
+                        printf("Unknown button: %d\n", evt.xkey.keycode);
+                    }
+                }
                 }
                 render();
                 XPutImage(dsp, win, gc, frame, 0, 0, 0, 0, ACEP_5IN65_HEIGHT*2, ACEP_5IN65_WIDTH*2);

@@ -7,6 +7,7 @@
  */
 
 #include "gui.h"
+#include "navi/button.h"
 #include "navi/sd.h"
 
 static const display_t* dsp;
@@ -18,6 +19,26 @@ image_t* splash;
 #define SPLASH_WIDTH 448
 #define SPLASH_HEIGHT 600
 #define SPLASH_DATA_SIZE (SPLASH_WIDTH * SPLASH_HEIGHT / 2)
+
+/* sheet with the reason for waiting, the picture never reaches the text */
+#define SHEET_HEIGHT 72
+#define SHEET_EDGE 4
+#define SHEET_MARGIN 16
+#define HINT_TOP 8
+
+static error_code_t render_message(const display_t* dsp, void* comp)
+{
+    int16_t top = dsp->size.height - SHEET_HEIGHT;
+    display_rect_fill(dsp, 0, top, dsp->size.width, SHEET_HEIGHT, WHITE);
+    display_rect_fill(dsp, 0, top, dsp->size.width, SHEET_EDGE, BLACK);
+    display_text_draw(dsp, &f8x16, SHEET_MARGIN, top + SHEET_EDGE + 12, "No position yet", BLACK);
+    display_text_draw(dsp, &f8x8, SHEET_MARGIN, top + SHEET_EDGE + 12 + f8x16.height + 6,
+        "Looking for satellites. Go outside, open sky.", BLACK);
+
+    char hold[16];
+    snprintf(hold, sizeof(hold), "HOLD %us", (unsigned)(BUTTON_HOLD_MS / 1000));
+    return ui_button_hint(dsp, HINT_TOP, &f8x16, hold, &f8x8, "to switch off");
+}
 
 void picture_screen_free()
 {
@@ -70,6 +91,7 @@ void picture_screen_create(const display_t* display)
     splash = image_create(splash_image_data, 0, 0, SPLASH_WIDTH, SPLASH_HEIGHT);
     if (splash)
         add_to_render_pipeline(image_render, splash, RL_MAP);
+    add_to_render_pipeline(render_message, NULL, RL_GUI_ELEMENTS);
 
     set_screen_free_function(picture_screen_free);
 }

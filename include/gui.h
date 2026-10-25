@@ -33,6 +33,9 @@ typedef enum {
     APP_MODE_RUNNING,
 } app_mode_t;
 
+/* battery level in percent needed to start the display without a charger */
+#define DISPLAY_MIN_BATTERY_LEVEL 65
+
 /* the map screen shows the satellites, the simulator the SD card */
 extern label_t* gps_indicator_label;
 extern label_t* sd_indicator_label;

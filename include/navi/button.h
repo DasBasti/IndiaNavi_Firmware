@@ -13,6 +13,9 @@
 #ifndef NAVI_BUTTON_H_
 #define NAVI_BUTTON_H_
 
+/* switching on and off take the same time, the button has to be held this long */
+#define BUTTON_HOLD_MS 2000
+
 /* the GPIO ISR service must be installed */
 void button_init(void);
 /* TASK_EVENT_BUTTON arrived: wait until the contacts settled and act */

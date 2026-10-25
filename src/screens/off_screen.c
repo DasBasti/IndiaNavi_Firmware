@@ -1,6 +1,9 @@
 /*
  * Off screen component for GUI
  *
+ * A picture from the SD card, the hint for the button in the corner where the button is, and a
+ * white sheet with the state of the device. The e-ink display keeps the image while the device sleeps.
+ *
  * Copyright (c) 2023, Bastian Neumann <info@platinenmacher.tech>
  *
  * SPDX-License-Identifier: MIT
@@ -13,8 +16,6 @@
 #include "navi/sd.h"
 #include "navi/wifi.h"
 
-#include <icons_16.h>
-
 #include <esp_mac.h>
 #include <esp_random.h>
 #include <qrcodegen.h>
@@ -24,173 +25,137 @@
 static const display_t* dsp;
 
 // created components
-static char* infoText;
-static label_t* infoBox;
-static image_t* wifi_indicator_image;
-static label_t* push_button;
-static label_t* qr_label;
-
-static uint8_t *qrcode;
-static uint8_t *tempBuffer;
+static uint8_t* qrcode;
+static uint8_t* tempBuffer;
 static uint8_t* splash_image_data = NULL;
 static image_t* splash;
+static char* url;
 
 #define SPLASH_WIDTH 448
 #define SPLASH_HEIGHT 600
 #define SPLASH_DATA_SIZE (SPLASH_WIDTH * SPLASH_HEIGHT / 2)
-static char *url;
 #define URL_LENGTH 61
 
-/* QR code with the access point credentials, shown while charging */
+/* the sheet at the bottom of the screen carries all the text, the picture never reaches it */
+#define SHEET_HEIGHT 168
+#define SHEET_EDGE 4
+#define SHEET_MARGIN 16
 #define QR_MODULE_SIZE 3 // pixel per QR module
-#define QR_TOP 495
-#define WIFI_QR_BOX_WIDTH 160
-#define WIFI_QR_TEXT_LINES 2
-#define WIFI_QR_TEXT_LEN 64
+#define QR_QUIET_ZONE 4  // white space around a QR code for scanners
+#define LINE_GAP 6
+#define LINE_TEXT_LEN 64
 
-typedef struct {
-    uint8_t* code;
-    int16_t left;
-    int16_t top;
-    bool (*visible)(void);
-} qr_view_t;
+/* hint in the corner of the button, the hold time is the same for switching on and off */
+#define HINT_TOP 8
+static char hint_text[16];
 
-static qr_view_t url_qr;
-static qr_view_t wifi_qr;
-static label_t* wifi_qr_label;
-static char* wifi_qr_text;
-
-void off_screen_free()
+static void off_screen_free(void)
 {
     free_all_render_pipelines();
 
-    RTOS_Free(infoText);
-    infoText = NULL;
-    RTOS_Free(infoBox);
-    infoBox = NULL;
-    RTOS_Free(push_button);
-    push_button = NULL;
-    RTOS_Free(qr_label);
-    qr_label = NULL;
     RTOS_Free(splash);
     splash = NULL;
     RTOS_Free(splash_image_data);
     splash_image_data = NULL;
-    RTOS_Free(wifi_indicator_image);
-    wifi_indicator_image = NULL;
     RTOS_Free(tempBuffer);
     tempBuffer = NULL;
     RTOS_Free(qrcode);
     qrcode = NULL;
     RTOS_Free(url);
     url = NULL;
-    wifi_qr.code = NULL; // owned by wifi.c
-    RTOS_Free(wifi_qr_label);
-    wifi_qr_label = NULL;
-    RTOS_Free(wifi_qr_text);
-    wifi_qr_text = NULL;
 }
 
-static char* messages[] = { "Device is sleeping push button to start   ", "Device is charging push button to start   " };
-
-error_code_t render_arrow(const display_t* dsp, void*)
+/* QR code with a white quiet zone around it, the size in pixel is returned */
+static int16_t draw_qr(const uint8_t* code, int16_t left, int16_t top)
 {
-    int16_t startx, starty;
-    startx = dsp->size.width - 16;
-    starty = 4;
-
-    // down arrow
-    display_line_draw(dsp, startx, starty, startx + 6, starty + 4, BLACK);
-    display_line_draw(dsp, startx + 6, starty + 4, startx + 12, starty + 0, BLACK);
-
-    // button Box
-    display_rect_draw(dsp, startx + 2, starty + 8, 12, 18, BLACK);
-    display_rect_fill(dsp, startx + 5, starty + 12, 6, 10, RED);
-    return PM_OK;
+    int16_t modules = qrcodegen_getSize(code);
+    int16_t size = modules * QR_MODULE_SIZE;
+    display_rect_fill(dsp, left - QR_QUIET_ZONE, top - QR_QUIET_ZONE, size + 2 * QR_QUIET_ZONE,
+        size + 2 * QR_QUIET_ZONE, WHITE);
+    for (int16_t y = 0; y < modules; y++)
+        for (int16_t x = 0; x < modules; x++)
+            if (qrcodegen_getModule(code, x, y))
+                display_rect_fill(dsp, left + x * QR_MODULE_SIZE, top + y * QR_MODULE_SIZE, QR_MODULE_SIZE,
+                    QR_MODULE_SIZE, BLACK);
+    return size;
 }
 
-// Draws the given QR Code at its position
-static error_code_t render_qr(const display_t* dsp, void* comp)
+/* text centered over a QR code, in the small font */
+static void draw_qr_caption(const char* text, int16_t qr_left, int16_t qr_size, int16_t top)
 {
-    qr_view_t* view = (qr_view_t*)comp;
-    if (!view->code || (view->visible && !view->visible()))
-        return NOT_NEEDED;
-    int size = qrcodegen_getSize(view->code);
-    for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
-            display_rect_fill(dsp, (QR_MODULE_SIZE * x) + view->left, (QR_MODULE_SIZE * y) + view->top,
-                QR_MODULE_SIZE, QR_MODULE_SIZE, (qrcodegen_getModule(view->code, x, y) ? BLACK : WHITE));
-        }
-    }
-    return PM_OK;
+    int16_t width = font_text_pixel_width(&f8x8, text);
+    display_text_draw(dsp, &f8x8, qr_left + (qr_size - width) / 2, top, text, BLACK);
 }
 
-// The access point only runs in charge mode
-static bool wifi_qr_visible(void)
+static error_code_t render_button_hint(const display_t* dsp, void* comp)
 {
-    return wifi_ap_running();
-}
-
-static error_code_t wifi_qr_label_onBeforeRender(const display_t* dsp, void* label)
-{
-    return wifi_qr_visible() ? PM_OK : ABORT;
+    // while charging the device does not go to sleep again, a short press starts it
+    return ui_button_hint(dsp, HINT_TOP, &f8x16, power_is_charging() ? "PRESS" : hint_text, &f8x8, "to start");
 }
 
 /*
- * QR code of the access point, phones join the network after scanning it.
+ * The sheet: QR code of the device page on the left, the state of the device in the middle and,
+ * while the access point runs (charging), its QR code on the right.
  */
-static void create_wifi_qr(const display_t* dsp)
+static error_code_t render_sheet(const display_t* dsp, void* comp)
 {
-    wifi_qr.code = (uint8_t*)wifi_ap_qrcode();
-    if (!wifi_qr.code)
-        return;
+    int16_t sheet_top = dsp->size.height - SHEET_HEIGHT;
+    display_rect_fill(dsp, 0, sheet_top, dsp->size.width, SHEET_HEIGHT, WHITE);
+    display_rect_fill(dsp, 0, sheet_top, dsp->size.width, SHEET_EDGE, BLACK);
 
-    int16_t qr_size = qrcodegen_getSize(wifi_qr.code) * QR_MODULE_SIZE;
-    // leave white space between text and QR code for scanners
-    int16_t text_height = WIFI_QR_TEXT_LINES * (f8x8.height + 2) + 8;
-    int16_t box_left = dsp->size.width - WIFI_QR_BOX_WIDTH - 2;
-    wifi_qr.left = box_left + (WIFI_QR_BOX_WIDTH - qr_size) / 2;
-    wifi_qr.top = QR_TOP;
-    wifi_qr.visible = wifi_qr_visible;
+    int16_t content_top = sheet_top + SHEET_EDGE + SHEET_MARGIN / 2;
+    int16_t qr_top = content_top + f8x8.height + QR_QUIET_ZONE + 6;
+    int16_t text_left = SHEET_MARGIN;
+    int16_t text_right = dsp->size.width - SHEET_MARGIN;
 
-    // SSID and password as text for typing them in by hand
-    wifi_qr_text = RTOS_Malloc(WIFI_QR_TEXT_LEN);
-    if (wifi_qr_text) {
-        snprintf(wifi_qr_text, WIFI_QR_TEXT_LEN, "WiFi %s\nPW   %s", wifi_ap_ssid(), wifi_ap_password());
-        wifi_qr_label = label_create(wifi_qr_text, &f8x8, box_left, QR_TOP - text_height,
-            WIFI_QR_BOX_WIDTH, text_height + qr_size + 3);
+    if (qrcode) {
+        int16_t qr_left = SHEET_MARGIN + QR_QUIET_ZONE;
+        int16_t qr_size = qrcodegen_getSize(qrcode) * QR_MODULE_SIZE;
+        draw_qr_caption("Scan me", qr_left, qr_size, content_top);
+        draw_qr(qrcode, qr_left, qr_top);
+        text_left = qr_left + qr_size + QR_QUIET_ZONE + SHEET_MARGIN;
     }
-    if (wifi_qr_label) {
-        wifi_qr_label->alignVertical = TOP;
-        wifi_qr_label->alignHorizontal = LEFT;
-        wifi_qr_label->backgroundColor = WHITE;
-        wifi_qr_label->onBeforeRender = wifi_qr_label_onBeforeRender;
-        add_to_render_pipeline(label_render, wifi_qr_label, RL_GUI_ELEMENTS);
+
+    const uint8_t* wifi_qr = wifi_ap_running() ? wifi_ap_qrcode() : NULL;
+    if (wifi_qr) {
+        int16_t qr_size = qrcodegen_getSize(wifi_qr) * QR_MODULE_SIZE;
+        int16_t qr_left = dsp->size.width - SHEET_MARGIN - QR_QUIET_ZONE - qr_size;
+        draw_qr_caption("Join WiFi", qr_left, qr_size, content_top);
+        draw_qr(wifi_qr, qr_left, qr_top);
+        text_right = qr_left - QR_QUIET_ZONE - SHEET_MARGIN;
     }
-    add_to_render_pipeline(render_qr, &wifi_qr, RL_GUI_ELEMENTS);
-}
 
-// Update string on display
-error_code_t push_button_label_onBeforeRender(const display_t* dsp, void* label)
-{
-    label_t* l = (label_t*)label;
-    l->text = messages[power_is_charging() ? 1 : 0];
-    return PM_OK;
-}
+    char line[LINE_TEXT_LEN];
+    int16_t y = content_top;
+    display_text_draw(dsp, &f8x16, text_left, y, "IndiaNavi", BLACK);
+    y += f8x16.height + LINE_GAP;
 
-// Update wifi icon on display
-error_code_t wifi_indicator_image_onBeforeRender(const display_t* dsp, void* image)
-{
-    image_t* i = (image_t*)image;
+    bool charging = power_is_charging();
+    int32_t level = power_battery_level();
+    if (!power_state_known())
+        snprintf(line, sizeof(line), "%s", charging ? "Charging" : "Sleeping");
+    else if (charging)
+        snprintf(line, sizeof(line), "Charging %d%%", (int)level);
+    else
+        snprintf(line, sizeof(line), "Sleeping %d%%", (int)level);
+    display_text_draw(dsp, &f8x16, text_left, y, line, BLACK);
+    y += f8x16.height + LINE_GAP;
 
-    static uint8_t* const signal_icons[] = { WIFI_0, WIFI_1, WIFI_2, WIFI_3 };
-    uint8_t level = wifi_signal_level();
-    i->data = signal_icons[level < 4 ? level : 3];
-    // not joined to a WiFi, but phones can join the access point
-    if (level == 0 && wifi_ap_running())
-        i->data = WIFI_AP;
-    if (!power_is_charging())
-        i->data = NULL;
+    // one segment is a tenth of the battery
+    ui_segment_bar(dsp, text_left, y, text_right - text_left, 16, power_state_known() && level > 0 ? (uint8_t)(level > 100 ? 100 : level) : 0,
+        GREEN);
+    y += 16 + LINE_GAP + 2;
+
+    if (wifi_qr) {
+        snprintf(line, sizeof(line), "WiFi %s", wifi_ap_ssid());
+        display_text_draw(dsp, &f8x8, text_left, y, line, BLACK);
+        y += f8x8.height + 2;
+        snprintf(line, sizeof(line), "PW   %s", wifi_ap_password());
+        display_text_draw(dsp, &f8x8, text_left, y, line, BLACK);
+    }
+
+    // version at the bottom edge
+    display_text_draw(dsp, &f8x8, SHEET_MARGIN, dsp->size.height - f8x8.height - 4, GIT_HASH, BLACK);
     return PM_OK;
 }
 
@@ -218,10 +183,7 @@ void off_screen_create(const display_t* display)
     snprintf(fn, sizeof(fn), "//art%u.raw", (uint8_t)(esp_random() % RANDOM_IMG_NUM) + 1);
 
     dsp = display;
-    size_t infoText_len = dsp->size.width / f8x8.width;
-    infoText = RTOS_Malloc(infoText_len);
-    if (infoText)
-        save_snprintf(infoText, infoText_len, "%s", GIT_HASH);
+    snprintf(hint_text, sizeof(hint_text), "HOLD %us", (unsigned)(BUTTON_HOLD_MS / 1000));
 
     /* Create splash screen image component from splash.raw on SD card*/
     if (sd_lock()) {
@@ -252,26 +214,8 @@ void off_screen_create(const display_t* display)
     if (splash)
         add_to_render_pipeline(image_render, splash, RL_MAP);
 
-    infoBox = label_create(infoText, &f8x8, 0, dsp->size.height - 13,
-        dsp->size.width, 13);
-    if (infoBox) {
-        infoBox->borderWidth = 1;
-        infoBox->borderLines = ALL_SOLID;
-        infoBox->alignVertical = MIDDLE;
-        infoBox->backgroundColor = WHITE;
-        add_to_render_pipeline(label_render, infoBox, RL_GUI_ELEMENTS);
-    }
-
-    push_button = label_create(NULL, &f8x16, 0, 0, dsp->size.width, 32);
-    if (push_button) {
-        push_button->onBeforeRender = push_button_label_onBeforeRender;
-        push_button->alignHorizontal = RIGHT;
-        push_button->alignVertical = BOTTOM;
-        push_button->backgroundColor = WHITE;
-        add_to_render_pipeline(label_render, push_button, RL_GUI_ELEMENTS);
-    }
-
-    add_to_render_pipeline(render_arrow, NULL, RL_GUI_ELEMENTS);
+    add_to_render_pipeline(render_sheet, NULL, RL_GUI_ELEMENTS);
+    add_to_render_pipeline(render_button_hint, NULL, RL_GUI_ELEMENTS);
 
     uint8_t derived_mac_addr[6] = { 0 };
     ESP_ERROR_CHECK(esp_read_mac(derived_mac_addr, ESP_MAC_WIFI_STA));
@@ -288,30 +232,6 @@ void off_screen_create(const display_t* display)
         ESP_LOGE(__func__, "QR code not created");
         RTOS_Free(qrcode);
         qrcode = NULL;
-    }
-
-    if (qrcode) {
-        url_qr.code = qrcode;
-        url_qr.left = 5;
-        url_qr.top = QR_TOP;
-        url_qr.visible = NULL;
-        qr_label = label_create("Scan me", &f8x8, 2, QR_TOP - 13,
-            qrcodegen_getSize(qrcode) * 3 + 6, 13 + qrcodegen_getSize(qrcode) * 3 + 3);
-        if (qr_label) {
-            qr_label->alignVertical = TOP;
-            qr_label->alignHorizontal = CENTER;
-            qr_label->backgroundColor = WHITE;
-            add_to_render_pipeline(label_render, qr_label, RL_GUI_ELEMENTS);
-        }
-        add_to_render_pipeline(render_qr, &url_qr, RL_GUI_ELEMENTS);
-    }
-
-    create_wifi_qr(dsp);
-
-    wifi_indicator_image = image_create(WIFI_0, 3, 0, ICON_SIZE, ICON_SIZE);
-    if (wifi_indicator_image) {
-        wifi_indicator_image->onBeforeRender = wifi_indicator_image_onBeforeRender;
-        add_to_render_pipeline(image_render, wifi_indicator_image, RL_GUI_ELEMENTS);
     }
 
     set_screen_free_function(off_screen_free);

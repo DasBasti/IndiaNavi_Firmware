@@ -216,7 +216,7 @@ void app_main()
     gpio_config(&esp_btn);
     if (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_EXT0)) {
         rtc_gpio_deinit(BTN);
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(BUTTON_HOLD_MS));
         if (gpio_get_level(BTN)) {
             ESP_LOGI(TAG, "Button Press not long enough for wakeup event. Go back to sleep. %d",gpio_get_level(BTN));
             enter_deep_sleep_if_not_charging();

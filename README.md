@@ -77,7 +77,7 @@ pio device monitor -e indianavi_s3_n16r8_release
 | `esp32dev_debug` / `_release` | ESP32 dev board. The debug build uses a fixed position (`NO_GPS`) |
 | `esp32dev_jtag` | debugging with an ESP-Prog |
 | `native` | host unit tests |
-| `linux_native` | renders the map screen in an X11 window on the PC |
+| `linux_native` | renders the map screen in an X11 window on the PC, with the same top bar as the device. Keys simulate the state: `b` battery level, `c` charger, `w` access point, `t` Bluetooth (off, advertising, connected), `s` SD card, `g` GNSS fix, `u` file transfer progress, `f` firmware update progress, arrows move the position, Enter switches the zoom |
 
 Release builds take the version from git (`.github/git_version.py`). It is shown on the off screen and reported
 by the APIs. The ESP-IDF options are in the `sdkconfig.defaults*` files.
@@ -98,8 +98,12 @@ board environments, runs the host tests, cppcheck and CodeQL (see `.github/workf
 |---|---|
 | Off (deep sleep) | hold for 2 s to switch on |
 | Map screen | short press: switch the zoom level |
-| Any screen | hold for 3 s: switch off |
+| Any screen | hold for 2 s: switch off |
 | Off screen while charging | short press: switch on |
+
+The button is at the top of the right edge. Every screen keeps that corner free for a box with a red arrow
+that names what the button does (`HOLD 2s to start`, `PRESS to start`).
+Switching on and off take the same time, `BUTTON_HOLD_MS` in `include/navi/button.h`.
 
 - When a charger is connected the WiFi access point starts and the screen shows a QR code to join it.
   Without a charger WiFi switches off after 10 minutes without use.
