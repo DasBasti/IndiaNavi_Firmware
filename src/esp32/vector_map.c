@@ -19,6 +19,7 @@
 
 #include "mapsforge.h"
 #include "mfr_raster.h"
+#include "gui/map_labels.h"
 #include "navi/sd.h"
 
 #define MAP_FILE "//MAPS/map.map"
@@ -102,6 +103,12 @@ static void draw_fill_polygon(void* ctx, const mfr_point_t* points, const uint32
 static void draw_polyline(void* ctx, const mfr_point_t* points, uint32_t count, uint32_t color, uint8_t width)
 {
     mfr_raster_polyline((const mfr_raster_t*)ctx, points, count, color, width);
+}
+
+/* names of places: the font of the UI, the position of the place is the middle of the name */
+static void draw_label(void* ctx, mfr_point_t at, const char* text, uint32_t len, uint8_t rank)
+{
+    map_labels_draw((const display_t*)((const mfr_raster_t*)ctx)->ctx, &f8x8, at.x, at.y, text, len, rank);
 }
 
 static void draw_point(void* ctx, mfr_point_t at, uint32_t color, uint8_t radius)
@@ -202,8 +209,10 @@ error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uin
             .fill_polygon = draw_fill_polygon,
             .polyline = draw_polyline,
             .point = draw_point,
+            .label = draw_label,
         };
         display_fill(dsp, WHITE);
+        map_labels_reset();
         int tiles = mfr_render(map, lat, lon, zoom, dsp->size.width, dsp->size.height, anchor_x, anchor_y,
             MFR_PALETTE_EINK7, &draw);
         if (tiles < 0) {
