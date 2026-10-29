@@ -1,7 +1,7 @@
 # Multiple vector maps on the SD card (concept)
 
-Status: phases 1 (catalog, several maps on one screen, new tops old) and 2 (maps over WiFi, several maps in the
-app) are implemented, phases 3 and 4 are open.
+Status: phases 1 (catalog, several maps on one screen, new tops old), 2 (maps over WiFi, several maps in the
+app) and 3 (uploads that can be continued, measured speed in the app) are implemented, phase 4 is open.
 
 Today the IndiaNavi draws its vector map from exactly one file, `MAPS/map.map` (`src/esp32/vector_map.c`).
 The app (IndiaNavi mode) downloads Mapsforge maps per region from download.mapsforge.org. A walk near a
@@ -146,9 +146,16 @@ Version 2 of the upload API (`docs/wifi_upload_api.md` in the app):
   announced transfer (stopped after 2 minutes without a stored file) are kept alive by the bytes that come in.
 - `vector_map_scan()` reads the headers into a catalog of the caller, so the request does not touch the catalog
   the map screen draws from.
-- Phase 3, resume: a broken WiFi connection after 20 minutes should not restart a 1 GB upload. `PUT` with
-  `Content-Range: bytes {start}-{end}/{total}` appends to the existing `{name}.TMP` if its size is `{start}`,
-  `GET /api/maps` also lists `.TMP` files with their size so the app can continue.
+- Phase 3, resume (API version 3): a map is sent with `Content-Range: bytes {start}-{end}/{total}`. When the
+  connection breaks, `{name}.tmp` keeps the bytes that came in instead of being deleted. `GET /api/maps` lists it
+  under `partial` with its size and, from the first 44 bytes of the map header
+  (`map_catalog_parse_header_start`), the size and creation date of the whole map. The app continues only when
+  they match the map on the phone, so the part of an older version is never continued with a newer one. The rest
+  is sent as one request with `start` = size of the part, the device seeks to the end of the part once (a seek
+  in a big FAT file walks its cluster chain, so the rest is not sent in many small parts). A `start` that is not
+  the size of the part is answered with `416`. `Content-Range` is parsed by `lib/content_range` (host tested).
+- The app streams the rest from a copy in its cache (the native upload only sends whole files), measures the
+  speed of every upload of at least 10 seconds and estimates the time of the next ones from it.
 
 ## App
 
@@ -186,7 +193,8 @@ display matches the device.
    API. Maps are copied to `MAPS/` with a card reader. `map.map` keeps working.
 2. **App and API**: several checked maps in the app and in the simulation, `GET /api/maps`, upload and delete
    of maps over WiFi, the "On the IndiaNavi" list.
-3. **Big files**: resumable uploads, measured WiFi speed and the time estimate in the app.
+3. **Big files**: resumable uploads, measured upload speed and the time estimate in the app. The speed of the
+   device for one big file is still to be measured on hardware.
 4. **Tiles as fallback**: vector or tiles per render, so a track can use tiles where no vector map exists.
 
 ## Open questions

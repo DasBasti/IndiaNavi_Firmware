@@ -38,6 +38,25 @@ bool map_catalog_is_upload_name(const char* name)
     return true;
 }
 
+static uint64_t read_u64_be(const uint8_t* bytes)
+{
+    uint64_t value = 0;
+    for (int i = 0; i < 8; i++)
+        value = value << 8 | bytes[i];
+    return value;
+}
+
+bool map_catalog_parse_header_start(const uint8_t* bytes, size_t length, uint64_t* file_size, uint64_t* created)
+{
+    // magic (20 bytes), header size (4), version (4), file size (8), creation date (8)
+    static const char magic[] = "mapsforge binary OSM";
+    if (length < MAP_CATALOG_HEADER_START || memcmp(bytes, magic, sizeof(magic) - 1) != 0)
+        return false;
+    *file_size = read_u64_be(bytes + 28);
+    *created = read_u64_be(bytes + 36);
+    return true;
+}
+
 bool map_catalog_add(map_catalog_t* catalog, const char* name, uint64_t size, uint64_t created,
     map_bounds_t bounds)
 {

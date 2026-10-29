@@ -21,6 +21,7 @@
 #define MAP_CATALOG_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /* maps on the card, more are ignored */
@@ -61,6 +62,15 @@ bool map_catalog_is_map_name(const char* name);
 
 /* true for the names maps can be uploaded with: 1 to 8 letters, digits, '_' or '-' and ".map" */
 bool map_catalog_is_upload_name(const char* name);
+
+/* bytes at the start of a map file that hold its size and creation date */
+#define MAP_CATALOG_HEADER_START 44
+
+/*
+ * The size of the whole file and the creation date (ms since 1970) from the first bytes of a map,
+ * also of a map whose upload was not finished. false if it is not the start of a Mapsforge map.
+ */
+bool map_catalog_parse_header_start(const uint8_t* bytes, size_t length, uint64_t* file_size, uint64_t* created);
 
 /* Adds a map, returns false when the catalog is full or the name too long. Call
  * map_catalog_resolve() after the last one. */

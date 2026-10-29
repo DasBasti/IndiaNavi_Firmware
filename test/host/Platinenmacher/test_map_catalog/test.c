@@ -40,6 +40,23 @@ void test_names_maps_can_be_uploaded_with(void)
     TEST_ASSERT_FALSE(map_catalog_is_upload_name("x.raw"));
 }
 
+void test_size_and_date_from_the_start_of_a_map(void)
+{
+    uint8_t start[MAP_CATALOG_HEADER_START] = "mapsforge binary OSM";
+    // file size 301234567 at byte 28, creation date 1759550000000 at byte 36, big endian
+    const uint64_t size = 301234567, date = 1759550000000ULL;
+    for (int i = 0; i < 8; i++) {
+        start[28 + i] = size >> (56 - 8 * i);
+        start[36 + i] = date >> (56 - 8 * i);
+    }
+    uint64_t file_size, created;
+    TEST_ASSERT_TRUE(map_catalog_parse_header_start(start, sizeof(start), &file_size, &created));
+    TEST_ASSERT_TRUE(file_size == size && created == date);
+    TEST_ASSERT_FALSE(map_catalog_parse_header_start(start, 43, &file_size, &created));
+    start[0] = 'M';
+    TEST_ASSERT_FALSE(map_catalog_parse_header_start(start, sizeof(start), &file_size, &created));
+}
+
 void test_the_catalog_is_full_at_its_maximum(void)
 {
     for (int i = 0; i < MAP_CATALOG_MAX; i++)
@@ -138,6 +155,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_names_of_maps);
     RUN_TEST(test_names_maps_can_be_uploaded_with);
+    RUN_TEST(test_size_and_date_from_the_start_of_a_map);
     RUN_TEST(test_the_catalog_is_full_at_its_maximum);
     RUN_TEST(test_a_newer_map_of_the_same_region_tops_the_old_one);
     RUN_TEST(test_a_newer_country_tops_an_older_region_but_not_the_other_way);
