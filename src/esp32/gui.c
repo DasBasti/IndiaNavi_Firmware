@@ -356,7 +356,7 @@ static void create_top_bar(const display_t* dsp)
 }
 
 #define PROGRESS_BOX_TOP (ICON_SIZE + margin_vertical + 10) // below the top bar
-#define PROGRESS_TEXT_LEN 48
+#define PROGRESS_TEXT_LEN 80 // the compiler checks that the longest numbers fit
 
 /* result of the transfer drawn in the refresh that is committed next */
 static upload_state_t upload_result_drawn = UPLOAD_IDLE;
