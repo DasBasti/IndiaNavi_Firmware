@@ -1,7 +1,8 @@
 # Multiple vector maps on the SD card (concept)
 
-Status: phases 1 (catalog, several maps on one screen, new tops old), 2 (maps over WiFi, several maps in the
-app) and 3 (uploads that can be continued, measured speed in the app) are implemented, phase 4 is open.
+Status: all four phases are implemented: 1 (catalog, several maps on one screen, new tops old), 2 (maps over
+WiFi, several maps in the app), 3 (uploads that can be continued, measured speed in the app) and 4 (tiles where
+no vector map covers the screen).
 
 Today the IndiaNavi draws its vector map from exactly one file, `MAPS/map.map` (`src/esp32/vector_map.c`).
 The app (IndiaNavi mode) downloads Mapsforge maps per region from download.mapsforge.org. A walk near a
@@ -122,10 +123,20 @@ render of a map, kept for the 4 most recently used maps.
 
 ### When no map covers the position
 
-The screen shows the tiles if there are tiles for the position, otherwise an empty (white) map as today
-outside of `map.map`. This needs the decision vector or tiles per render instead of once in
-`map_screen_create()`. That is a separate step (phase 4), until then the device stays in vector mode while
-there is a map on the card.
+The map screen decides for every screen (`map_layer_render` in `src/screens/map_screen.c`): when a vector map
+of the catalog covers a part of the screen (`vector_map_covers`, the same choice as for drawing), the vector maps
+are drawn, otherwise the tiles `MAPS/{zoom}/{x}/{y}.raw` (`map_render`), with "Not Found" in tiles that are not
+on the card. So a track that leads beyond the vector maps shows the tiles the app prepared for it. The position,
+the marker, the track and its waypoints are at the same pixels in both, the screen only changes its background.
+
+- The tile loading callbacks are attached in both modes, they only run when `map_render` draws the tiles.
+- The decision is by the bounding boxes of the maps: a country map with a rectangular box covers parts of its
+  neighbours, where it has no data, there the screen stays white. Tiles under the vector maps (both on one
+  screen) are not drawn, the screens near the edge of the vector maps show the vector maps.
+- Without a position nothing is drawn as before while there are vector maps; without vector maps the device
+  works with tiles only, as before.
+- The simulated IndiaNavi of the app does the same with the tiles of the converter on the phone
+  (`renderNaviScreen` with `readTile`).
 
 ## WiFi API
 
@@ -195,7 +206,8 @@ display matches the device.
    of maps over WiFi, the "On the IndiaNavi" list.
 3. **Big files**: resumable uploads, measured upload speed and the time estimate in the app. The speed of the
    device for one big file is still to be measured on hardware.
-4. **Tiles as fallback**: vector or tiles per render, so a track can use tiles where no vector map exists.
+4. **Tiles as fallback**: vector or tiles per render, so a track can use tiles where no vector map exists. Tested
+   with the PC simulator (vector maps at their border, tiles beyond them).
 
 ## Open questions
 

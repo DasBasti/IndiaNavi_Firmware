@@ -280,6 +280,14 @@ bool vector_map_available(void)
     return map_catalog_used(&catalog) > 0;
 }
 
+bool vector_map_covers(double lat, double lon, uint8_t zoom, uint16_t width, uint16_t height, int16_t anchor_x,
+    int16_t anchor_y)
+{
+    uint8_t selected[MAP_CATALOG_DRAWN];
+    map_bounds_t screen = map_catalog_screen_bounds(lat, lon, zoom, width, height, anchor_x, anchor_y);
+    return map_catalog_select(&catalog, screen, selected, MAP_CATALOG_DRAWN) > 0;
+}
+
 /* adds the shapes of one map to the scene, the SD card is locked. Returns the tiles read or < 0 */
 static int collect_map(map_io_t* map_io, const map_entry_t* entry, double lat, double lon, uint8_t zoom,
     uint16_t width, uint16_t height, int16_t anchor_x, int16_t anchor_y)
@@ -370,6 +378,12 @@ error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uin
 }
 
 #else /* VECTOR_MAP */
+
+bool vector_map_covers(double lat, double lon, uint8_t zoom, uint16_t width, uint16_t height, int16_t anchor_x,
+    int16_t anchor_y)
+{
+    return false;
+}
 
 bool vector_map_supported(void)
 {

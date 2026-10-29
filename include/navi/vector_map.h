@@ -38,8 +38,16 @@ error_code_t vector_map_scan(map_catalog_t* catalog);
 bool vector_map_available(void);
 
 /*
+ * true if a map of the catalog of the map screen (vector_map_available) covers a part of the
+ * screen of width x height pixels, with the position at anchor_x/anchor_y. Without one the map
+ * screen shows the tiles.
+ */
+bool vector_map_covers(double lat, double lon, uint8_t zoom, uint16_t width, uint16_t height, int16_t anchor_x,
+    int16_t anchor_y);
+
+/*
  * Draw the maps at a zoom level (Web Mercator, 256 px tiles) over the whole display, white where
- * no map is. The position appears at the pixel anchor_x/anchor_y, as it does on the pre-rendered
+ * no map is (the map screen shows the tiles when no map covers the screen, see vector_map_covers). The position appears at the pixel anchor_x/anchor_y, as it does on the pre-rendered
  * tiles.
  *
  * Locks the SD card while it draws.
