@@ -1,8 +1,12 @@
+#include <math.h>
 #include <unity.h>
 
 #include "map_catalog.h"
 
 static map_catalog_t catalog;
+
+/* the Unity of the native tests is built without double support (UNITY_INCLUDE_DOUBLE) */
+#define ASSERT_NEAR(delta, expected, actual) TEST_ASSERT_TRUE(fabs((double)(expected) - (double)(actual)) <= (delta))
 
 /* regions of about the size of the official maps of German states */
 static const map_bounds_t RHEINLAND_PFALZ = { 48.96, 6.11, 50.95, 8.51 };
@@ -102,15 +106,15 @@ void test_the_screen_in_degrees(void)
 {
     // the position in the middle of a 448 x 600 screen at zoom 16
     map_bounds_t b = map_catalog_screen_bounds(49.143, 7.765, 16, 448, 600, 224, 300);
-    TEST_ASSERT_DOUBLE_WITHIN(1e-4, 49.143, (b.min_lat + b.max_lat) / 2);
-    TEST_ASSERT_DOUBLE_WITHIN(1e-6, 7.765, (b.min_lon + b.max_lon) / 2);
+    ASSERT_NEAR(1e-4, 49.143, (b.min_lat + b.max_lat) / 2);
+    ASSERT_NEAR(1e-6, 7.765, (b.min_lon + b.max_lon) / 2);
     // 448 pixels of 360 / 2^24 degrees
-    TEST_ASSERT_DOUBLE_WITHIN(1e-6, 448 * 360.0 / 16777216.0, b.max_lon - b.min_lon);
+    ASSERT_NEAR(1e-6, 448 * 360.0 / 16777216.0, b.max_lon - b.min_lon);
     TEST_ASSERT_TRUE(b.max_lat > b.min_lat);
 
     // the anchor moves the screen: at the left edge the screen lies east of the position
     map_bounds_t left = map_catalog_screen_bounds(49.143, 7.765, 16, 448, 600, 0, 300);
-    TEST_ASSERT_DOUBLE_WITHIN(1e-9, 7.765, left.min_lon);
+    ASSERT_NEAR(1e-9, 7.765, left.min_lon);
 }
 
 void test_the_maps_of_a_screen_smallest_first(void)
