@@ -1,6 +1,7 @@
 # Multiple vector maps on the SD card (concept)
 
-Status: phase 1 is implemented (catalog, several maps on one screen, new tops old), phases 2 to 4 are open.
+Status: phases 1 (catalog, several maps on one screen, new tops old) and 2 (maps over WiFi, several maps in the
+app) are implemented, phases 3 and 4 are open.
 
 Today the IndiaNavi draws its vector map from exactly one file, `MAPS/map.map` (`src/esp32/vector_map.c`).
 The app (IndiaNavi mode) downloads Mapsforge maps per region from download.mapsforge.org. A walk near a
@@ -132,14 +133,19 @@ Version 2 of the upload API (`docs/wifi_upload_api.md` in the app):
 
 | Endpoint | |
 |---|---|
-| `GET /api/maps` | the catalog: `[{ "file": "RHEINL01.MAP", "size": 301234567, "bounds": [minLat, minLon, maxLat, maxLon], "created": 1759550000000 }]` |
-| `PUT /sd/MAPS/{name}.MAP` | a map, `{name}` 1 to 8 characters `A-Z 0-9 _ -`. Written as `{name}.TMP` and renamed when complete, like the other files, then the catalog is built again |
-| `DELETE /sd/MAPS/{name}.MAP` | removes a map, the catalog is built again |
-| `GET /api/info` | gets `"api": 2` and `"maps": n` |
+| `GET /api/maps` | the catalog read fresh from the card: `{"maps": [{ "file": "rheinl01.map", "size": 301234567, "created": 1759550000000, "bounds": [minLat, minLon, maxLat, maxLon], "used": true }]}`, `used` is false for a replaced map |
+| `PUT /sd/MAPS/{name}.map` | a map, `{name}` 1 to 8 characters `A-Z 0-9 _ -` (`map_catalog_is_upload_name`). Written as `{name}.tmp` and renamed when complete, like the other files |
+| `DELETE /sd/MAPS/{name}.map` | removes a map |
+| `POST /api/reload` | the map screen reads the maps again (it is created again) |
+| `GET /api/info` | gets `"api": 2` and `"vector_maps": true` when the firmware draws vector maps |
 
 - `content_len` of the ESP-IDF server is a `size_t` (32 bit), which fits up to 4 GB - 1 as FAT32 does.
 - Free space is checked as for tiles. A map is only uploaded while the device is charging (WiFi is only on
-  then), the display shows the progress box as for tiles.
+  then), the display shows the progress box as for tiles, with MB; the bar follows the bytes.
+- A map is one request of many minutes: the WiFi (switched off after 10 minutes without a request) and the
+  announced transfer (stopped after 2 minutes without a stored file) are kept alive by the bytes that come in.
+- `vector_map_scan()` reads the headers into a catalog of the caller, so the request does not touch the catalog
+  the map screen draws from.
 - Phase 3, resume: a broken WiFi connection after 20 minutes should not restart a 1 GB upload. `PUT` with
   `Content-Range: bytes {start}-{end}/{total}` appends to the existing `{name}.TMP` if its size is `{start}`,
   `GET /api/maps` also lists `.TMP` files with their size so the app can continue.
@@ -148,25 +154,31 @@ Version 2 of the upload API (`docs/wifi_upload_api.md` in the app):
 
 ### Names on the card
 
-The app gives every map a short 8.3 name from its region and a number: `rheinland-pfalz.map` becomes
-`RHEINL01.MAP`, a second map starting with the same 6 letters `RHEINL02.MAP`. The app remembers which phone
-map it sent under which name. Maps that are on the card but unknown to the app (copied with a card reader)
-are matched by size and creation date from `GET /api/maps`, or shown with their file name.
+The app gives every map a short 8.3 name from its region and a number: `germany-rheinland-pfalz.map` becomes
+`rheinl01.map`, a second map starting with the same 6 letters `rheinl02.map` (`cardName` in
+`modules/map_catalog.js`). The app remembers which phone map it sent under which name (setting `cardMaps`), a
+map counts as on the card when the file there has its size. Maps on the card that the app did not send (copied
+with a card reader) are shown with their file name.
 
 ### Maps screen
 
-- **On the phone**: as today, but a checkbox per map instead of one selected map: the maps for the IndiaNavi.
-- **On the IndiaNavi** (when connected over WiFi): the catalog of the device, with "delete" and "send" for
-  phone maps that are checked but not on the card, and a warning when the card has too little space.
-- The converter map can show the bounding boxes of the checked maps, so it is visible where the IndiaNavi has
-  a map.
+- **Maps screen**: a checkbox per map instead of one selected map: the maps for the IndiaNavi. The simulation
+  draws them.
+- **WiFi transfer**, section Vector maps (when connected to a device with API version 2): the checked maps with
+  "Send" for the ones that are not on the card (and "Send N maps"), the maps on the card with "Delete" and the
+  note when one is replaced by a newer map. The free space is checked before a map is sent. The upload is
+  streamed from the file (`UploadTask` of expo-file-system), with progress and the time that is left.
+- The simulated IndiaNavi of the file transfer (`modules/simulated_device.js`) keeps the maps that are sent to it
+  and answers `GET /api/maps`.
+- Open: the converter map could show the bounding boxes of the checked maps.
 
 ### Simulated IndiaNavi
 
-`collectScene` in `modules/mapsforge.js` already builds a scene of commands and labels. It gets a list of maps
-and collects all of them before the one sort, in the same order as the firmware (smallest bounding box first).
-The sort is stable on both sides, so shapes with the same layer and draw order are drawn in the order of the
-maps and of the files, and the simulated display matches the device pixel by pixel.
+`collectScene` in `modules/mapsforge.js` takes a list of maps and collects all of them before the one sort. The
+maps of a screen are chosen by `modules/map_catalog.js`, a port of `lib/map_catalog` with the same rules and
+tests: not replaced, overlapping the screen, the smallest first, at most 4. The sort is stable on both sides, so
+shapes with the same layer and draw order are drawn in the order of the maps and of the files, and the simulated
+display matches the device.
 
 ## Phases
 

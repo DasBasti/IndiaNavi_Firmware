@@ -205,7 +205,7 @@ static void map_path(char* path, size_t size, const char* name)
 }
 
 /* reads the header of a map into the catalog, the SD card is locked */
-static void add_to_catalog(map_io_t* map_io, const FILINFO* info)
+static void add_to_catalog(map_catalog_t* catalog, map_io_t* map_io, const FILINFO* info)
 {
     char path[sizeof(MAP_FOLDER) + MAP_CATALOG_NAME_LEN + 1];
     map_path(path, sizeof(path), info->fname);
@@ -221,7 +221,7 @@ static void add_to_catalog(map_io_t* map_io, const FILINFO* info)
         mfr_bounds(map, b);
         map_bounds_t bounds = { .min_lat = b[0], .min_lon = b[1], .max_lat = b[2], .max_lon = b[3] };
         uint64_t created = mfr_created(map);
-        if (map_catalog_add(&catalog, info->fname, info->fsize, created, bounds))
+        if (map_catalog_add(catalog, info->fname, info->fsize, created, bounds))
             ESP_LOGI(TAG, "%s: %lu bytes, %.4f,%.4f - %.4f,%.4f, created %llu", info->fname, (unsigned long)info->fsize,
                 b[0], b[1], b[2], b[3], (unsigned long long)created);
         else
@@ -233,37 +233,51 @@ static void add_to_catalog(map_io_t* map_io, const FILINFO* info)
     f_close(&map_io->file);
 }
 
-bool vector_map_available(void)
+bool vector_map_supported(void)
+{
+    return true;
+}
+
+error_code_t vector_map_scan(map_catalog_t* catalog)
 {
     int64_t start = esp_timer_get_time();
-    map_catalog_clear(&catalog);
+    map_catalog_clear(catalog);
     map_io_t* map_io = map_io_create();
     if (!map_io) {
         ESP_LOGE(TAG, "Out of memory");
-        return false;
+        return PM_FAIL;
     }
     if (!sd_lock()) {
         map_io_free(map_io);
-        return false;
+        return PM_FAIL;
     }
     FF_DIR dir;
     FILINFO info;
     if (f_opendir(&dir, MAP_FOLDER) == FR_OK) {
         while (f_readdir(&dir, &info) == FR_OK && info.fname[0]) {
             if (!(info.fattrib & AM_DIR) && map_catalog_is_map_name(info.fname))
-                add_to_catalog(map_io, &info);
+                add_to_catalog(catalog, map_io, &info);
         }
         f_closedir(&dir);
     }
     sd_unlock();
     map_io_free(map_io);
 
-    uint8_t drawn = map_catalog_resolve(&catalog);
-    for (uint8_t i = 0; i < catalog.count; i++)
-        if (catalog.maps[i].superseded)
-            ESP_LOGI(TAG, "%s is replaced by a newer map", catalog.maps[i].name);
-    ESP_LOGI(TAG, "%u maps, %u used, read in %lld ms", catalog.count, drawn, (esp_timer_get_time() - start) / 1000);
-    return drawn > 0;
+    uint8_t used = map_catalog_resolve(catalog);
+    for (uint8_t i = 0; i < catalog->count; i++)
+        if (catalog->maps[i].superseded)
+            ESP_LOGI(TAG, "%s is replaced by a newer map", catalog->maps[i].name);
+    ESP_LOGI(TAG, "%u maps, %u used, read in %lld ms", catalog->count, used, (esp_timer_get_time() - start) / 1000);
+    return PM_OK;
+}
+
+bool vector_map_available(void)
+{
+    if (vector_map_scan(&catalog) != PM_OK) {
+        map_catalog_clear(&catalog);
+        return false;
+    }
+    return map_catalog_used(&catalog) > 0;
 }
 
 /* adds the shapes of one map to the scene, the SD card is locked. Returns the tiles read or < 0 */
@@ -356,6 +370,17 @@ error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uin
 }
 
 #else /* VECTOR_MAP */
+
+bool vector_map_supported(void)
+{
+    return false;
+}
+
+error_code_t vector_map_scan(map_catalog_t* catalog)
+{
+    map_catalog_clear(catalog);
+    return UNAVAILABLE;
+}
 
 bool vector_map_available(void)
 {

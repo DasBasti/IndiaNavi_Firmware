@@ -183,7 +183,8 @@ loading tile images, at the same two zoom levels. Several maps can be on the car
 (names in 8.3 like `RHEINL01.MAP`; a long name copied by a PC works through its short name): the maps that cover
 the screen are drawn together, at most 4, so there are no gaps at the borders between them. A newer map replaces
 an older one of the same region, so an updated download does not have to replace the old file. The maps are read
-when the map screen starts, see `Documentation/multiple_vector_maps.md`. The renderer is the Rust library
+when the map screen starts, see `Documentation/multiple_vector_maps.md`. The app sends maps over WiFi while the
+device is charging (WiFi transfer, Vector maps), or copy them with a card reader. The renderer is the Rust library
 [mapsforge-rs](https://github.com/DasBasti/mapsforge-rs), the submodule `lib/mapsforge-rs`
 (`git submodule update --init`, or another checkout in `MAPSFORGE_RS_DIR`) and built by `tools/mapsforge_rs.py` with the Xtensa Rust toolchain
 (see [Building](#building)). Without the checkout the firmware builds without it and uses tiles.

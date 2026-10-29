@@ -59,6 +59,9 @@ void map_catalog_clear(map_catalog_t* catalog);
 /* true for names like "MAP.MAP" or "rheinl01.map" */
 bool map_catalog_is_map_name(const char* name);
 
+/* true for the names maps can be uploaded with: 1 to 8 letters, digits, '_' or '-' and ".map" */
+bool map_catalog_is_upload_name(const char* name);
+
 /* Adds a map, returns false when the catalog is full or the name too long. Call
  * map_catalog_resolve() after the last one. */
 bool map_catalog_add(map_catalog_t* catalog, const char* name, uint64_t size, uint64_t created,
@@ -66,6 +69,9 @@ bool map_catalog_add(map_catalog_t* catalog, const char* name, uint64_t size, ui
 
 /* Marks the maps that are covered by a newer one, returns the number of maps that are drawn */
 uint8_t map_catalog_resolve(map_catalog_t* catalog);
+
+/* Number of maps that are not replaced by a newer one */
+uint8_t map_catalog_used(const map_catalog_t* catalog);
 
 /*
  * Area of a screen in degrees: the position lat/lon is at the pixel anchor_x/anchor_y of a

@@ -74,7 +74,7 @@ static void draw_point(void* ctx, mfr_point_t at, uint32_t color, uint8_t radius
 }
 
 /* reads the header of a map into the catalog */
-static void add_to_catalog(const char* path)
+static void add_to_catalog(map_catalog_t* catalog, const char* path)
 {
     FILE* f = fopen(path, "rb");
     if (!f)
@@ -87,10 +87,10 @@ static void add_to_catalog(const char* path)
         mfr_bounds(map, b);
         map_bounds_t bounds = { .min_lat = b[0], .min_lon = b[1], .max_lat = b[2], .max_lon = b[3] };
         char name[MAP_CATALOG_NAME_LEN];
-        snprintf(name, sizeof(name), "M%02u.MAP", catalog.count);
-        uint8_t index = catalog.count;
+        snprintf(name, sizeof(name), "M%02u.MAP", catalog->count);
+        uint8_t index = catalog->count;
         fseeko(f, 0, SEEK_END);
-        if (map_catalog_add(&catalog, name, (uint64_t)ftello(f), mfr_created(map), bounds))
+        if (map_catalog_add(catalog, name, (uint64_t)ftello(f), mfr_created(map), bounds))
             snprintf(paths[index], sizeof(paths[index]), "%s", path);
         else
             fprintf(stderr, "vector map: more than %d maps, %s is not used\n", MAP_CATALOG_MAX, path);
@@ -107,13 +107,19 @@ static int is_map_file(const char* name)
     return length > 4 && strcasecmp(name + length - 4, ".map") == 0;
 }
 
-bool vector_map_available(void)
+bool vector_map_supported(void)
 {
-    map_catalog_clear(&catalog);
+    return true;
+}
+
+/* the paths of the maps are kept for the catalog of the map screen only */
+error_code_t vector_map_scan(map_catalog_t* catalog)
+{
+    map_catalog_clear(catalog);
     const char* location = map_location();
     struct stat info;
     if (stat(location, &info) != 0)
-        return false;
+        return PM_OK;
     if (S_ISDIR(info.st_mode)) {
         DIR* dir = opendir(location);
         struct dirent* entry;
@@ -121,18 +127,24 @@ bool vector_map_available(void)
             char path[PATH_MAX];
             snprintf(path, sizeof(path), "%s/%s", location, entry->d_name);
             if (is_map_file(entry->d_name) && stat(path, &info) == 0 && S_ISREG(info.st_mode))
-                add_to_catalog(path);
+                add_to_catalog(catalog, path);
         }
         if (dir)
             closedir(dir);
     } else {
-        add_to_catalog(location);
+        add_to_catalog(catalog, location);
     }
-    uint8_t drawn = map_catalog_resolve(&catalog);
+    map_catalog_resolve(catalog);
+    return PM_OK;
+}
+
+bool vector_map_available(void)
+{
+    vector_map_scan(&catalog);
     for (uint8_t i = 0; i < catalog.count; i++)
         if (catalog.maps[i].superseded)
             fprintf(stderr, "vector map: %s is replaced by a newer map\n", paths[i]);
-    return drawn > 0;
+    return map_catalog_used(&catalog) > 0;
 }
 
 /* adds the shapes of one map to the scene, returns the tiles read or < 0 */
@@ -193,6 +205,17 @@ error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uin
 }
 
 #else /* VECTOR_MAP */
+
+bool vector_map_supported(void)
+{
+    return false;
+}
+
+error_code_t vector_map_scan(map_catalog_t* catalog)
+{
+    map_catalog_clear(catalog);
+    return UNAVAILABLE;
+}
 
 bool vector_map_available(void)
 {

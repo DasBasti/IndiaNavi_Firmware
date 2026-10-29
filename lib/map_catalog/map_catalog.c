@@ -25,6 +25,19 @@ bool map_catalog_is_map_name(const char* name)
         && tolower((unsigned char)extension[2]) == 'a' && tolower((unsigned char)extension[3]) == 'p';
 }
 
+bool map_catalog_is_upload_name(const char* name)
+{
+    if (!map_catalog_is_map_name(name))
+        return false;
+    size_t base = strlen(name) - 4;
+    if (base == 0 || base > 8)
+        return false;
+    for (size_t i = 0; i < base; i++)
+        if (!isalnum((unsigned char)name[i]) && name[i] != '_' && name[i] != '-')
+            return false;
+    return true;
+}
+
 bool map_catalog_add(map_catalog_t* catalog, const char* name, uint64_t size, uint64_t created,
     map_bounds_t bounds)
 {
@@ -83,6 +96,15 @@ uint8_t map_catalog_resolve(map_catalog_t* catalog)
             drawn++;
     }
     return drawn;
+}
+
+uint8_t map_catalog_used(const map_catalog_t* catalog)
+{
+    uint8_t used = 0;
+    for (uint8_t i = 0; i < catalog->count; i++)
+        if (!catalog->maps[i].superseded)
+            used++;
+    return used;
 }
 
 static double x_to_lon(double x, double world)

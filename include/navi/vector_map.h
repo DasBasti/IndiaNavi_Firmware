@@ -18,11 +18,22 @@
 #include <stdint.h>
 
 #include "Platinenmacher.h"
+#include "map_catalog.h"
+
+/* true if the firmware was built with vector map support */
+bool vector_map_supported(void);
 
 /*
- * Reads the headers of the maps on the SD card into the catalog of the maps. true if the firmware
- * has vector map support and there is at least one map. Called when the map screen is created,
- * so a reload of the screen also finds new maps.
+ * Reads the headers of the maps on the SD card into catalog and marks the replaced ones.
+ * Returns PM_OK, UNAVAILABLE without vector map support, PM_FAIL when the card can not be read.
+ * Locks the SD card while it reads, about 30 ms per map.
+ */
+error_code_t vector_map_scan(map_catalog_t* catalog);
+
+/*
+ * Reads the maps on the SD card into the catalog the map screen draws from (vector_map_scan).
+ * true if the firmware has vector map support and there is at least one map. Called when the map
+ * screen is created, so a reload of the screen also finds new maps.
  */
 bool vector_map_available(void);
 

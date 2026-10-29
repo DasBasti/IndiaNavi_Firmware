@@ -29,6 +29,17 @@ void test_names_of_maps(void)
     TEST_ASSERT_FALSE(map_catalog_is_map_name("TOOLONGNAME.MAP"));
 }
 
+void test_names_maps_can_be_uploaded_with(void)
+{
+    TEST_ASSERT_TRUE(map_catalog_is_upload_name("rheinl01.map"));
+    TEST_ASSERT_TRUE(map_catalog_is_upload_name("DE_BW-2.MAP"));
+    TEST_ASSERT_FALSE(map_catalog_is_upload_name("toolongna.map"));
+    TEST_ASSERT_FALSE(map_catalog_is_upload_name("a.b.map"));
+    TEST_ASSERT_FALSE(map_catalog_is_upload_name("../x.map"));
+    TEST_ASSERT_FALSE(map_catalog_is_upload_name("x y.map"));
+    TEST_ASSERT_FALSE(map_catalog_is_upload_name("x.raw"));
+}
+
 void test_the_catalog_is_full_at_its_maximum(void)
 {
     for (int i = 0; i < MAP_CATALOG_MAX; i++)
@@ -46,6 +57,7 @@ void test_a_newer_map_of_the_same_region_tops_the_old_one(void)
     TEST_ASSERT_EQUAL_UINT8(1, map_catalog_resolve(&catalog));
     TEST_ASSERT_TRUE(catalog.maps[0].superseded);
     TEST_ASSERT_FALSE(catalog.maps[1].superseded);
+    TEST_ASSERT_EQUAL_UINT8(1, map_catalog_used(&catalog));
 }
 
 void test_a_newer_country_tops_an_older_region_but_not_the_other_way(void)
@@ -125,6 +137,7 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_names_of_maps);
+    RUN_TEST(test_names_maps_can_be_uploaded_with);
     RUN_TEST(test_the_catalog_is_full_at_its_maximum);
     RUN_TEST(test_a_newer_map_of_the_same_region_tops_the_old_one);
     RUN_TEST(test_a_newer_country_tops_an_older_region_but_not_the_other_way);

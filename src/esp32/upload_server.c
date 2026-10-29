@@ -36,9 +36,10 @@
 #include "navi/recorder.h"
 #include "navi/sd.h"
 #include "navi/upload_server.h"
+#include "navi/vector_map.h"
 #include "navi/wifi.h"
 
-#define API_VERSION 1
+#define API_VERSION 2
 #define UPLOAD_CHUNK_SIZE 4096
 #define FATFS_PATH_LEN 64  // "//" + longest allowed path + '\0'
 #define DEVICE_ID_LEN 33
@@ -49,6 +50,7 @@
 #define TRANSFER_TIMEOUT_US (120LL * 1000 * 1000) // no upload for 2 minutes stops the transfer
 #define PROGRESS_STEPS 10                         // redraw every 10%
 #define PROGRESS_MIN_INTERVAL_US (20LL * 1000 * 1000) // an e-ink refresh takes ~16 s
+#define RECEIVING_NOTICE_US (1000LL * 1000)           // a long upload keeps WiFi and transfer alive once a second
 
 static const char* TAG = "UPLOAD";
 
@@ -60,6 +62,7 @@ static portMUX_TYPE progress_lock = portMUX_INITIALIZER_UNLOCKED;
 static esp_timer_handle_t transfer_timer;
 static uint8_t progress_shown_step;
 static int64_t progress_shown_time;
+static int64_t receiving_noticed_time;
 
 /**
  * Copy the transfer state for the GUI
@@ -117,22 +120,69 @@ static void transfer_timeout_cb(void* arg)
 }
 
 /*
- * Count one stored file of the running transfer and redraw if needed
+ * Step of the progress bar: by bytes if the app announced them, a map is one file of hundreds of MB.
+ * Needs the progress lock.
  */
-static void transfer_file_stored(size_t bytes)
+static uint8_t progress_step(void)
+{
+    if (progress.bytes_total > 0) {
+        uint64_t done = progress.bytes_done < progress.bytes_total ? progress.bytes_done : progress.bytes_total;
+        return done * PROGRESS_STEPS / progress.bytes_total;
+    }
+    return progress.files_done * PROGRESS_STEPS / progress.files_total;
+}
+
+static void show_progress_step(uint8_t step)
+{
+    if (step != progress_shown_step && esp_timer_get_time() - progress_shown_time >= PROGRESS_MIN_INTERVAL_US) {
+        progress_shown_step = step;
+        show_progress();
+    }
+}
+
+/*
+ * Bytes of a file that came in (negative: the bytes of a file that could not be stored). Keeps
+ * WiFi on and the transfer running while one big file is uploaded for many minutes.
+ */
+static void transfer_bytes_received(int64_t bytes)
+{
+    int64_t now = esp_timer_get_time();
+    bool notice = now - receiving_noticed_time >= RECEIVING_NOTICE_US;
+    if (notice) {
+        receiving_noticed_time = now;
+        wifi_notify_activity();
+    }
+    if (progress.state != UPLOAD_ACTIVE)
+        return;
+
+    taskENTER_CRITICAL(&progress_lock);
+    progress.bytes_done = (int64_t)progress.bytes_done + bytes > 0 ? progress.bytes_done + bytes : 0;
+    uint8_t step = progress_step();
+    taskEXIT_CRITICAL(&progress_lock);
+
+    if (notice) {
+        restart_transfer_timer();
+        show_progress_step(step);
+    }
+}
+
+/*
+ * Count one stored file of the running transfer and redraw if needed. Its bytes were counted
+ * while they came in.
+ */
+static void transfer_file_stored(void)
 {
     if (progress.state != UPLOAD_ACTIVE)
         return;
 
     taskENTER_CRITICAL(&progress_lock);
     progress.files_done++;
-    progress.bytes_done += bytes;
     bool complete = progress.files_done >= progress.files_total;
     if (complete) {
         progress.state = UPLOAD_DONE;
         progress.result_shown = false;
     }
-    uint8_t step = progress.files_done * PROGRESS_STEPS / progress.files_total;
+    uint8_t step = progress_step();
     taskEXIT_CRITICAL(&progress_lock);
 
     if (complete) {
@@ -143,10 +193,7 @@ static void transfer_file_stored(size_t bytes)
     }
 
     restart_transfer_timer();
-    if (step != progress_shown_step && esp_timer_get_time() - progress_shown_time >= PROGRESS_MIN_INTERVAL_US) {
-        progress_shown_step = step;
-        show_progress();
-    }
+    show_progress_step(step);
 }
 static char device_id[DEVICE_ID_LEN] = "IndiaNavi";
 
@@ -178,8 +225,8 @@ static bool is_digits(const char* s, size_t len, size_t max_len)
 }
 
 /*
- * Only "track.gpx" and "MAPS/{zoom}/{x}/{y}.raw" may be written or deleted.
- * Numbers have to fit into 8.3 names.
+ * Only "track.gpx", "MAPS/{zoom}/{x}/{y}.raw" and the vector maps "MAPS/{name}.map" may be
+ * written or deleted. Numbers and names have to fit into 8.3 names.
  */
 static bool is_file_path_allowed(const char* path)
 {
@@ -190,6 +237,8 @@ static bool is_file_path_allowed(const char* path)
         return false;
 
     const char* zoom = path + 5;
+    if (!strchr(zoom, '/'))
+        return map_catalog_is_upload_name(zoom);
     const char* slash1 = strchr(zoom, '/');
     if (!slash1)
         return false;
@@ -307,11 +356,11 @@ static esp_err_t api_info_handler(httpd_req_t* req)
     uint64_t total = 0, free_bytes = 0;
     bool present = sd_get_info(&total, &free_bytes) == PM_OK;
 
-    char json[256];
+    char json[288];
     snprintf(json, sizeof(json),
-        "{\"id\":\"%s\",\"firmware\":\"%s\",\"api\":%d,\"ota\":true,"
+        "{\"id\":\"%s\",\"firmware\":\"%s\",\"api\":%d,\"ota\":true,\"vector_maps\":%s,"
         "\"sd\":{\"present\":%s,\"free\":%llu,\"total\":%llu}}",
-        device_id, GIT_HASH, API_VERSION, present ? "true" : "false",
+        device_id, GIT_HASH, API_VERSION, vector_map_supported() ? "true" : "false", present ? "true" : "false",
         (unsigned long long)free_bytes, (unsigned long long)total);
 
     httpd_resp_set_type(req, "application/json");
@@ -319,8 +368,51 @@ static esp_err_t api_info_handler(httpd_req_t* req)
 }
 
 /*
- * POST /api/reload
+ * GET /api/maps
+ *
+ * The vector maps on the SD card, read from their headers:
+ * {"maps":[{"file":"rheinl01.map","size":301234567,"created":1759550000000,
+ *           "bounds":[48.96,6.11,50.95,8.51],"used":true}]}
+ * used is false for a map that is replaced by a newer one of the same region.
  */
+static esp_err_t api_maps_handler(httpd_req_t* req)
+{
+    wifi_notify_activity(); // keeps WiFi on
+    if (!vector_map_supported())
+        return send_error(req, "404 Not Found", "this firmware has no vector maps");
+
+    map_catalog_t* catalog = malloc(sizeof(map_catalog_t));
+    if (!catalog)
+        return send_error(req, "500 Internal Server Error", "out of memory");
+    if (vector_map_scan(catalog) != PM_OK) {
+        free(catalog);
+        return send_error(req, "503 Service Unavailable", "no SD card or card busy");
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t err = httpd_resp_send_chunk(req, "{\"maps\":[", HTTPD_RESP_USE_STRLEN);
+    for (uint8_t i = 0; i < catalog->count && err == ESP_OK; i++) {
+        const map_entry_t* map = &catalog->maps[i];
+        // 8.3 names are upper case on the card, the app uses lower case names
+        char name[MAP_CATALOG_NAME_LEN];
+        for (size_t c = 0; c < sizeof(name); c++)
+            name[c] = tolower((unsigned char)map->name[c]);
+        char entry[192];
+        snprintf(entry, sizeof(entry),
+            "%s{\"file\":\"%s\",\"size\":%llu,\"created\":%llu,\"bounds\":[%.6f,%.6f,%.6f,%.6f],\"used\":%s}",
+            i ? "," : "", name, (unsigned long long)map->size, (unsigned long long)map->created,
+            map->bounds.min_lat, map->bounds.min_lon, map->bounds.max_lat, map->bounds.max_lon,
+            map->superseded ? "false" : "true");
+        err = httpd_resp_send_chunk(req, entry, HTTPD_RESP_USE_STRLEN);
+    }
+    free(catalog);
+    if (err == ESP_OK)
+        err = httpd_resp_send_chunk(req, "]}", HTTPD_RESP_USE_STRLEN);
+    if (err != ESP_OK)
+        return ESP_FAIL; // the answer is half sent, close the socket
+    return httpd_resp_send_chunk(req, NULL, 0);
+}
+
 /*
  * Find "key": <number> in a flat JSON object
  */
@@ -426,6 +518,9 @@ static esp_err_t api_transfer_delete_handler(httpd_req_t* req)
     return send_no_content(req);
 }
 
+/*
+ * POST /api/reload
+ */
 static esp_err_t api_reload_handler(httpd_req_t* req)
 {
     wifi_notify_activity(); // keeps WiFi on
@@ -802,6 +897,7 @@ static esp_err_t sd_put_handler(httpd_req_t* req)
             break;
         }
         remaining -= received;
+        transfer_bytes_received(received);
     }
     free(buf);
 
@@ -826,9 +922,11 @@ static esp_err_t sd_put_handler(httpd_req_t* req)
 
     if (renamed) {
         ESP_LOGI(TAG, "stored %s (%u bytes)", final_path, (unsigned)content_len);
-        transfer_file_stored(content_len);
+        transfer_file_stored();
         return send_no_content(req);
     }
+    // the app sends the file again, its bytes are counted again
+    transfer_bytes_received(-(int64_t)(content_len - remaining));
     if (!locked)
         return send_error(req, "503 Service Unavailable", "SD card removed");
     if (remaining > 0 && write_ok)
@@ -928,6 +1026,7 @@ static esp_err_t write_guard(httpd_req_t* req)
 
 static const httpd_uri_t uri_handlers[] = {
     { .uri = "/api/info", .method = HTTP_GET, .handler = api_info_handler },
+    { .uri = "/api/maps", .method = HTTP_GET, .handler = api_maps_handler },
     { .uri = "/api/reload", .method = HTTP_POST, GUARDED(api_reload_handler) },
     { .uri = "/api/transfer", .method = HTTP_POST, GUARDED(api_transfer_post_handler) },
     { .uri = "/api/transfer", .method = HTTP_GET, .handler = api_transfer_get_handler },
