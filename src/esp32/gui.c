@@ -356,7 +356,7 @@ static void create_top_bar(const display_t* dsp)
 }
 
 #define PROGRESS_BOX_TOP (ICON_SIZE + margin_vertical + 10) // below the top bar
-#define PROGRESS_TEXT_LEN 48
+#define PROGRESS_TEXT_LEN 80 // the compiler checks that the longest numbers fit
 
 /* result of the transfer drawn in the refresh that is committed next */
 static upload_state_t upload_result_drawn = UPLOAD_IDLE;
@@ -399,7 +399,11 @@ static void render_upload_progress(const display_t* dsp)
     color_t bar_color = GREEN;
     switch (p.state) {
     case UPLOAD_ACTIVE:
-        snprintf(text, sizeof(text), "Upload %lu / %lu files", (unsigned long)p.files_done, (unsigned long)p.files_total);
+        if (p.bytes_total > 0)
+            snprintf(text, sizeof(text), "Upload %lu / %lu files, %llu / %llu MB", (unsigned long)p.files_done,
+                (unsigned long)p.files_total, (unsigned long long)(p.bytes_done >> 20), (unsigned long long)(p.bytes_total >> 20));
+        else
+            snprintf(text, sizeof(text), "Upload %lu / %lu files", (unsigned long)p.files_done, (unsigned long)p.files_total);
         break;
     case UPLOAD_DONE:
         snprintf(text, sizeof(text), "Upload complete: %lu files", (unsigned long)p.files_total);
@@ -409,7 +413,11 @@ static void render_upload_progress(const display_t* dsp)
         bar_color = RED;
         break;
     }
-    draw_progress_box(dsp, text, p.files_done, p.files_total, bar_color);
+    // a map is one file of hundreds of MB, the bar follows the bytes if the app announced them
+    if (p.bytes_total > 0 && p.state == UPLOAD_ACTIVE)
+        draw_progress_box(dsp, text, p.bytes_done < p.bytes_total ? p.bytes_done : p.bytes_total, p.bytes_total, bar_color);
+    else
+        draw_progress_box(dsp, text, p.files_done, p.files_total, bar_color);
 }
 
 /* the failure of a firmware update drawn in the refresh that is committed next */
