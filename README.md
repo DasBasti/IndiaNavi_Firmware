@@ -160,7 +160,7 @@ The image is written to the inactive OTA partition and checked before it is sele
 Format the card with FAT32 or exFAT. Only 8.3 file names are supported.
 
     ├── MAPS/
-    │   ├── map.map          optional: vector map (Mapsforge), drawn instead of the tiles
+    │   ├── *.map            optional: vector maps (Mapsforge), drawn instead of the tiles
     │   ├── 14/{x}/{y}.raw   map tiles for zoom 14
     │   └── 16/{x}/{y}.raw   map tiles for zoom 16
     ├── art1.raw … art14.raw  images for the off screen, one is picked at random
@@ -178,14 +178,19 @@ the app.
 
 ### Vector map
 
-If `MAPS/map.map` exists the map screen draws it directly as polygons, lines and points instead of loading
-tile images, at the same two zoom levels. The renderer is the Rust library
+If there are `.map` files in `MAPS` the map screen draws them directly as polygons, lines and points instead of
+loading tile images, at the same two zoom levels. Several maps can be on the card, for example one per region
+(names in 8.3 like `RHEINL01.MAP`; a long name copied by a PC works through its short name): the maps that cover
+the screen are drawn together, at most 4, so there are no gaps at the borders between them. A newer map replaces
+an older one of the same region, so an updated download does not have to replace the old file. The maps are read
+when the map screen starts, see `Documentation/multiple_vector_maps.md`. The renderer is the Rust library
 [mapsforge-rs](https://github.com/DasBasti/mapsforge-rs), the submodule `lib/mapsforge-rs`
 (`git submodule update --init`, or another checkout in `MAPSFORGE_RS_DIR`) and built by `tools/mapsforge_rs.py` with the Xtensa Rust toolchain
 (see [Building](#building)). Without the checkout the firmware builds without it and uses tiles.
 The glue is `src/esp32/vector_map.c`, the colors and drawing rules are in the library (`style.rs`).
 
-The simulator draws it too, which is much faster to iterate on than flashing:
+The simulator draws them too, which is much faster to iterate on than flashing. `--map` is one map file or a
+folder with maps:
 
 ```sh
 pio run -e linux_native

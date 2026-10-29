@@ -1,9 +1,12 @@
 /*
  * Vector map
  *
- * Draws a Mapsforge map file from the SD card (MAPS/map.map) directly into the framebuffer
- * as polygons, lines and points, instead of loading pre-rendered tile images. Needs the
- * mapsforge component (see components/mapsforge), without it nothing is available.
+ * Draws the Mapsforge map files of the SD card (all .MAP files in MAPS, map.map is one of them)
+ * directly into the framebuffer as polygons, lines and points, instead of loading pre-rendered
+ * tile images. The maps that cover the screen are drawn together, at most MAP_CATALOG_DRAWN, and
+ * a newer map replaces an older one of the same region (see lib/map_catalog and
+ * Documentation/multiple_vector_maps.md). Needs the mapsforge component (see
+ * components/mapsforge), without it nothing is available.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -16,12 +19,17 @@
 
 #include "Platinenmacher.h"
 
-/* true if the firmware has vector map support and the map file exists on the SD card */
+/*
+ * Reads the headers of the maps on the SD card into the catalog of the maps. true if the firmware
+ * has vector map support and there is at least one map. Called when the map screen is created,
+ * so a reload of the screen also finds new maps.
+ */
 bool vector_map_available(void);
 
 /*
- * Draw the map at a zoom level (Web Mercator, 256 px tiles) over the whole display. The position
- * appears at the pixel anchor_x/anchor_y, as it does on the pre-rendered tiles.
+ * Draw the maps at a zoom level (Web Mercator, 256 px tiles) over the whole display, white where
+ * no map is. The position appears at the pixel anchor_x/anchor_y, as it does on the pre-rendered
+ * tiles.
  *
  * Locks the SD card while it draws.
  */

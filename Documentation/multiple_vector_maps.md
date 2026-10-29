@@ -1,6 +1,6 @@
 # Multiple vector maps on the SD card (concept)
 
-Status: concept, nothing of this is implemented yet.
+Status: phase 1 is implemented (catalog, several maps on one screen, new tops old), phases 2 to 4 are open.
 
 Today the IndiaNavi draws its vector map from exactly one file, `MAPS/map.map` (`src/esp32/vector_map.c`).
 The app (IndiaNavi mode) downloads Mapsforge maps per region from download.mapsforge.org. A walk near a
@@ -23,8 +23,7 @@ would need the space twice and the merged file can not be updated per region.
 | | today | consequence |
 |---|---|---|
 | File names | `CONFIG_FATFS_LFN_NONE`, 8.3 names only | map files are named like `RHEINL01.MAP`. A long name copied by a PC still works, FatFs sees its short alias (`RHEINL~1.MAP`) |
-| File size | FAT32, at most 4 GB - 1 per file | big countries do not fit into one file anyway, several maps are the way to cover them |
-| Open files | `max_files = 1` in `sd.c` | the maps are read one after the other, never at the same time |
+| File size | at most 4 GB - 1 per file on FAT32 (exFAT has no such limit) | big countries do not fit into one file on FAT32, several maps are the way to cover them |
 | Seeking | link map (`clmt`) for one file, 5 s to build for 3 GB | one link map per map file has to be kept |
 | Rendering | `mfr_render` collects, sorts and draws one map | the drawing order has to be shared between maps, see below |
 | Upload | only `track.gpx` and `MAPS/{z}/{x}/{y}.raw` are accepted | new path rule for maps |
@@ -44,9 +43,15 @@ The firmware builds a catalog of the maps once, not on every render:
 - for every `MAPS/*.MAP`: open it, read the header (`mfr_open`, `mfr_bounds`), close it;
 - an entry keeps the 8.3 name, file size, first cluster, bounding box, creation date and the zoom intervals,
   about 64 bytes; 32 maps are 2 kB;
-- files that are not Mapsforge maps are left out and logged.
+- files that are not Mapsforge maps are left out and logged;
+- new tops old: a map is left out when a newer map (by the creation date in its header) covers at least 90 % of
+  its bounding box. An updated download of a region replaces the old file without deleting it, a newer map of a
+  whole country replaces older regional maps in it, two neighbouring regions stay.
 
-The catalog replaces `vector_map_available()`: the vector map is available if the catalog is not empty.
+The catalog is `lib/map_catalog`, with host tests in `test/host/Platinenmacher/test_map_catalog`.
+
+`vector_map_available()` builds the catalog: the vector map is available if a map is in it. It is called when
+the map screen is created, so `POST /api/reload` (which creates the map screen again) also finds new maps.
 
 Reading 32 headers at boot costs about one second (header plus tag tables, a few kB each). The tag tables
 are not kept, they are read again when a map is drawn.
@@ -71,7 +76,7 @@ shapes of several tiles of one map are today:
 
 ```
 scene = new scene
-for map in maps that cover the screen:        // one after the other, max_files = 1
+for map in maps that cover the screen:        // one after the other
     open map (with its link map)
     collect the visible tiles of the map into the scene
     close map
@@ -176,9 +181,7 @@ maps and of the files, and the simulated display matches the device pixel by pix
 
 - How fast does the device write one big file over WiFi? Below about 500 kB/s the card reader should be the
   recommended way for maps over 200 MB.
-- Two versions of the same region on the card (an old and a new download) are drawn on top of each other.
-  Should the catalog keep only the newest map per bounding box, or is it enough that the app replaces the old
-  file when it sends the new one?
-- Is 4 maps per render enough? Each additional map costs one file open and the header (tens of ms).
 - Long file names (`CONFIG_FATFS_LFN_HEAP`) would make the names on the card readable, at the cost of some
-  RAM and the 8.3 rule of the upload API. Not needed for this concept.
+  RAM and the 8.3 rule of the upload API. Not needed.
+
+Decided: new tops old (see the catalog), 4 maps per screen are enough.

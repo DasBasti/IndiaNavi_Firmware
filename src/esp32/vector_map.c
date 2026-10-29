@@ -8,6 +8,7 @@
 
 #ifdef VECTOR_MAP
 
+#include <stdio.h>
 #include <string.h>
 
 #include "esp_log.h"
@@ -17,12 +18,13 @@
 
 #include "esp_heap_caps.h"
 
+#include "gui/map_labels.h"
+#include "map_catalog.h"
 #include "mapsforge.h"
 #include "mfr_raster.h"
-#include "gui/map_labels.h"
 #include "navi/sd.h"
 
-#define MAP_FILE "//MAPS/map.map"
+#define MAP_FOLDER "//MAPS"
 
 static const char* TAG = "vector_map";
 
@@ -46,17 +48,31 @@ typedef struct {
 } io_stats_t;
 static io_stats_t stats;
 
+/* the maps on the card, built by vector_map_available() */
+static map_catalog_t catalog;
+
+/* shapes of all maps of a screen, kept for its memory */
+static mfr_scene_t* scene;
+
 /*
- * Cluster link map of the map file. Seeking in a file of several GB walks its cluster chain from
- * the start (about 70 ms per seek), with a link map a seek is a table lookup. Building it walks the
- * chain once (5 s for 3 GB on FAT32), so it is kept and reused as long as the file starts at the
- * same cluster and has the same size.
+ * Cluster link maps of the map files. Seeking in a file of several GB walks its cluster chain
+ * from the start (about 70 ms per seek), with a link map a seek is a table lookup. Building one
+ * walks the chain once (5 s for 3 GB on FAT32), so they are kept for the most recently drawn maps
+ * and reused as long as a file starts at the same cluster and has the same size.
  */
-static DWORD* clmt;
-static size_t clmt_size; // in DWORDs
-static bool clmt_valid;
-static uint32_t clmt_start_cluster;
-static FSIZE_t clmt_file_size;
+#define LINK_MAPS MAP_CATALOG_DRAWN
+
+typedef struct {
+    DWORD* table;
+    size_t size; // in DWORDs
+    bool valid;
+    uint32_t start_cluster;
+    FSIZE_t file_size;
+    uint32_t used; // render counter of the last use, the oldest entry is replaced
+} link_map_t;
+
+static link_map_t link_maps[LINK_MAPS];
+static uint32_t render_count;
 
 typedef struct {
     FIL file;
@@ -116,124 +132,227 @@ static void draw_point(void* ctx, mfr_point_t at, uint32_t color, uint8_t radius
     mfr_raster_disc((const mfr_raster_t*)ctx, at.x, at.y, radius, color);
 }
 
+/* the link map of the file, from the cache or built now */
 static void prepare_fast_seek(FIL* file)
 {
     int64_t start = esp_timer_get_time();
-    if (clmt_valid && clmt_start_cluster == file->obj.sclust && clmt_file_size == f_size(file)) {
-        file->cltbl = clmt;
-        return;
+    link_map_t* entry = NULL;
+    for (int i = 0; i < LINK_MAPS; i++) {
+        link_map_t* l = &link_maps[i];
+        if (l->valid && l->start_cluster == file->obj.sclust && l->file_size == f_size(file)) {
+            l->used = render_count;
+            file->cltbl = l->table;
+            return;
+        }
+        // an unused entry, or else the one used longest ago
+        if (!entry || (entry->valid && (!l->valid || l->used < entry->used)))
+            entry = l;
     }
-    clmt_valid = false;
-    if (!clmt) {
-        clmt_size = 64;
-        clmt = mfr_alloc(clmt_size * sizeof(DWORD));
+
+    entry->valid = false;
+    entry->used = render_count;
+    if (!entry->table) {
+        entry->size = 64;
+        entry->table = mfr_alloc(entry->size * sizeof(DWORD));
     }
-    for (int attempt = 0; clmt && attempt < 2; attempt++) {
-        file->cltbl = clmt;
-        clmt[0] = clmt_size;
+    for (int attempt = 0; entry->table && attempt < 2; attempt++) {
+        file->cltbl = entry->table;
+        entry->table[0] = entry->size;
         FRESULT res = f_lseek(file, CREATE_LINKMAP);
         if (res == FR_OK) {
-            ESP_LOGI(TAG, "Link map of %lu entries built in %lld ms", (unsigned long)clmt[0], (esp_timer_get_time() - start) / 1000);
+            ESP_LOGI(TAG, "Link map of %lu entries built in %lld ms", (unsigned long)entry->table[0], (esp_timer_get_time() - start) / 1000);
             f_lseek(file, 0);
-            clmt_valid = true;
-            clmt_start_cluster = file->obj.sclust;
-            clmt_file_size = f_size(file);
+            entry->valid = true;
+            entry->start_cluster = file->obj.sclust;
+            entry->file_size = f_size(file);
             return;
         }
         if (res != FR_NOT_ENOUGH_CORE)
             break;
-        // clmt[0] is the number of DWORDs needed
-        size_t needed = clmt[0];
-        mfr_free(clmt);
-        clmt_size = needed;
-        clmt = mfr_alloc(clmt_size * sizeof(DWORD));
+        // table[0] is the number of DWORDs needed
+        size_t needed = entry->table[0];
+        mfr_free(entry->table);
+        entry->size = needed;
+        entry->table = mfr_alloc(entry->size * sizeof(DWORD));
     }
     ESP_LOGW(TAG, "No link map, seeks are slow");
     file->cltbl = NULL;
 }
 
+static map_io_t* map_io_create(void)
+{
+    map_io_t* map_io = heap_caps_calloc(1, sizeof(map_io_t), MALLOC_CAP_8BIT);
+    if (map_io)
+        map_io->bounce = heap_caps_malloc(IO_BOUNCE_SIZE, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    if (map_io && !map_io->bounce) {
+        heap_caps_free(map_io);
+        map_io = NULL;
+    }
+    return map_io;
+}
+
+static void map_io_free(map_io_t* map_io)
+{
+    if (!map_io)
+        return;
+    heap_caps_free(map_io->bounce);
+    heap_caps_free(map_io);
+}
+
+static void map_path(char* path, size_t size, const char* name)
+{
+    snprintf(path, size, MAP_FOLDER "/%s", name);
+}
+
+/* reads the header of a map into the catalog, the SD card is locked */
+static void add_to_catalog(map_io_t* map_io, const FILINFO* info)
+{
+    char path[sizeof(MAP_FOLDER) + MAP_CATALOG_NAME_LEN + 1];
+    map_path(path, sizeof(path), info->fname);
+    if (f_open(&map_io->file, path, FA_READ) != FR_OK) {
+        ESP_LOGW(TAG, "Can not open %s", path);
+        return;
+    }
+    mfr_io_t io = { .ctx = map_io, .read = io_read, .seek = io_seek };
+    int err = MFR_OK;
+    mfr_map_t* map = mfr_open(&io, &err);
+    if (map) {
+        double b[4];
+        mfr_bounds(map, b);
+        map_bounds_t bounds = { .min_lat = b[0], .min_lon = b[1], .max_lat = b[2], .max_lon = b[3] };
+        uint64_t created = mfr_created(map);
+        if (map_catalog_add(&catalog, info->fname, info->fsize, created, bounds))
+            ESP_LOGI(TAG, "%s: %lu bytes, %.4f,%.4f - %.4f,%.4f, created %llu", info->fname, (unsigned long)info->fsize,
+                b[0], b[1], b[2], b[3], (unsigned long long)created);
+        else
+            ESP_LOGW(TAG, "More than %d maps, %s is not used", MAP_CATALOG_MAX, info->fname);
+        mfr_close(map);
+    } else {
+        ESP_LOGW(TAG, "%s is no map: %d (%s)", path, err, mfr_last_error());
+    }
+    f_close(&map_io->file);
+}
+
 bool vector_map_available(void)
 {
-    if (!sd_lock())
+    int64_t start = esp_timer_get_time();
+    map_catalog_clear(&catalog);
+    map_io_t* map_io = map_io_create();
+    if (!map_io) {
+        ESP_LOGE(TAG, "Out of memory");
         return false;
+    }
+    if (!sd_lock()) {
+        map_io_free(map_io);
+        return false;
+    }
+    FF_DIR dir;
     FILINFO info;
-    bool exists = f_stat(MAP_FILE, &info) == FR_OK;
+    if (f_opendir(&dir, MAP_FOLDER) == FR_OK) {
+        while (f_readdir(&dir, &info) == FR_OK && info.fname[0]) {
+            if (!(info.fattrib & AM_DIR) && map_catalog_is_map_name(info.fname))
+                add_to_catalog(map_io, &info);
+        }
+        f_closedir(&dir);
+    }
     sd_unlock();
-    return exists;
+    map_io_free(map_io);
+
+    uint8_t drawn = map_catalog_resolve(&catalog);
+    for (uint8_t i = 0; i < catalog.count; i++)
+        if (catalog.maps[i].superseded)
+            ESP_LOGI(TAG, "%s is replaced by a newer map", catalog.maps[i].name);
+    ESP_LOGI(TAG, "%u maps, %u used, read in %lld ms", catalog.count, drawn, (esp_timer_get_time() - start) / 1000);
+    return drawn > 0;
+}
+
+/* adds the shapes of one map to the scene, the SD card is locked. Returns the tiles read or < 0 */
+static int collect_map(map_io_t* map_io, const map_entry_t* entry, double lat, double lon, uint8_t zoom,
+    uint16_t width, uint16_t height, int16_t anchor_x, int16_t anchor_y)
+{
+    char path[sizeof(MAP_FOLDER) + MAP_CATALOG_NAME_LEN + 1];
+    map_path(path, sizeof(path), entry->name);
+    if (f_open(&map_io->file, path, FA_READ) != FR_OK) {
+        ESP_LOGE(TAG, "Can not open %s", path);
+        return MFR_ERR_IO;
+    }
+    prepare_fast_seek(&map_io->file);
+
+    int64_t start = esp_timer_get_time();
+    mfr_io_t io = { .ctx = map_io, .read = io_read, .seek = io_seek };
+    int err = MFR_OK;
+    int tiles;
+    mfr_map_t* map = mfr_open(&io, &err);
+    if (map) {
+        tiles = mfr_scene_collect(scene, map, lat, lon, zoom, width, height, anchor_x, anchor_y);
+        if (tiles < 0)
+            ESP_LOGE(TAG, "%s: render failed: %d (%s)", entry->name, tiles, mfr_last_error());
+        else
+            ESP_LOGI(TAG, "%s: %d tiles in %lld ms", entry->name, tiles, (esp_timer_get_time() - start) / 1000);
+        mfr_close(map);
+    } else {
+        ESP_LOGE(TAG, "Can not read %s: %d (%s)", path, err, mfr_last_error());
+        tiles = err;
+    }
+    f_close(&map_io->file);
+    return tiles;
 }
 
 error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uint8_t zoom,
     int16_t anchor_x, int16_t anchor_y)
 {
+    uint16_t width = dsp->size.width;
+    uint16_t height = dsp->size.height;
+    uint8_t selected[MAP_CATALOG_DRAWN];
+    map_bounds_t screen = map_catalog_screen_bounds(lat, lon, zoom, width, height, anchor_x, anchor_y);
+    uint8_t count = map_catalog_select(&catalog, screen, selected, MAP_CATALOG_DRAWN);
+
+    display_fill(dsp, WHITE);
+    map_labels_reset();
+    if (count == 0) {
+        ESP_LOGI(TAG, "No map at %.5f,%.5f", lat, lon);
+        return PM_OK;
+    }
+
+    if (!scene && !(scene = mfr_scene_new())) {
+        ESP_LOGE(TAG, "Out of memory");
+        return UNAVAILABLE;
+    }
+    map_io_t* map_io = map_io_create();
+    if (!map_io) {
+        ESP_LOGE(TAG, "Out of memory");
+        return UNAVAILABLE;
+    }
     if (!sd_lock()) {
         ESP_LOGW(TAG, "SD card is busy");
+        map_io_free(map_io);
         return UNAVAILABLE;
     }
 
     int64_t start = esp_timer_get_time();
     memset(&stats, 0, sizeof(stats));
-    error_code_t result = PM_OK;
-    map_io_t* map_io = heap_caps_calloc(1, sizeof(map_io_t), MALLOC_CAP_8BIT);
-    if (map_io)
-        map_io->bounce = heap_caps_malloc(IO_BOUNCE_SIZE, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-    if (!map_io || !map_io->bounce) {
-        ESP_LOGE(TAG, "Out of memory");
-        heap_caps_free(map_io);
-        sd_unlock();
-        return UNAVAILABLE;
-    }
-    if (f_open(&map_io->file, MAP_FILE, FA_READ) != FR_OK) {
-        ESP_LOGE(TAG, "Can not open %s", MAP_FILE);
-        heap_caps_free(map_io->bounce);
-        heap_caps_free(map_io);
-        sd_unlock();
-        return PM_FAIL;
-    }
-
-    prepare_fast_seek(&map_io->file);
-
-    mfr_io_t io = { .ctx = map_io, .read = io_read, .seek = io_seek };
-    int err = MFR_OK;
-    mfr_map_t* map = mfr_open(&io, &err);
-    int64_t opened = esp_timer_get_time();
-    if (map) {
-        ESP_LOGI(TAG, "open: %lld ms, %lu reads %lld ms, %lu seeks %lld ms", (opened - start) / 1000,
-            (unsigned long)stats.reads, stats.read_us / 1000, (unsigned long)stats.seeks, stats.seek_us / 1000);
-        double bounds[4];
-        mfr_bounds(map, bounds);
-        ESP_LOGI(TAG, "Map %lu bytes, bounds %.4f,%.4f - %.4f,%.4f; view %.5f,%.5f zoom %u", (unsigned long)f_size(&map_io->file),
-            bounds[0], bounds[1], bounds[2], bounds[3], lat, lon, zoom);
-        mfr_raster_t raster = { .ctx = (void*)dsp, .span = span, .width = dsp->size.width, .height = dsp->size.height, .white = WHITE };
-        mfr_draw_t draw = {
-            .ctx = &raster,
-            .fill_polygon = draw_fill_polygon,
-            .polyline = draw_polyline,
-            .point = draw_point,
-            .label = draw_label,
-        };
-        display_fill(dsp, WHITE);
-        map_labels_reset();
-        int tiles = mfr_render(map, lat, lon, zoom, dsp->size.width, dsp->size.height, anchor_x, anchor_y,
-            MFR_PALETTE_EINK7, &draw);
-        if (tiles < 0) {
-            ESP_LOGE(TAG, "Render failed: %d (%s)", tiles, mfr_last_error());
-            result = PM_FAIL;
-        } else {
-            ESP_LOGI(TAG, "Rendered %d tiles in %lld ms (%lu reads %lld ms, %lu seeks %lld ms)", tiles,
-                (esp_timer_get_time() - start) / 1000, (unsigned long)stats.reads, stats.read_us / 1000,
-                (unsigned long)stats.seeks, stats.seek_us / 1000);
-        }
-        mfr_close(map);
-    } else {
-        ESP_LOGE(TAG, "Can not read map: %d (%s)", err, mfr_last_error());
-        result = PM_FAIL;
-    }
-
-    f_close(&map_io->file);
-    heap_caps_free(map_io->bounce);
-    heap_caps_free(map_io);
+    render_count++;
+    int drawn = 0;
+    // one map after the other, each is closed when its shapes are in the scene
+    for (uint8_t i = 0; i < count; i++)
+        if (collect_map(map_io, &catalog.maps[selected[i]], lat, lon, zoom, width, height, anchor_x, anchor_y) >= 0)
+            drawn++;
     sd_unlock();
-    return result;
+    map_io_free(map_io);
+
+    mfr_raster_t raster = { .ctx = (void*)dsp, .span = span, .width = width, .height = height, .white = WHITE };
+    mfr_draw_t draw = {
+        .ctx = &raster,
+        .fill_polygon = draw_fill_polygon,
+        .polyline = draw_polyline,
+        .point = draw_point,
+        .label = draw_label,
+    };
+    mfr_scene_draw(scene, MFR_PALETTE_EINK7, &draw);
+    ESP_LOGI(TAG, "Rendered %d of %u maps at %.5f,%.5f zoom %u in %lld ms (%lu reads %lld ms, %lu seeks %lld ms)",
+        drawn, count, lat, lon, zoom, (esp_timer_get_time() - start) / 1000, (unsigned long)stats.reads,
+        stats.read_us / 1000, (unsigned long)stats.seeks, stats.seek_us / 1000);
+    return drawn > 0 ? PM_OK : PM_FAIL;
 }
 
 #else /* VECTOR_MAP */
