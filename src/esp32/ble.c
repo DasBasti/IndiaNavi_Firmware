@@ -8,7 +8,8 @@
  *
  * Only one phone can be paired. It has to enter the passkey that is shown on
  * the display. As long as it is connected nobody else can connect, a phone that
- * does not use the connection for 5 minutes is disconnected.
+ * does not use the connection for 5 minutes is disconnected. On the charger the
+ * phone stays connected with a fast link.
  * The WiFi password is never sent, the phone reads it from the QR code.
  *
  * Copyright (c) 2026, Bastian Neumann <info@platinenmacher.tech>
@@ -27,6 +28,7 @@ void ble_if_start(void) { }
 void ble_if_display_update(void) { }
 void ble_if_sleep(void) { }
 void ble_if_wake(void) { }
+void ble_if_charger_changed(void) { }
 void ble_if_stop(void) { }
 bool ble_if_is_running(void) { return false; }
 bool ble_if_is_connected(void) { return false; }
@@ -95,6 +97,7 @@ static volatile int64_t passkey_until_us;        /// the passkey stays on the di
 static volatile bool radio_idle;                 /// the idle phone was disconnected, Bluetooth only runs in windows
 static volatile int64_t window_until_us;         /// the advertising window ends then
 static volatile int64_t last_activity_us;        /// the phone connected, read, wrote or subscribed at this time
+static volatile bool fast_link_wanted;           /// the firmware update needs the fast link
 static char device_name[24];
 
 /* the phone subscribed to the notifications of these characteristics */
@@ -249,14 +252,13 @@ uint16_t ble_if_mtu(void)
     return handle == NO_CONNECTION ? 0 : ble_att_mtu(handle);
 }
 
-/**
- * Short connection interval for the firmware update, a slow one with latency otherwise
- */
-void ble_if_request_fast_link(bool fast)
+/* short connection interval for the firmware update and on the charger, a slow one with latency otherwise */
+static void update_link(void)
 {
     uint16_t handle = conn_handle;
     if (handle == NO_CONNECTION)
         return;
+    bool fast = fast_link_wanted || power_is_charging();
     struct ble_gap_upd_params params = {
         .itvl_min = fast ? 12 : 24,  // units of 1.25 ms
         .itvl_max = fast ? 24 : 40,
@@ -268,6 +270,15 @@ void ble_if_request_fast_link(bool fast)
     int rc = ble_gap_update_params(handle, &params);
     if (rc != 0)
         ESP_LOGW(TAG, "connection update failed: %d", rc);
+}
+
+/**
+ * The firmware update starts or ends, called from ble_ota.c
+ */
+void ble_if_request_fast_link(bool fast)
+{
+    fast_link_wanted = fast;
+    update_link();
 }
 
 static void notify(uint16_t value_handle, const void* data, size_t len)
@@ -692,6 +703,8 @@ static int gap_event(struct ble_gap_event* event, void* arg)
             // the encryption at once and the controller does not answer the command until the host
             // answered the key request, the host waits for the command.
             ble_gap_set_data_len(event->enc_change.conn_handle, 251, 2120);
+            if (power_is_charging())
+                update_link(); // the phone chose the interval, the charger pays for a faster one
             pairing_until_us = 0; // a phone is paired now
         } else {
             ESP_LOGW(TAG, "encryption failed: %d", event->enc_change.status);
@@ -740,7 +753,8 @@ static void worker(void* arg)
         if (radio_idle && conn_handle == NO_CONNECTION && now > window_until_us)
             system_post_event(TASK_EVENT_BLE_SLEEP, 0); // the window is over
 
-        if (conn_handle != NO_CONNECTION && now - last_activity_us > IDLE_TIMEOUT_US) {
+        // on the charger the phone can stay, the power does not matter
+        if (conn_handle != NO_CONNECTION && now - last_activity_us > IDLE_TIMEOUT_US && !power_is_charging()) {
             ESP_LOGI(TAG, "phone is idle, disconnecting");
             radio_idle = true;
             last_activity_us = now; // the disconnect event takes a moment
@@ -893,6 +907,23 @@ void ble_if_wake(void)
     window_until_us = esp_timer_get_time() + ADV_WINDOW_US;
     start_stack();
     ESP_LOGI(TAG, "window opened");
+}
+
+/**
+ * The charger was connected or removed: on the charger Bluetooth does not sleep and the link is fast.
+ * Called from the main task.
+ */
+void ble_if_charger_changed(void)
+{
+    if (power_is_charging() && radio_idle) {
+        // the idle phone can find the device at any time again, a running window does not end
+        radio_idle = false;
+        if (!running)
+            start_stack();
+    }
+    // a phone that idled on the charger gets the full time before it is disconnected
+    last_activity_us = esp_timer_get_time();
+    update_link();
 }
 
 static void stop_stack(void)

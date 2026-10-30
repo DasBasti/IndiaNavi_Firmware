@@ -171,12 +171,19 @@ static void handle_event(task_events_e event)
         ESP_LOGW(TAG, "Disabling the display is not supported");
         break;
     case TASK_EVENT_ENABLE_WIFI:
-    case TASK_EVENT_START_CHARGING:
         wifi_start_task();
         break;
+    case TASK_EVENT_START_CHARGING:
+        wifi_start_task();
+        ble_if_charger_changed();
+        break;
     case TASK_EVENT_DISABLE_WIFI:
+        wifi_request_stop();
+        trigger_rendering();
+        break;
     case TASK_EVENT_STOP_CHARGING:
         wifi_request_stop();
+        ble_if_charger_changed();
         trigger_rendering();
         break;
     case TASK_EVENT_ENABLE_BLE:
