@@ -32,6 +32,21 @@ extern uint8_t WIFI_AP[];
 extern uint8_t BLE[];
 extern uint8_t BLE_conn[];
 
+/* marks of points of interest on the map */
+extern uint8_t poi_drinking_water[];
+extern uint8_t poi_spring[];
+extern uint8_t poi_food[];
+extern uint8_t poi_supermarket[];
+extern uint8_t poi_pharmacy[];
+extern uint8_t poi_hospital[];
+extern uint8_t poi_train[];
+extern uint8_t poi_bus[];
+extern uint8_t poi_tram[];
+extern uint8_t poi_parking[];
+extern uint8_t poi_castle[];
+extern uint8_t poi_tower[];
+extern uint8_t poi_other[];
+
 #define ICON_SIZE 16
 
 #endif /* GUI_ICONS_H_ */
