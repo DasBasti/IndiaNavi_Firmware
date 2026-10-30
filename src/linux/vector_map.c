@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "gui/map_icons.h"
 #include "gui/map_labels.h"
 #include "map_catalog.h"
 #include "mapsforge.h"
@@ -66,6 +67,12 @@ static void draw_polyline(void* ctx, const mfr_point_t* points, uint32_t count, 
 static void draw_label(void* ctx, mfr_point_t at, const char* text, uint32_t len, uint8_t rank)
 {
     map_labels_draw((const display_t*)((const mfr_raster_t*)ctx)->ctx, &f8x8, at.x, at.y, text, len, rank);
+}
+
+/* pictures of POIs, the library draws the colored symbols when this is missing */
+static void draw_icon(void* ctx, mfr_point_t at, uint8_t icon)
+{
+    map_icons_draw((const display_t*)((const mfr_raster_t*)ctx)->ctx, icon, at.x, at.y);
 }
 
 static void draw_point(void* ctx, mfr_point_t at, uint32_t color, uint8_t radius)
@@ -207,6 +214,7 @@ error_code_t vector_map_render(const display_t* dsp, double lat, double lon, uin
         .polyline = draw_polyline,
         .point = draw_point,
         .label = draw_label,
+        .icon = draw_icon,
     };
     mfr_scene_draw(scene, MFR_PALETTE_EINK7, &draw);
     return drawn > 0 ? PM_OK : PM_FAIL;
