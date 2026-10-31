@@ -133,6 +133,7 @@ DECLARE_UUID(uuid_ota_data, BLEP_UUID_OTA_DATA);
 DECLARE_UUID(uuid_device_control, BLEP_UUID_DEVICE_CONTROL);
 DECLARE_UUID(uuid_recording, BLEP_UUID_RECORDING);
 DECLARE_UUID(uuid_recordings, BLEP_UUID_RECORDINGS);
+DECLARE_UUID(uuid_zoom, BLEP_UUID_ZOOM);
 
 static int gap_event(struct ble_gap_event* event, void* arg);
 
@@ -308,7 +309,8 @@ void ble_if_notify_ota_status(const uint8_t status[BLEP_OTA_STATUS_SIZE])
 
 static size_t info_value(uint8_t* out, size_t size)
 {
-    uint8_t flags = BLEP_INFO_FLAG_OTA | BLEP_INFO_FLAG_TRACK_COLOR | BLEP_INFO_FLAG_RECORDING;
+    uint8_t flags = BLEP_INFO_FLAG_OTA | BLEP_INFO_FLAG_TRACK_COLOR | BLEP_INFO_FLAG_RECORDING
+        | BLEP_INFO_FLAG_ZOOM;
     if (power_is_charging())
         flags |= BLEP_INFO_FLAG_CHARGING;
     int32_t battery = power_battery_level();
@@ -428,6 +430,13 @@ static int write_value(uint8_t id, const uint8_t* data, size_t len)
             return att_error(err);
         return display_settings_set(&settings) ? 0 : BLE_ATT_ERR_UNLIKELY;
     }
+    case BLEP_UUID_ZOOM: {
+        blep_zoom_t zoom;
+        blep_err_t err = blep_zoom_decode(data, len, &zoom);
+        if (err != BLEP_OK)
+            return att_error(err);
+        return display_settings_zoom_set(&zoom) ? 0 : BLE_ATT_ERR_UNLIKELY;
+    }
     case BLEP_UUID_OTA_CONTROL:
         return ble_ota_control_write(data, len);
     case BLEP_UUID_OTA_DATA:
@@ -491,6 +500,12 @@ static int read_value(uint8_t id, uint8_t* out, size_t size, size_t* len)
         blep_settings_t settings = display_settings_get();
         blep_settings_encode(out, &settings);
         *len = BLEP_SETTINGS_SIZE;
+        break;
+    }
+    case BLEP_UUID_ZOOM: {
+        blep_zoom_t zoom = display_settings_zoom_get();
+        blep_zoom_encode(out, &zoom);
+        *len = BLEP_ZOOM_SIZE;
         break;
     }
     case BLEP_UUID_OTA_CONTROL:
@@ -570,6 +585,8 @@ static const struct ble_gatt_svc_def gatt_services[] = {
             { .uuid = &uuid_recording.u, .access_cb = access_cb, .arg = (void*)(uintptr_t)BLEP_UUID_RECORDING,
                 .val_handle = &recording_handle, .flags = READ_FLAGS | WRITE_FLAGS | BLE_GATT_CHR_F_NOTIFY },
             { .uuid = &uuid_recordings.u, .access_cb = access_cb, .arg = (void*)(uintptr_t)BLEP_UUID_RECORDINGS,
+                .flags = READ_FLAGS | WRITE_FLAGS },
+            { .uuid = &uuid_zoom.u, .access_cb = access_cb, .arg = (void*)(uintptr_t)BLEP_UUID_ZOOM,
                 .flags = READ_FLAGS | WRITE_FLAGS },
             { 0 },
         },

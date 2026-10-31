@@ -39,6 +39,7 @@ static const display_t* dsp;
 
 static map_t* map;
 static label_t* scaleBox;
+static label_t* scaleStrip; // black background of the scale in the bottom bar
 static label_t* positon_marker;
 static label_t* map_copyright;
 static label_t* infoBox;
@@ -53,26 +54,30 @@ static float longitude_scale;    // cos(latitude), a degree of longitude is shor
 static bool vector_mode;         // there are vector maps (Mapsforge files) on the card
 static int8_t vector_shown = -1; // what the last screen showed: 1 vector maps, 0 tiles, -1 nothing yet
 
-/* scale box and copyright notice sit above the height graph, and lower without it */
+/* the copyright notice sits above the height graph, and lower without it */
 #define HEIGHT_GRAPH_SHIFT 29
-static int16_t scaleBox_top_with_graph;
 static int16_t map_copyright_top_with_graph;
 
+/* 0 is the closer zoom level, 1 the wider one. The levels are chosen in the app. */
 static uint8_t zoom_level_selected = 0;
 static volatile bool zoom_toggle_requested = false;
-uint8_t zoom_level[] = { 16, 14 };
-uint8_t zoom_level_scaleBox_width[] = { 63, 77 };
-char* zoom_level_scaleBox_text[] = { "100m", "500m" };
+static uint8_t zoom_level_near = BLEP_ZOOM_NEAR_DEFAULT;
+static uint8_t zoom_level_far = BLEP_ZOOM_FAR_DEFAULT;
+static char scale_text[8] = "100m";
 graph_point_t* height_graph_data;
 static uint16_t height_graph_data_len;
 float height_min = __FLT_MAX__, height_max = -__FLT_MAX__;
 
 #define INFO_STRIP_HEIGHT 16
 
+/* the scale is at the left of the bottom bar: 5 px, the longest bar (BLEP_SCALE_MAX_WIDTH) and 5 px, the text gets the rest */
+#define SCALE_LEFT 5
+#define SCALE_AREA_WIDTH (SCALE_LEFT + BLEP_SCALE_MAX_WIDTH + 5)
+
 /* the searching picture below the top bar, it ends above the scale and the height graph */
 #define SEARCHING_POSITION_TOP 36
 
-#define INFOBOX_STRLEN (uint32_t)(dsp->size.width / f8x8.width)
+#define INFOBOX_STRLEN (uint32_t)((dsp->size.width - SCALE_AREA_WIDTH) / f8x8.width)
 static const uint8_t offset_x = 159;
 static const uint8_t offset_y = 85;
 static const char* TAG = "map_screen";
@@ -224,15 +229,52 @@ static void update_track(void)
     waypoint_place_arrows(visible_waypoints, visible_waypoints_count, WAYPOINT_ARROW_SPACING, WAYPOINT_ARROW_LOOKAHEAD);
 }
 
+static uint8_t selected_zoom_level(void)
+{
+    return zoom_level_selected ? zoom_level_far : zoom_level_near;
+}
+
+/**
+ * The scale bar shows a round distance that fits the zoom level at the latitude of the position
+ */
+static void update_scale(void)
+{
+    const map_position_t* map_position = gps_get_position();
+    uint32_t meters;
+    uint16_t width = map_position ? blep_scale_bar(selected_zoom_level(), map_position->latitude, &meters) : 0;
+    if (!width)
+        return;
+    blep_scale_text(scale_text, sizeof(scale_text), meters);
+    scaleBox->box.width = width;
+    scaleBox->text = scale_text;
+}
+
+static void apply_zoom_level(void)
+{
+    ESP_LOGI(TAG, "Zoom level is: %d", selected_zoom_level());
+    map_update_zoom_level(map, selected_zoom_level());
+    update_scale();
+}
+
 static void apply_zoom_toggle(void)
 {
-    ESP_LOGI(TAG, "Zoom level was: %d", zoom_level[zoom_level_selected]);
     zoom_level_selected = !zoom_level_selected;
-    ESP_LOGI(TAG, "Zoom level is: %d", zoom_level[zoom_level_selected]);
-    map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+    apply_zoom_level();
+}
 
-    scaleBox->box.width = zoom_level_scaleBox_width[zoom_level_selected];
-    scaleBox->text = zoom_level_scaleBox_text[zoom_level_selected];
+/**
+ * The app can choose both zoom levels. The vector maps are drawn at any level right away.
+ */
+static void take_over_zoom_levels(void)
+{
+    uint8_t near_level = display_settings_zoom_near();
+    uint8_t far_level = display_settings_zoom_far();
+    if (near_level == zoom_level_near && far_level == zoom_level_far)
+        return;
+    zoom_level_near = near_level;
+    zoom_level_far = far_level;
+    ESP_LOGI(TAG, "Zoom levels are: %d and %d", near_level, far_level);
+    apply_zoom_level();
 }
 
 /**
@@ -246,8 +288,6 @@ static bool height_graph_visible(void)
 static void update_height_graph_layout(void)
 {
     int16_t shift = height_graph_visible() ? 0 : HEIGHT_GRAPH_SHIFT;
-    if (scaleBox)
-        scaleBox->box.top = scaleBox_top_with_graph + shift;
     if (map_copyright)
         map_copyright->box.top = map_copyright_top_with_graph + shift;
 }
@@ -312,9 +352,12 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
     update_height_graph_layout();
 
     // zoom is changed from the button task, apply it in the render task
-    if (zoom_toggle_requested && map && scaleBox) {
-        zoom_toggle_requested = false;
-        apply_zoom_toggle();
+    if (map && scaleBox) {
+        take_over_zoom_levels();
+        if (zoom_toggle_requested) {
+            zoom_toggle_requested = false;
+            apply_zoom_toggle();
+        }
     }
 
     // Only modify map if we are GPS fixed
@@ -326,6 +369,7 @@ static error_code_t map_pre_render_cb(const display_t* dsp, void* component)
         gps_indicator_label->onBeforeRender = updateSatsInView;
     }
     map_update_position(map, map_position);
+    update_scale();
     update_track();
 
     if (closest_wp && graph && closest_wp->num < graph->data_len)
@@ -426,6 +470,8 @@ static void map_screen_free(void)
     positon_marker = NULL;
     RTOS_Free(scaleBox);
     scaleBox = NULL;
+    RTOS_Free(scaleStrip);
+    scaleStrip = NULL;
     RTOS_Free(map_copyright);
     map_copyright = NULL;
     if (infoBox) {
@@ -478,13 +524,17 @@ void map_screen_create(const display_t* display)
     positon_marker->onBeforeRender = render_position_marker;
     add_to_render_pipeline(label_render, positon_marker, RL_TOP);
 
-    /* scale 63px for 100m | 96px for 500ft @ zoom 16*/
-    /* scale 77px for 500m | 94px for 2000ft @zoom 14 */
-    scaleBox = label_create("100m", &f8x8, 10, dsp->size.height - 15 - 45, 63, 13);
+    /* scale 63px for 100m @ zoom 16 and 77px for 500m @ zoom 14 at 48 degrees north, see update_scale() */
+    scaleStrip = label_create("", &f8x8, 0, dsp->size.height - INFO_STRIP_HEIGHT, SCALE_AREA_WIDTH, INFO_STRIP_HEIGHT);
+    scaleStrip->backgroundColor = BLACK;
+    add_to_render_pipeline(label_render, scaleStrip, RL_GUI_ELEMENTS);
+
+    /* white on the black bottom bar, a bracket that is open at the top */
+    scaleBox = label_create("100m", &f8x8, SCALE_LEFT, dsp->size.height - 14, 63, 14);
     scaleBox->borderWidth = 1;
     scaleBox->borderLines = LEFT_SOLID | RIGHT_SOLID | BOTTOM_SOLID;
-    scaleBox->borderColor = BLACK;
-    scaleBox->textColor = BLACK;
+    scaleBox->borderColor = WHITE;
+    scaleBox->textColor = WHITE;
     scaleBox->alignVertical = BOTTOM;
     scaleBox->alignHorizontal = CENTER;
     scaleBox->onBeforeRender = scale_box_render_cb;
@@ -496,7 +546,9 @@ void map_screen_create(const display_t* display)
     map_copyright->onBeforeRender = map_render_copyright;
     add_to_render_pipeline(label_render, map_copyright, RL_GUI_ELEMENTS);
 
-    map_update_zoom_level(map, zoom_level[zoom_level_selected]);
+    zoom_level_near = display_settings_zoom_near();
+    zoom_level_far = display_settings_zoom_far();
+    map_update_zoom_level(map, selected_zoom_level());
     // attach zoom_level event to short click
     set_short_press_event(toggleZoom);
 
@@ -520,14 +572,13 @@ void map_screen_create(const display_t* display)
 
         add_to_render_pipeline(height_graph_render, graph, RL_GUI_ELEMENTS);
     }
-    // without a graph the scalebox and copyright notice move down
-    scaleBox_top_with_graph = scaleBox->box.top;
+    // without a graph the copyright notice moves down
     map_copyright_top_with_graph = map_copyright->box.top;
     update_height_graph_layout();
 
     /* black strip at the bottom edge with the track name or the position, white text */
-    infoBox = label_create("", &f8x8, 0, dsp->size.height - INFO_STRIP_HEIGHT,
-        dsp->size.width, INFO_STRIP_HEIGHT);
+    infoBox = label_create("", &f8x8, SCALE_AREA_WIDTH, dsp->size.height - INFO_STRIP_HEIGHT,
+        dsp->size.width - SCALE_AREA_WIDTH, INFO_STRIP_HEIGHT);
     infoBox->alignVertical = MIDDLE;
     infoBox->alignHorizontal = CENTER;
     infoBox->textColor = WHITE;
