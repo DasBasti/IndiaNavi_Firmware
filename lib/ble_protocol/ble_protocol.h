@@ -40,6 +40,7 @@
 #define BLEP_UUID_DEVICE_CONTROL 0x0b
 #define BLEP_UUID_RECORDING 0x0c
 #define BLEP_UUID_RECORDINGS 0x0d
+#define BLEP_UUID_ZOOM 0x0e
 
 /* ATT error for a value the device does not accept (Value Not Allowed) */
 #define BLEP_ATT_ERR_VALUE_NOT_ALLOWED 0x13
@@ -57,6 +58,7 @@ typedef enum {
 #define BLEP_INFO_FLAG_CHARGING 0x02 /// a charger is connected
 #define BLEP_INFO_FLAG_TRACK_COLOR 0x04 /// the settings carry the color of the track
 #define BLEP_INFO_FLAG_RECORDING 0x08 /// tracks can be recorded, see Recording and Recordings
+#define BLEP_INFO_FLAG_ZOOM 0x10 /// the two zoom levels of the map screen can be chosen, see Zoom
 #define BLEP_INFO_HEADER_SIZE 4
 
 /**
@@ -172,6 +174,38 @@ typedef struct {
 blep_err_t blep_settings_decode(const uint8_t* in, size_t len, blep_settings_t* settings);
 void blep_settings_encode(uint8_t* out, const blep_settings_t* settings);
 uint16_t blep_clamp_update_interval(uint32_t seconds);
+
+/* ---- Zoom levels of the map screen ---- */
+
+/*
+ * The map screen switches between two zoom levels with the button. The vector maps are drawn at any level, the
+ * tile images on the SD card have to exist for both.
+ */
+#define BLEP_ZOOM_SIZE 2
+#define BLEP_ZOOM_MIN 10
+#define BLEP_ZOOM_MAX 17
+#define BLEP_ZOOM_NEAR_DEFAULT 16 /// shown first, about 100 m
+#define BLEP_ZOOM_FAR_DEFAULT 14  /// shown after the button, about 500 m
+
+typedef struct {
+    uint8_t near_level; /// the closer level, higher number
+    uint8_t far_level;  /// the wider level, lower number
+} blep_zoom_t;
+
+/** near, far. Both in BLEP_ZOOM_MIN..BLEP_ZOOM_MAX and far has to be lower than near */
+blep_err_t blep_zoom_decode(const uint8_t* in, size_t len, blep_zoom_t* zoom);
+void blep_zoom_encode(uint8_t* out, const blep_zoom_t* zoom);
+int blep_zoom_valid(uint8_t near_level, uint8_t far_level);
+
+/**
+ * Scale bar of a zoom level at a latitude: the longest round distance (1, 2 or 5 times a power of ten, in meters)
+ * that is not wider than BLEP_SCALE_MAX_WIDTH pixels. Returns the width in pixels, 0 if the latitude is not usable.
+ */
+#define BLEP_SCALE_MAX_WIDTH 90
+uint16_t blep_scale_bar(uint8_t zoom, double latitude, uint32_t* meters);
+
+/** "100m" or "2km" */
+void blep_scale_text(char* out, size_t size, uint32_t meters);
 
 /* ---- Device control ---- */
 

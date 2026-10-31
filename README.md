@@ -9,7 +9,7 @@ The firmware runs on an ESP32-S3 (ESP-IDF via PlatformIO). A companion phone app
 
 ## Features
 
-- Map view with zoom levels 16 (100 m scale) and 14 (500 m scale), position marker, GPX track with direction
+- Map view with two zoom levels that are chosen in the app (16 and 14 by default, with a scale bar that fits), position marker, GPX track with direction
   arrows, waypoints and height graph
 - Quectel L96 GNSS (GPS, GLONASS, Galileo). The time and position from the phone can be used to get a faster first fix
 - Track recording, started and stopped from the app: one GPX file per recording in `TRACKS/` on the SD card,
@@ -161,8 +161,7 @@ Format the card with FAT32 or exFAT. Only 8.3 file names are supported.
 
     ├── MAPS/
     │   ├── *.map            optional: vector maps (Mapsforge), drawn instead of the tiles
-    │   ├── 14/{x}/{y}.raw   map tiles for zoom 14
-    │   └── 16/{x}/{y}.raw   map tiles for zoom 16
+    │   └── {zoom}/{x}/{y}.raw   map tiles, for the two zoom levels (14 and 16 by default)
     ├── art1.raw … art14.raw  images for the off screen, one is picked at random
     ├── lost.raw             shown while there is no position
     ├── track.gpx            track and waypoints shown on the map
@@ -179,7 +178,7 @@ the app.
 ### Vector map
 
 If there are `.map` files in `MAPS` the map screen draws them directly as polygons, lines and points instead of
-loading tile images, at the same two zoom levels. Several maps can be on the card, for example one per region
+loading tile images, at the two zoom levels that are chosen in the app. Several maps can be on the card, for example one per region
 (names in 8.3 like `RHEINL01.MAP`; a long name copied by a PC works through its short name): the maps that cover
 the screen are drawn together, at most 4, so there are no gaps at the borders between them. A newer map replaces
 an older one of the same region, so an updated download does not have to replace the old file. The maps are read
@@ -196,7 +195,7 @@ folder with maps:
 
 ```sh
 pio run -e linux_native
-.pio/build/linux_native/program --map ~/maps/germany.map --zoom 14 47.7376 12.6659
+.pio/build/linux_native/program --map ~/maps/germany.map --zoom-levels 17,13 --zoom 13 47.7376 12.6659
 tools/sim_screenshot.sh ~/maps/germany.map 49.6464 8.5735 16 shot.png   # headless-ish: build + PNG
 tools/sim_screenshot.sh ~/maps/germany.map 49.6464 8.5735 16 search.png --no-fix   # no GPS fix yet
 ```

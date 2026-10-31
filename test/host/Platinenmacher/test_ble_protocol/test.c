@@ -255,6 +255,57 @@ void test_settings_rejects_reserved_bits_and_length()
     TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_settings_decode(raw, 3, &s));
 }
 
+void test_zoom_round_trip_and_range()
+{
+    uint8_t raw[BLEP_ZOOM_SIZE];
+    blep_zoom_t in = { .near_level = 17, .far_level = 12 };
+    blep_zoom_encode(raw, &in);
+    TEST_ASSERT_EQUAL_UINT8(17, raw[0]);
+    TEST_ASSERT_EQUAL_UINT8(12, raw[1]);
+    blep_zoom_t out;
+    TEST_ASSERT_EQUAL(BLEP_OK, blep_zoom_decode(raw, sizeof(raw), &out));
+    TEST_ASSERT_EQUAL_UINT8(17, out.near_level);
+    TEST_ASSERT_EQUAL_UINT8(12, out.far_level);
+
+    uint8_t same[] = { 15, 15 };
+    TEST_ASSERT_EQUAL(BLEP_ERR_RANGE, blep_zoom_decode(same, sizeof(same), &out));
+    uint8_t swapped[] = { 14, 16 };
+    TEST_ASSERT_EQUAL(BLEP_ERR_RANGE, blep_zoom_decode(swapped, sizeof(swapped), &out));
+    uint8_t too_close[] = { BLEP_ZOOM_MAX + 1, 14 };
+    TEST_ASSERT_EQUAL(BLEP_ERR_RANGE, blep_zoom_decode(too_close, sizeof(too_close), &out));
+    uint8_t too_far[] = { 16, BLEP_ZOOM_MIN - 1 };
+    TEST_ASSERT_EQUAL(BLEP_ERR_RANGE, blep_zoom_decode(too_far, sizeof(too_far), &out));
+    TEST_ASSERT_EQUAL(BLEP_ERR_LENGTH, blep_zoom_decode(raw, 1, &out));
+    TEST_ASSERT_TRUE(blep_zoom_valid(BLEP_ZOOM_NEAR_DEFAULT, BLEP_ZOOM_FAR_DEFAULT));
+}
+
+void test_scale_bar_keeps_the_old_scales_of_the_two_default_levels()
+{
+    uint32_t meters = 0;
+    uint16_t width = blep_scale_bar(16, 48.0, &meters);
+    TEST_ASSERT_EQUAL_UINT32(100, meters);
+    TEST_ASSERT_UINT16_WITHIN(2, 63, width);
+    width = blep_scale_bar(14, 48.0, &meters);
+    TEST_ASSERT_EQUAL_UINT32(500, meters);
+    TEST_ASSERT_UINT16_WITHIN(2, 77, width);
+}
+
+void test_scale_bar_of_other_levels_and_text()
+{
+    uint32_t meters = 0;
+    blep_scale_bar(17, 48.0, &meters);
+    TEST_ASSERT_EQUAL_UINT32(50, meters);
+    blep_scale_bar(12, 48.0, &meters);
+    TEST_ASSERT_EQUAL_UINT32(2000, meters);
+    TEST_ASSERT_EQUAL_UINT16(0, blep_scale_bar(16, 89.0, &meters));
+
+    char text[8];
+    blep_scale_text(text, sizeof(text), 100);
+    TEST_ASSERT_EQUAL_STRING("100m", text);
+    blep_scale_text(text, sizeof(text), 2000);
+    TEST_ASSERT_EQUAL_STRING("2km", text);
+}
+
 void test_clamp_update_interval()
 {
     TEST_ASSERT_EQUAL_UINT16(30, blep_clamp_update_interval(0));
@@ -458,6 +509,9 @@ int main(int argc, char** argv)
     RUN_TEST(test_settings_interval_is_limited_to_30_to_600_seconds);
     RUN_TEST(test_settings_track_color);
     RUN_TEST(test_settings_rejects_reserved_bits_and_length);
+    RUN_TEST(test_zoom_round_trip_and_range);
+    RUN_TEST(test_scale_bar_keeps_the_old_scales_of_the_two_default_levels);
+    RUN_TEST(test_scale_bar_of_other_levels_and_text);
     RUN_TEST(test_clamp_update_interval);
     RUN_TEST(test_device_control_only_knows_forget);
     RUN_TEST(test_recording_commands);

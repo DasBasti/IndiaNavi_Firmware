@@ -24,6 +24,7 @@ GC gc;
 #include <icons_16.h>
 
 #include "gui.h"
+#include "navi/display_settings.h"
 #include "navi/gps.h"
 
 Colormap colormap;
@@ -38,8 +39,11 @@ const uint16_t margin_vertical = 10;
 const uint16_t margin_left = 5;
 const uint16_t margin_right = 5;
 const uint16_t margin_horizontal = 10;
-const uint8_t zoomlevels[] = { 14, 16 };
-uint8_t zoom = 0;
+uint8_t zoom_near = BLEP_ZOOM_NEAR_DEFAULT;
+uint8_t zoom_far = BLEP_ZOOM_FAR_DEFAULT;
+
+uint8_t display_settings_zoom_near(void) { return zoom_near; }
+uint8_t display_settings_zoom_far(void) { return zoom_far; }
 
 extern error_code_t statusRender(const display_t* dsp, void* comp);
 extern void toggleZoom();
@@ -451,7 +455,7 @@ close_file:
 }
 
 /*
- * usage: program [--screenshot file.pnm] [--map file.map] [--zoom 14|16] [--no-fix] [lat lon [tile directory]]
+ * usage: program [--screenshot file.pnm] [--map file.map] [--zoom-levels 16,14] [--zoom 14|16] [--no-fix] [lat lon [tile directory]]
  *
  * With --map (or INDIANAVI_MAP) the map is drawn from the Mapsforge file instead of tiles.
  * --no-fix starts without a GPS fix, the map screen shows that the position is searched.
@@ -546,8 +550,19 @@ int main(int argc, char* argv[])
         } else if (strcmp(argv[i], "--no-fix") == 0) {
             current_position.fix = GPS_FIX_INVALID;
         } else if (strcmp(argv[i], "--zoom") == 0 && i + 1 < argc) {
-            if (atoi(argv[++i]) == 14)
-                toggleZoom(); // the screen starts at zoom level 16
+            int level = atoi(argv[++i]);
+            if (level == zoom_far)
+                toggleZoom(); // the screen starts at the closer zoom level
+            else if (level != zoom_near)
+                fprintf(stderr, "--zoom %d is none of the levels %d and %d, see --zoom-levels\n", level, zoom_near, zoom_far);
+        } else if (strcmp(argv[i], "--zoom-levels") == 0 && i + 1 < argc) {
+            int near_level = 0, far_level = 0;
+            if (sscanf(argv[++i], "%d,%d", &near_level, &far_level) == 2 && blep_zoom_valid(near_level, far_level)) {
+                zoom_near = near_level;
+                zoom_far = far_level;
+            } else {
+                fprintf(stderr, "--zoom-levels needs near,far like 16,14 (%d to %d, far lower than near)\n", BLEP_ZOOM_MIN, BLEP_ZOOM_MAX);
+            }
         } else if (positional == 0) {
             current_position.latitude = atof(argv[i]);
             positional++;

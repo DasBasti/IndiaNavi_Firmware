@@ -19,6 +19,8 @@
 #define NVS_KEY_FLAGS "flags"
 #define NVS_KEY_INTERVAL "interval"
 #define NVS_KEY_TRACK_COLOR "track_color"
+#define NVS_KEY_ZOOM_NEAR "zoom_near"
+#define NVS_KEY_ZOOM_FAR "zoom_far"
 
 static const char* TAG = "SETTINGS";
 
@@ -26,6 +28,8 @@ static const char* TAG = "SETTINGS";
 static volatile uint8_t flags = BLEP_SETTING_SHOW_TRACK | BLEP_SETTING_SHOW_HEIGHT_GRAPH;
 static volatile uint8_t track_color = BLEP_TRACK_COLOR_DEFAULT;
 static volatile uint16_t update_interval_s = BLEP_UPDATE_INTERVAL_DEFAULT_S;
+static volatile uint8_t zoom_near = BLEP_ZOOM_NEAR_DEFAULT;
+static volatile uint8_t zoom_far = BLEP_ZOOM_FAR_DEFAULT;
 
 /**
  * Load the settings from NVS. NVS has to be initialized.
@@ -45,6 +49,13 @@ void display_settings_init(void)
         track_color = saved_color;
     if (nvs_get_u16(nvs, NVS_KEY_INTERVAL, &saved_interval) == ESP_OK)
         update_interval_s = blep_clamp_update_interval(saved_interval);
+    uint8_t saved_near;
+    uint8_t saved_far;
+    if (nvs_get_u8(nvs, NVS_KEY_ZOOM_NEAR, &saved_near) == ESP_OK && nvs_get_u8(nvs, NVS_KEY_ZOOM_FAR, &saved_far) == ESP_OK
+        && blep_zoom_valid(saved_near, saved_far)) {
+        zoom_near = saved_near;
+        zoom_far = saved_far;
+    }
     nvs_close(nvs);
     ESP_LOGI(TAG, "flags %u, track color %u, update every %u s", (unsigned)flags, (unsigned)track_color,
         (unsigned)update_interval_s);
@@ -70,6 +81,58 @@ color_t display_settings_track_color(void)
 uint16_t display_settings_update_interval(void)
 {
     return update_interval_s;
+}
+
+/** The closer zoom level of the map screen, shown first */
+uint8_t display_settings_zoom_near(void)
+{
+    return zoom_near;
+}
+
+/** The wider zoom level of the map screen, shown after the button */
+uint8_t display_settings_zoom_far(void)
+{
+    return zoom_far;
+}
+
+blep_zoom_t display_settings_zoom_get(void)
+{
+    blep_zoom_t zoom = { .near_level = zoom_near, .far_level = zoom_far };
+    return zoom;
+}
+
+/**
+ * Take over new zoom levels, store them and redraw the screen. The vector maps are drawn at any level, so the map
+ * screen can use them right away. The tile images of the SD card have to exist for both levels.
+ *
+ * @return false if the levels are not valid
+ */
+bool display_settings_zoom_set(const blep_zoom_t* zoom)
+{
+    if (!blep_zoom_valid(zoom->near_level, zoom->far_level))
+        return false;
+    if (zoom->near_level == zoom_near && zoom->far_level == zoom_far)
+        return true;
+
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
+    if (err == ESP_OK) {
+        err = nvs_set_u8(nvs, NVS_KEY_ZOOM_NEAR, zoom->near_level);
+        if (err == ESP_OK)
+            err = nvs_set_u8(nvs, NVS_KEY_ZOOM_FAR, zoom->far_level);
+        if (err == ESP_OK)
+            err = nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+    if (err != ESP_OK)
+        ESP_LOGE(TAG, "can not store zoom levels: %s", esp_err_to_name(err));
+
+    // the new levels are used even if they could not be stored, until the next restart
+    zoom_near = zoom->near_level;
+    zoom_far = zoom->far_level;
+    ESP_LOGI(TAG, "zoom levels %u and %u", (unsigned)zoom_near, (unsigned)zoom_far);
+    trigger_rendering();
+    return true;
 }
 
 blep_settings_t display_settings_get(void)

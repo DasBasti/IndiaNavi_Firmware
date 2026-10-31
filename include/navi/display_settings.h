@@ -20,12 +20,18 @@ static inline bool display_settings_show_track(void) { return true; }
 static inline bool display_settings_show_height_graph(void) { return true; }
 static inline color_t display_settings_track_color(void) { return (color_t)BLEP_TRACK_COLOR_DEFAULT; }
 static inline uint16_t display_settings_update_interval(void) { return BLEP_UPDATE_INTERVAL_DEFAULT_S; }
+uint8_t display_settings_zoom_near(void);
+uint8_t display_settings_zoom_far(void);
 #else
 void display_settings_init(void);
 bool display_settings_show_track(void);
 bool display_settings_show_height_graph(void);
 color_t display_settings_track_color(void);
 uint16_t display_settings_update_interval(void);
+uint8_t display_settings_zoom_near(void);
+uint8_t display_settings_zoom_far(void);
+blep_zoom_t display_settings_zoom_get(void);
+bool display_settings_zoom_set(const blep_zoom_t* zoom);
 blep_settings_t display_settings_get(void);
 bool display_settings_set(const blep_settings_t* settings);
 #endif

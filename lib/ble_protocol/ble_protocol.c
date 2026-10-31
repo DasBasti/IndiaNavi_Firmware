@@ -231,6 +231,61 @@ void blep_settings_encode(uint8_t* out, const blep_settings_t* settings)
     put_u16(out + 2, settings->update_interval_s);
 }
 
+/* ---- Zoom levels of the map screen ---- */
+
+int blep_zoom_valid(uint8_t near_level, uint8_t far_level)
+{
+    return near_level >= BLEP_ZOOM_MIN && near_level <= BLEP_ZOOM_MAX && far_level >= BLEP_ZOOM_MIN
+        && far_level < near_level;
+}
+
+blep_err_t blep_zoom_decode(const uint8_t* in, size_t len, blep_zoom_t* zoom)
+{
+    if (!in || !zoom || len != BLEP_ZOOM_SIZE)
+        return BLEP_ERR_LENGTH;
+    if (!blep_zoom_valid(in[0], in[1]))
+        return BLEP_ERR_RANGE;
+    zoom->near_level = in[0];
+    zoom->far_level = in[1];
+    return BLEP_OK;
+}
+
+void blep_zoom_encode(uint8_t* out, const blep_zoom_t* zoom)
+{
+    out[0] = zoom->near_level;
+    out[1] = zoom->far_level;
+}
+
+uint16_t blep_scale_bar(uint8_t zoom, double latitude, uint32_t* meters)
+{
+    static const uint32_t steps[] = { 1, 2, 5 };
+    if (latitude < -85.0 || latitude > 85.0 || zoom > 22)
+        return 0;
+    const double equator = 40075016.686;
+    double meters_per_pixel = equator * cos(latitude * M_PI / 180.0) / (256.0 * (double)(1u << zoom));
+    uint32_t best = 0;
+    for (uint32_t decade = 1; decade <= 1000000; decade *= 10) {
+        for (size_t i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
+            uint32_t candidate = steps[i] * decade;
+            if (candidate / meters_per_pixel <= BLEP_SCALE_MAX_WIDTH)
+                best = candidate;
+        }
+    }
+    if (!best)
+        return 0;
+    if (meters)
+        *meters = best;
+    return (uint16_t)(best / meters_per_pixel + 0.5);
+}
+
+void blep_scale_text(char* out, size_t size, uint32_t meters)
+{
+    if (meters >= 1000)
+        snprintf(out, size, "%ukm", (unsigned)(meters / 1000));
+    else
+        snprintf(out, size, "%um", (unsigned)meters);
+}
+
 /* ---- Device control ---- */
 
 blep_err_t blep_device_control_decode(const uint8_t* in, size_t len, uint8_t* command)
